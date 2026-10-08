@@ -1,0 +1,44 @@
+{
+  "cli": {
+    "version": ">= 14.0.0",
+    "promptToSaveCredentialsIfAuthenticated": false
+  },
+  "build": {
+    "base": {
+      "node": "20.18.0",
+      "cache": {
+        "disabled": false,
+        "key": "v1",
+        "customPaths": ["node_modules"]
+      }
+    },
+    "development": {
+      "extends": "base",
+      "developmentClient": true,
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "development",
+        "NODE_ENV": "development"
+      }
+    },
+    "preview": {
+      "extends": "base",
+      "distribution": "internal",
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "preview",
+        "NODE_ENV": "production"
+      }
+    },
+    "production": {
+      "extends": "base",
+      "autoIncrement": true,
+      "env": {
+        "EXPO_PUBLIC_APP_ENV": "production",
+        "NODE_ENV": "production"
+      }
+    }
+  },
+  "submit": {
+    "production": {}
+  }
+}

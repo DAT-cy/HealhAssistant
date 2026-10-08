@@ -1,0 +1,8 @@
+spring:
+  profiles:
+    active: dev
+
+gemini:
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-1.5-flash}
+  timeout: ${GEMINI_TIMEOUT:30s}

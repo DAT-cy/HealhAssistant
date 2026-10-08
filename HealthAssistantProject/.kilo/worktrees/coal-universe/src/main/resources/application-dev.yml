@@ -1,0 +1,26 @@
+server:
+  port: 8080
+
+spring:
+  datasource:
+    url: jdbc:mysql://14.225.212.226:3306/health_assistant?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
+    username: root
+    password: Tuantik2202
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+    open-in-view: false
+mybatis:
+  mapper-locations: classpath:mapper/*.xml
+  type-aliases-package: com.example.base_springboot.entity
+  configuration:
+    map-underscore-to-camel-case: true
+
+jwt:
+  secret: your-secret-key-here-must-be-at-least-32-characters-long
+  expiration: 86400000 

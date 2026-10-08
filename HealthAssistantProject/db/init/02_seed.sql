@@ -1,0 +1,24 @@
+-- Dữ liệu mẫu.
+--
+-- Bảng `tbl_users` CỐ TÝ KHÔNG được seed ở đây.
+--
+-- Lý do: cột `password` lưu BCrypt hash do `BCryptPasswordEncoder` sinh ra.
+-- Nếu chèn sẵn một hash không đúng, đăng nhập sẽ luôn trả về
+-- `AUTH-ERR-408 WRONG PASSWORD`, và rất dễ tưởng là bug API.
+--
+-- App đã tự tạo sẵn tài khoản khi khởi động, không cần thao tác tay.
+-- Xem `health_assistant.module.users.service.impl.UserServiceImpl#initAdminUser`,
+-- được gọi bởi `HealthAssistantApplication#run`.
+--
+-- Tài khoản được tạo tự động (chỉ khi bảng còn trống):
+--   username: admin / password: admin   -> ROLE_ADMIN
+--   username: user  / password: user    -> ROLE_USER
+--
+-- Muốn thêm user khác thì dùng API, không sửa file này:
+--   POST /api/v1/auth/signup
+--   body: { "email": "<email@gmail.com>", "password": "<password>" }
+--   Lưu ý: backend chỉ chấp nhận email Gmail.
+--
+-- Muốn đổi mật khẩu mặc định, xóa phần `initAdminUser()` trong code.
+
+SELECT 'Schema ready. Tai khoan mac dinh: admin/admin (ADMIN), user/user (USER).' AS message;

@@ -1,0 +1,17 @@
+export const setting = {
+  title: 'React Native Template',
+  copyright: 'hoanghieupro',
+  footerCopyright: true,
+  progressBar: true,
+  keepAliveMaxNum: 99,
+  routerMode: 'history',
+  routesWhiteList: ['/login', '/register', '/404', '/'],
+  tokenName: 'token',
+  tokenTableName: 'token',
+  storage: 'localStorage',
+  recordRoute: true,
+  i18n: 'vi',
+  loginInterception: true,
+  apiLoading: true,
+  debounce: [''],
+};
