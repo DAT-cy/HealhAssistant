@@ -1,16 +1,16 @@
 # Tiến độ Dự án Health Assistant
 
-Ngày cập nhật: 2026-10-08
+Ngày cập nhật: 2026-10-12
 
 ## Trạng thái tổng quan
 
 | Hạng mục | Trạng thái |
 |---|---|
-| Backend Spring Boot | ✅ Đã có baseline Auth/Profile/Posture/Roadmap/DailyPlan/Progress/Coach/Workout; chưa compile được (thiếu JDK runtime) |
-| App React Native (`heathreact/`) | ✅ 8 màn hình đã nối API baseline; Workout vẫn dùng landmark demo |
+| Backend Spring Boot | ✅ Baseline Auth/Profile/Posture/Roadmap/DailyPlan/Progress/Coach/Workout; Gemini client chung, roadmap/chat/daily-plan structured output + fallback; chưa compile được (thiếu JDK runtime) |
+| App React Native (`heathreact/`) | ✅ Expo SDK 57 / React Native 0.86.3; 8 màn hình API baseline; Login/signup đã nối API, native dùng SecureStore và Web dùng token trong phiên; Profile tải hồ sơ + consent; DailyPlan lưu trạng thái; Workout vẫn dùng landmark demo |
 | Camera + MediaPipe | Chưa tích hợp (đang gửi landmark demo) |
 | Profile / DailyPlan / Progress / Coach API | ✅ Đã có baseline API + frontend; còn nâng cấp AI/trend/chat history |
-| Build & test | Chưa chạy được do máy thiếu `java`, `node`, `npm` |
+| Build & test | TypeScript, Expo Doctor (21/21), Expo dependency check và lint các file đã sửa đều pass; backend test chưa chạy do thiếu JDK/JAVA_HOME; full lint còn lỗi tồn tại ở các file legacy/UI không thuộc lần nâng SDK |
 | Docker MySQL | ✅ Đã thêm `docker-compose.yml` + schema/seed SQL; chưa chạy container trong môi trường hiện tại |
 
 ## Phase 1 — Nền tảng (phần đã làm)
@@ -73,8 +73,10 @@ Ngày cập nhật: 2026-10-08
 ## Phase 4 — Dữ liệu nghiệp vụ (đã có baseline)
 
 - ✅ `user_profiles`, `posture_reports`, `roadmaps`, `workout_sessions`.
-- ✅ Profile, posture history, roadmap history, daily plan, progress summary, coach safety chat.
-- ⏳ Chưa có daily plan AI, progress trend chi tiết, coach Gemini context/history.
+- ✅ `daily_plans` lưu duy nhất mỗi user/ngày; `/daily-plans/today` đọc/tạo kế hoạch, `/daily-plans/today/generate` gọi Gemini có consent, schema validation và safety fallback.
+- ✅ Profile, posture history, roadmap history, daily plan baseline, progress summary, coach safety chat.
+- ✅ Roadmap, coach chat và daily plan có structured Gemini client trong source; chưa chạy API thật do chưa có key/JDK.
+- ⏳ Chưa có chat history/RAG và progress trend chi tiết. Schema mới cần được kiểm tra khi khởi động trên DB hiện hữu; Hibernate `ddl-auto:update` có thể tạo bảng, còn SQL init chỉ chạy lần đầu tạo volume.
 
 ## Phase 5 — Productization
 
@@ -86,10 +88,43 @@ Chưa bắt đầu.
 2. Tích hợp MediaPipe Pose cho `Scan` và `Workout` (thay demo landmark).
 3. Thêm prompt hỏi mức đau + nút dừng bài luôn thấy trên màn Workout.
 4. TTS `vi-VN` cho feedback form.
-5. Nâng cấp Daily Plan bằng Gemini và lưu kế hoạch theo ngày.
+5. Cấu hình Gemini key, chạy test và kiểm chứng roadmap/chat/daily plan thật cùng timeout, quota, JSON sai và safety fallback.
 6. Nâng cấp Progress trend và Coach Chat context/history.
 7. Onboarding flags (`profileComplete`, `hasPostureReport`, `hasRoadmap`, `hasTodayPlan`) để dashboard định hướng.
 8. Cache offline cho roadmap/daily plan (SQLite / AsyncStorage).
+
+## Cập nhật triển khai ngày 2026-10-12
+
+- `daily_plans`: thêm entity/repository, lưu JSON activities/safety notes và unique key `(user_id, plan_date)`.
+- Gemini client chung gửi key qua header, áp timeout, JSON schema và không ghi prompt/key vào log.
+- Roadmap/chat/daily plan được validate trước khi trả/lưu; có fallback và safety gate khi profile báo vùng đau.
+- `GET /api/v1/daily-plans/today` gọi AI lần đầu khi có consent/key; `POST /api/v1/daily-plans/today/generate` yêu cầu tạo lại.
+- Mobile DailyPlan phân biệt kế hoạch AI, mẫu, fallback và safety-rule; có nút tạo bằng AI.
+- Unit test nguồn cho schema/safety/fallback; chưa chạy được vì thiếu JDK/JAVA_HOME.
+- Chưa chạy test/build: môi trường hiện thiếu JDK và dependencies npm. Cần kiểm tra cùng MySQL mới và database/volume đã tồn tại.
+
+## Nâng cấp Expo SDK 57 ngày 2026-10-12
+
+- Đồng bộ Expo 57.0.27, React Native 0.86.3, React 19.2.3 và native packages bằng `expo install --fix`.
+- Cập nhật EAS build Node lên 22.13.0; sửa app config không còn hợp lệ và thêm `@types/node` cho Expo public env.
+- `expo install --check`, `expo-doctor` (21/21), `tsc --noEmit`, lint các file thay đổi: pass.
+- Metro chạy chế độ LAN tại `exp://192.168.1.3:8081`; `.env` local trỏ API backend tới `http://192.168.1.3:8080` cho thiết bị cùng Wi-Fi.
+- Đã gọi thử `GET /api/v1/progress/summary` qua LAN và nhận HTTP 401 như dự kiến khi chưa có JWT, xác nhận backend reachable; chưa xác minh đăng nhập trên app.
+- Expo Go iOS cần tài khoản đăng nhập trên cả app và Expo CLI theo phiên bản hiện tại.
+
+## AI backend ngày 2026-10-12
+
+- Thêm `GeminiClient` dùng `x-goog-api-key`, timeout, JSON schema và không đưa key vào URL/log.
+- Roadmap yêu cầu đúng số tuần, kiểm tra field/độ dài và fallback an toàn.
+- Coach chat dùng profile context tối thiểu khi consent còn hiệu lực; safety rule chặn nội dung đau/khó thở trước khi gọi AI.
+- Daily plan có endpoint `POST /api/v1/daily-plans/today/generate`, schema validation, lưu theo user/ngày; hồ sơ có vùng đau sẽ nhận safety plan không gọi AI.
+- Model mặc định `gemini-3.8-flash`. Đặt key trong `HealthAssistantProject/.env` từ `.env.example`; `.env` bị gitignore.
+- Unit test nguồn đã thêm cho validation/safety/fallback nhưng chưa chạy: máy thiếu JDK/JAVA_HOME. Chưa gọi Gemini thật vì chưa có key.
+- Login API và CORS đã kiểm tra bằng tài khoản demo: HTTP 200; Web SecureStore shim không hỗ trợ nên token chuyển sang memory trong phiên, native vẫn dùng SecureStore.
+- Đã nối `POST /auth/signup` vào màn Login; yêu cầu email Gmail theo validation hiện hữu ở backend và tự đăng nhập sau khi đăng ký.
+- Cloudinary signed upload cho ảnh đại diện: app chọn JPEG/PNG, backend kiểm tra MIME/kích thước/pixel rồi upload với credential server-side; ảnh URL lưu vào user profile. Không upload ảnh scan/video.
+- `.env` local chứa cấu hình Cloudinary và được gitignore. API Secret đã từng được gửi trong chat; cần rotate, cập nhật secret mới vào file local rồi restart backend trước khi test upload thật.
+- Đã kiểm tra `npx expo export --platform web`: Web bundle export thành công.
 
 ## Docker MySQL — đã hoàn thành
 
@@ -131,3 +166,12 @@ cd "D:\Do An Heath React\heathreact"
 npx tsc --noEmit
 npm start
 ```
+
+## Roadmap preview, activation va Home calendar - 2026-10-12
+
+- Home khong con hien workout/progress mock cho tai khoan moi; khi chua co lộ trình active, hien empty state va CTA den Profile/Roadmap.
+- Profile nhan restrictions va pain areas cung muc tieu, activity level, tuoi, chieu cao, can nang; consent va chieu cao/can nang duoc yeu cau truoc khi preview.
+- `POST /api/v1/coach/roadmap/preview` tra ve 3 phuong an AI/fallback, khong ghi active roadmap. `POST /api/v1/coach/roadmap/activate` chi luu lua chon sau khi xac nhan; roadmap cu duoc archive.
+- `GET /api/v1/coach/roadmaps/active` duoc Home dung de hien lich tung ngay theo thoi luong da chon; neu chua co du lieu, Home hien trang rong thay vi so lieu gia.
+- Anh Cloudinary hien tai la avatar, khong duoc gui Gemini de suy doan suc khoe. AI dung cac so do va thong tin co cau truc; posture scan bang camera la luong rieng.
+- Mobile `tsc --noEmit`, lint cac file thay doi, va Expo web export deu pass. Backend tests chua chay duoc tren may hien tai vi chua cai JDK/JAVA_HOME.

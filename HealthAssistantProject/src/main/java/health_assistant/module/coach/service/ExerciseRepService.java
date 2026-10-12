@@ -19,12 +19,12 @@ public class ExerciseRepService {
     private static final double LOW_VISIBILITY = 0.5;
     private final ConcurrentHashMap<String, SessionState> sessions = new ConcurrentHashMap<>();
 
-    public WorkoutFeedback track(String exercise, double jointAngle, double visibility, String sessionId) {
+    public WorkoutFeedback track(Long userId, String exercise, double jointAngle, double visibility, String sessionId) {
         String normalized = exercise.toLowerCase(Locale.ROOT).replace("_", "-");
         if (!"squat".equals(normalized) && !"squats".equals(normalized)) {
             throw new IllegalArgumentException("Bài tập này chưa được hỗ trợ: " + exercise);
         }
-        return trackSquat(jointAngle, visibility, sessionId);
+        return trackSquat(jointAngle, visibility, sessionKey(userId, sessionId));
     }
 
     private WorkoutFeedback trackSquat(double angle, double visibility, String sessionId) {
@@ -64,9 +64,15 @@ public class ExerciseRepService {
         private int repetitionCount;
     }
 
-    public int end(String sessionId) {
-        if (sessionId == null || sessionId.isBlank()) return 0;
-        SessionState state = sessions.remove(sessionId);
+    public int end(Long userId, String sessionId) {
+        String key = sessionKey(userId, sessionId);
+        if (key == null) return 0;
+        SessionState state = sessions.remove(key);
         return state == null ? 0 : state.repetitionCount;
+    }
+
+    private String sessionKey(Long userId, String sessionId) {
+        if (sessionId == null || sessionId.isBlank()) return null;
+        return userId == null ? sessionId : userId + ":" + sessionId;
     }
 }

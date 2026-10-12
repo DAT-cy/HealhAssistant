@@ -1,44 +1,261 @@
-import { Ionicons } from '@expo/vector-icons';
-import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { useFocusEffect } from '@react-navigation/native';
+import {
+  ActivityIndicator,
+  Pressable,
+  RefreshControl,
+  ScrollView,
+  StatusBar,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { navigationService } from '@/routes';
+import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+
 import { useUserStore } from '@/stores/user';
+import { coachService, ActiveRoadmap } from '@/api/services/coach.service';
 
-const C = { bg: '#0B0F14', surface: '#131A22', raised: '#1B242E', border: '#2A3542', text: '#F2F5F8', muted: '#9AA7B4', green: '#22C55E', blue: '#38BDF8', orange: '#F59E0B' };
-
-function Stat({ icon, value, label, color }: { icon: keyof typeof Ionicons.glyphMap; value: string; label: string; color: string }) {
-  return <View style={styles.stat}><View style={[styles.statIcon, { backgroundColor: `${color}20` }]}><Ionicons name={icon} size={18} color={color} /></View><Text style={styles.statValue}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
-}
-
-function Action({ icon, title, detail, color, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; detail: string; color: string; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={({ pressed }) => [styles.action, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={title}><View style={[styles.actionIcon, { backgroundColor: `${color}20` }]}><Ionicons name={icon} size={23} color={color} /></View><View style={styles.actionCopy}><Text style={styles.actionTitle}>{title}</Text><Text style={styles.actionDetail}>{detail}</Text></View><Ionicons name="chevron-forward" size={20} color={C.muted} /></Pressable>;
-}
+import HomeHeader from '../components/HomeHeader';
+import HomeTabBar from '../components/HomeTabBar';
+import { navigationService } from '@/routes';
 
 export default function HomePage() {
   const insets = useSafeAreaInsets();
+  const { width } = useWindowDimensions();
+  const isTabletOrDesktop = width >= 768;
+
   const username = useUserStore((s) => s.username);
   const logout = useUserStore((s) => s.logout);
-  const firstName = username?.split(' ')[0] || 'bạn';
+
+  // States
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [activeRoadmap, setActiveRoadmap] = useState<ActiveRoadmap | null>(null);
+
+  const triggerHaptic = (type: 'light' | 'medium' | 'success' | 'error' = 'light') => {
+    try {
+      if (type === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      else if (type === 'medium') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      else if (type === 'success') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      else if (type === 'error') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+    } catch {
+      // Ignore fallback
+    }
+  };
+
+  // Nạp dữ liệu đồng bộ với backend nếu có
+  const loadData = useCallback(async () => {
+    try {
+      setErrorMessage(null);
+
+      const plan = await coachService.active();
+      setActiveRoadmap(plan);
+    } catch (err: unknown) {
+      setActiveRoadmap(null);
+      if (!(err instanceof Error && 'status' in err && (err as { status?: number }).status === 404)) {
+        setErrorMessage('Không thể tải lộ trình. Kéo xuống để thử lại.');
+      }
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  useFocusEffect(useCallback(() => {
+    void loadData();
+  }, [loadData]));
+
+  const onRefresh = useCallback(() => {
+    setRefreshing(true);
+    triggerHaptic('light');
+    void loadData();
+  }, [loadData]);
+
+  // Bắt đầu tập luyện
+  const handleStartTodayWorkout = () => {
+    triggerHaptic('medium');
+    navigationService.navigate('DailyPlan');
+  };
+
+  // Chọn nhóm cơ
+  const weeklyPlan = activeRoadmap ? parseList(activeRoadmap.weeklyPlan) : [];
+  const startedAt = activeRoadmap?.startDate ? new Date(`${activeRoadmap.startDate}T00:00:00`) : new Date();
+  const today = new Date();
+  const elapsedDays = Math.max(0, Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - startedAt.getTime()) / 86400000));
+  const totalDays = (activeRoadmap?.durationWeeks ?? 0) * 7;
+
+  // Điều hướng Bottom Tab
+  const handleSelectTab = (tab: 'Home' | 'Workout' | 'Progress' | 'Profile') => {
+    if (tab === 'Home') return;
+    if (tab === 'Workout') navigationService.navigate('Workout');
+    else if (tab === 'Progress') navigationService.navigate('Progress');
+    else if (tab === 'Profile') navigationService.navigate('Profile');
+  };
 
   return (
-    <View style={[styles.screen, { paddingTop: insets.top }]}>
-      <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + 88 }}>
-        <View style={styles.header}><View><Text style={styles.eyebrow}>HEALTH ASSISTANT</Text><Text style={styles.greeting}>Chào {firstName} 👋</Text><Text style={styles.subheading}>Sẵn sàng cho một ngày khỏe mạnh?</Text></View><Pressable onPress={() => void logout()} style={styles.avatar} accessibilityRole="button" accessibilityLabel="Đăng xuất"><Text style={styles.avatarText}>{firstName.charAt(0).toUpperCase()}</Text></Pressable></View>
-        <View style={styles.streak}><View style={styles.streakRow}><View style={styles.fire}><Ionicons name="flame" size={22} color={C.orange} /></View><View><Text style={styles.mutedSmall}>Chuỗi tập luyện</Text><Text style={styles.streakValue}>3 ngày liên tiếp</Text></View></View><View style={styles.track}><View style={styles.fill} /></View><Text style={styles.mutedSmall}>2 / 4 mục tiêu hôm nay</Text></View>
-        <Text style={styles.sectionTitle}>Tổng quan tuần này</Text><View style={styles.statsRow}><Stat icon="fitness" value="4" label="Buổi tập" color={C.green} /><Stat icon="time" value="86" label="Phút tập" color={C.blue} /><Stat icon="trending-up" value="82%" label="Tiến độ" color={C.orange} /></View>
-        <View style={styles.sectionHeader}><Text style={styles.sectionTitle}>Lối tắt</Text><Pressable onPress={() => navigationService.navigate('Roadmap')}><Text style={styles.link}>Xem kế hoạch</Text></Pressable></View>
-        <Action icon="person-outline" title="Hồ sơ của bạn" detail="Cập nhật mục tiêu và thể trạng" color="#A78BFA" onPress={() => navigationService.navigate('Profile')} />
-        <Action icon="scan-outline" title="Quét tư thế" detail="Kiểm tra tư thế trong 60 giây" color={C.blue} onPress={() => navigationService.navigate('Scan')} />
-        <Action icon="barbell-outline" title="Bài tập hôm nay" detail="Tập trung vào sức mạnh và độ linh hoạt" color={C.green} onPress={() => navigationService.navigate('DailyPlan')} />
-        <Action icon="chatbubble-ellipses-outline" title="Hỏi huấn luyện viên AI" detail="Nhận lời khuyên phù hợp với bạn" color="#A78BFA" onPress={() => navigationService.navigate('Coach')} />
-        <View style={styles.safety}><Ionicons name="shield-checkmark-outline" size={18} color={C.green} /><Text style={styles.safetyText}>Công cụ hỗ trợ tập luyện, không thay thế chẩn đoán hoặc điều trị y khoa.</Text></View>
+    <View style={styles.screen}>
+      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            tintColor="#22C55E"
+            colors={['#22C55E']}
+          />
+        }
+        contentContainerStyle={[
+          styles.scrollContainer,
+          {
+            paddingTop: insets.top + 8,
+            paddingBottom: insets.bottom + 75,
+          },
+        ]}
+      >
+        <View style={[styles.mainWrapper, isTabletOrDesktop && styles.tabletDesktopWrapper]}>
+          {/* ============================================================ */}
+          {/* 1. HEADER: LỜI CHÀO & AVATAR DROPDOWN MENU                   */}
+          {/* ============================================================ */}
+          <HomeHeader
+            username={username}
+            onLogout={async () => {
+              await logout();
+            }}
+            topInset={insets.top}
+          />
+
+          {/* Loading or Error states */}
+          {loading && (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color="#22C55E" />
+              <Text style={styles.loadingText}>Đang cập nhật dữ liệu...</Text>
+            </View>
+          )}
+
+          {Boolean(errorMessage) && (
+            <View style={styles.errorBox}>
+              <Ionicons name="alert-circle" size={18} color="#EF4444" />
+              <Text style={styles.errorText}>{errorMessage}</Text>
+              <Pressable onPress={() => void loadData()} style={styles.retryBtn}>
+                <Text style={styles.retryBtnText}>Thử lại</Text>
+              </Pressable>
+            </View>
+          )}
+
+          {!loading && !errorMessage && !activeRoadmap ? <View style={styles.emptyState}>
+            <View style={styles.emptyIcon}><Ionicons name="calendar-outline" size={28} color="#16A34A" /></View>
+            <Text style={styles.emptyTitle}>Chưa có lộ trình đang hoạt động</Text>
+            <Text style={styles.emptyCopy}>Hoàn thiện hồ sơ, xem trước các phương án và chọn kế hoạch phù hợp. Lịch tập sẽ xuất hiện tại đây sau khi xác nhận.</Text>
+            <Pressable accessibilityRole="button" onPress={() => navigationService.navigate('Roadmap')} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Tạo lộ trình</Text></Pressable>
+            <Pressable accessibilityRole="button" onPress={() => navigationService.navigate('Profile')} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cập nhật hồ sơ</Text></Pressable>
+          </View> : null}
+          {!loading && activeRoadmap ? <View style={styles.planArea}>
+            <View style={styles.planHeading}><View style={{ flex: 1 }}><Text style={styles.kicker}>ĐANG THỰC HIỆN</Text><Text style={styles.planTitle}>{activeRoadmap.title}</Text><Text style={styles.planSubtitle}>Ngày {Math.min(elapsedDays + 1, totalDays)} / {totalDays} · Bắt đầu {startedAt.toLocaleDateString('vi-VN')}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Xem lộ trình" onPress={() => navigationService.navigate('Roadmap')}><Ionicons name="open-outline" size={22} color="#16A34A" /></Pressable></View>
+            <Pressable style={styles.todayRow} onPress={handleStartTodayWorkout}><View style={{ flex: 1 }}><Text style={styles.kicker}>HÔM NAY</Text><Text style={styles.todayText}>{weeklyPlan[Math.min(Math.floor(elapsedDays / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Ngày phục hồi hoặc vận động nhẹ'}</Text></View><Ionicons name="play-circle" size={30} color="#16A34A" /></Pressable>
+            <Text style={styles.sectionTitle}>Lịch lộ trình</Text>
+            {Array.from({ length: totalDays }, (_, index) => {
+              const date = new Date(startedAt); date.setDate(startedAt.getDate() + index);
+              const isToday = index === elapsedDays;
+              const isRestDay = index % 7 > 4;
+              return <Pressable key={index} disabled={!isToday || isRestDay} onPress={handleStartTodayWorkout} style={[styles.dayRow, isToday && styles.dayRowToday]}><Text style={styles.dayNumber}>{String(index + 1).padStart(2, '0')}</Text><View style={{ flex: 1 }}><Text style={styles.dayLabel}>{date.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'short' })}{isToday ? ' · Hôm nay' : ''}</Text><Text style={styles.dayFocus}>{isRestDay ? 'Nghỉ và phục hồi' : weeklyPlan[Math.min(Math.floor(index / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Buổi vận động nhẹ'}</Text></View><Ionicons name={index < elapsedDays ? 'checkmark-circle' : isRestDay ? 'bed-outline' : 'ellipse-outline'} size={19} color={index < elapsedDays ? '#16A34A' : '#94A3B8'} /></Pressable>;
+            })}
+          </View> : null}
+        </View>
       </ScrollView>
-      <View style={[styles.tabs, { paddingBottom: Math.max(insets.bottom, 10) }]}>{[['home', 'Trang chủ', true, 'Home'], ['calendar-outline', 'Kế hoạch', false, 'Roadmap'], ['analytics-outline', 'Tiến độ', false, 'Progress'], ['sparkles-outline', 'Trợ lý', false, 'Coach']].map(([icon, label, active, route]) => <Pressable key={label as string} style={styles.tab} onPress={() => !active && navigationService.navigate(route as 'Roadmap' | 'Progress' | 'Coach')} accessibilityRole="button" accessibilityLabel={label as string}><Ionicons name={icon as keyof typeof Ionicons.glyphMap} size={21} color={active ? C.green : C.muted} /><Text style={[styles.tabText, active && styles.tabActive]}>{label}</Text></Pressable>)}</View>
+
+      {/* ============================================================ */}
+      {/* 6. THANH ĐIỀU HƯỚNG CỐ ĐỊNH PHÍA DƯỚI (BOTTOM BAR)           */}
+      {/* ============================================================ */}
+      <HomeTabBar
+        bottomInset={insets.bottom}
+        activeTab="Home"
+        onSelectTab={handleSelectTab}
+      />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: C.bg }, header: { padding: 20, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }, eyebrow: { color: C.green, fontSize: 11, fontWeight: '800', letterSpacing: 1.5, marginBottom: 8 }, greeting: { color: C.text, fontSize: 26, fontWeight: '800' }, subheading: { color: C.muted, fontSize: 14, marginTop: 5 }, avatar: { width: 46, height: 46, borderRadius: 23, backgroundColor: C.green, alignItems: 'center', justifyContent: 'center' }, avatarText: { color: C.bg, fontSize: 18, fontWeight: '800' }, streak: { marginHorizontal: 20, padding: 18, borderRadius: 16, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border }, streakRow: { flexDirection: 'row', alignItems: 'center', gap: 12 }, fire: { width: 42, height: 42, borderRadius: 13, backgroundColor: '#F59E0B20', alignItems: 'center', justifyContent: 'center' }, mutedSmall: { color: C.muted, fontSize: 12 }, streakValue: { color: C.text, fontSize: 16, fontWeight: '700', marginTop: 3 }, track: { height: 7, backgroundColor: C.raised, borderRadius: 4, marginTop: 18, marginBottom: 8 }, fill: { height: 7, width: '50%', backgroundColor: C.green, borderRadius: 4 }, sectionTitle: { color: C.text, fontSize: 18, fontWeight: '700', marginLeft: 20, marginTop: 28, marginBottom: 13 }, statsRow: { flexDirection: 'row', gap: 10, paddingHorizontal: 20 }, stat: { flex: 1, padding: 13, backgroundColor: C.surface, borderRadius: 14, borderWidth: 1, borderColor: C.border }, statIcon: { width: 32, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 12 }, statValue: { color: C.text, fontSize: 21, fontWeight: '800' }, statLabel: { color: C.muted, fontSize: 11, marginTop: 3 }, sectionHeader: { marginTop: 3, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingRight: 20 }, link: { color: C.green, fontSize: 13, fontWeight: '700' }, action: { marginHorizontal: 20, marginBottom: 10, padding: 14, borderRadius: 14, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, flexDirection: 'row', alignItems: 'center', gap: 13 }, actionIcon: { width: 46, height: 46, borderRadius: 13, alignItems: 'center', justifyContent: 'center' }, actionCopy: { flex: 1 }, actionTitle: { color: C.text, fontSize: 15, fontWeight: '700' }, actionDetail: { color: C.muted, fontSize: 12, marginTop: 4 }, pressed: { opacity: 0.7 }, safety: { margin: 8, marginHorizontal: 20, padding: 14, borderRadius: 12, backgroundColor: '#22C55E12', flexDirection: 'row', gap: 9 }, safetyText: { flex: 1, color: '#A7DDB8', fontSize: 11, lineHeight: 17 }, tabs: { position: 'absolute', left: 0, right: 0, bottom: 0, backgroundColor: '#10161D', borderTopWidth: 1, borderTopColor: C.border, flexDirection: 'row', justifyContent: 'space-around', paddingTop: 11 }, tab: { alignItems: 'center', gap: 4, minWidth: 60 }, tabText: { color: C.muted, fontSize: 11 }, tabActive: { color: C.green, fontWeight: '700' },
+  screen: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  scrollContainer: {
+    paddingHorizontal: 16,
+  },
+  mainWrapper: {
+    width: '100%',
+  },
+  tabletDesktopWrapper: {
+    maxWidth: 720,
+    alignSelf: 'center',
+  },
+  loadingContainer: {
+    paddingVertical: 20,
+    alignItems: 'center',
+    gap: 8,
+  },
+  loadingText: {
+    color: '#64748B',
+    fontSize: 13,
+  },
+  errorBox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FEE2E2',
+    borderRadius: 14,
+    padding: 12,
+    marginBottom: 16,
+    gap: 8,
+  },
+  errorText: {
+    flex: 1,
+    color: '#EF4444',
+    fontSize: 12.5,
+  },
+  retryBtn: {
+    backgroundColor: '#EF4444',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  retryBtnText: {
+    color: '#FFFFFF',
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  emptyState: { marginTop: 32, padding: 20, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
+  emptyIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
+  emptyTitle: { color: '#0F172A', fontSize: 20, fontWeight: '800', textAlign: 'center' },
+  emptyCopy: { color: '#64748B', textAlign: 'center', lineHeight: 21, marginTop: 8, marginBottom: 18 },
+  primaryButton: { width: '100%', alignItems: 'center', backgroundColor: '#16A34A', borderRadius: 8, paddingVertical: 13 },
+  primaryButtonText: { color: '#FFFFFF', fontWeight: '800' },
+  secondaryButton: { marginTop: 10, padding: 10 },
+  secondaryButtonText: { color: '#15803D', fontWeight: '700' },
+  planArea: { marginTop: 14 },
+  planHeading: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
+  kicker: { color: '#15803D', fontSize: 11, fontWeight: '800' },
+  planTitle: { color: '#0F172A', fontSize: 21, fontWeight: '800', marginTop: 3 },
+  planSubtitle: { color: '#64748B', marginTop: 5, fontSize: 12 },
+  todayRow: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', marginVertical: 10 },
+  todayText: { color: '#0F172A', fontWeight: '700', lineHeight: 20, marginTop: 5 },
+  sectionTitle: { color: '#0F172A', fontWeight: '800', fontSize: 17, marginTop: 16, marginBottom: 6 },
+  dayRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68, paddingHorizontal: 10, borderBottomWidth: 1, borderColor: '#E2E8F0' },
+  dayRowToday: { backgroundColor: '#F0FDF4' },
+  dayNumber: { width: 34, textAlign: 'center', color: '#64748B', fontWeight: '800' },
+  dayLabel: { color: '#0F172A', fontWeight: '700', textTransform: 'capitalize' },
+  dayFocus: { color: '#64748B', fontSize: 12, marginTop: 3, lineHeight: 17 },
 });
+
+function parseList(value: string): string[] {
+  try { const parsed: unknown = JSON.parse(value); return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []; }
+  catch { return []; }
+}

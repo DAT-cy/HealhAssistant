@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS user_profiles
     weight_kg       DOUBLE       NULL,
     restrictions    VARCHAR(1000) NULL,
     pain_areas      VARCHAR(1000) NULL,
+    avatar_url      VARCHAR(1000) NULL,
+    avatar_public_id VARCHAR(255) NULL,
     consent         BIT(1)       NOT NULL,
     updated_at      TIMESTAMP    NOT NULL,
     PRIMARY KEY (id),
@@ -70,9 +72,12 @@ CREATE TABLE IF NOT EXISTS roadmaps
     user_id      BIGINT       NOT NULL,
     title        VARCHAR(160) NOT NULL,
     overview     VARCHAR(4000) NULL,
-    weekly_plan  VARCHAR(4000) NULL,
+    weekly_plan  VARCHAR(12000) NULL,
     safety_notes VARCHAR(4000) NULL,
     source       VARCHAR(30)  NOT NULL,
+    status       VARCHAR(20)  NOT NULL DEFAULT 'ACTIVE',
+    start_date   DATE         NULL,
+    duration_weeks INT        NULL,
     created_at   TIMESTAMP    NOT NULL,
     PRIMARY KEY (id),
     KEY idx_roadmap_user_created (user_id, created_at)
@@ -87,4 +92,19 @@ CREATE TABLE IF NOT EXISTS workout_sessions
     completed_at TIMESTAMP   NOT NULL,
     PRIMARY KEY (id),
     KEY idx_workout_user_completed (user_id, completed_at)
+) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;
+
+CREATE TABLE IF NOT EXISTS daily_plans
+(
+    id           BIGINT       NOT NULL AUTO_INCREMENT,
+    user_id      BIGINT       NOT NULL,
+    plan_date    DATE         NOT NULL,
+    title        VARCHAR(160) NOT NULL,
+    duration     VARCHAR(40)  NOT NULL,
+    activities   TEXT         NOT NULL,
+    safety_notes TEXT         NOT NULL,
+    source       VARCHAR(40)  NOT NULL,
+    created_at   TIMESTAMP    NOT NULL,
+    PRIMARY KEY (id),
+    UNIQUE KEY uk_daily_plan_user_date (user_id, plan_date)
 ) ENGINE = InnoDB DEFAULT CHARSET = utf8mb4 COLLATE = utf8mb4_unicode_ci;

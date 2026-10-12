@@ -34,7 +34,7 @@ public class WorkoutEngineController {
             @RequestParam(name = "visibility") @Min(0) @Max(1) double visibility,
             @RequestParam(name = "sessionId", required = false) String sessionId) {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE,
-                exerciseRepService.track(exercise, jointAngle, visibility, sessionId)));
+                exerciseRepService.track(SecurityUtils.getCurrentUserId(), exercise, jointAngle, visibility, sessionId)));
     }
 
     @PostMapping("/end")
@@ -44,7 +44,7 @@ public class WorkoutEngineController {
         WorkoutSession session = new WorkoutSession();
         session.setUserId(SecurityUtils.getCurrentUserId());
         session.setExercise(exercise);
-        session.setReps(exerciseRepService.end(sessionId));
+        session.setReps(exerciseRepService.end(SecurityUtils.getCurrentUserId(), sessionId));
         session.setCompletedAt(Instant.now());
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED, sessionRepository.save(session)));
     }

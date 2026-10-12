@@ -34,6 +34,12 @@ public class UserProfile {
     @Column(name = "pain_areas", length = 1000)
     private String painAreas;
 
+    @Column(name = "avatar_url", length = 1000)
+    private String avatarUrl;
+
+    @Column(name = "avatar_public_id", length = 255)
+    private String avatarPublicId;
+
     @Column(nullable = false)
     private boolean consent;
 

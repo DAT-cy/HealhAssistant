@@ -2,7 +2,7 @@ import { ApiEnvelope } from './types';
 import { baseURL } from '@/config/api.config';
 
 const TIMEOUT = 10000;
-const AI_TIMEOUT = 30000;
+const AI_TIMEOUT = 100000;
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string | null, message: string, public validationErrors: Record<string, string> = {}) { super(message); this.name = 'ApiError'; }
@@ -17,7 +17,9 @@ export const apiClient = {
   async request<T>(path: string, init: RequestInit & { ai?: boolean } = {}): Promise<T> {
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), init.ai ? AI_TIMEOUT : TIMEOUT);
-    const headers: Record<string, string> = { 'Content-Type': 'application/json;charset=UTF-8', ...(init.headers as Record<string, string> | undefined) };
+    const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
+    const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
+    if (!isFormData && !headers['Content-Type']) headers['Content-Type'] = 'application/json;charset=UTF-8';
     if (sessionToken) headers.Authorization = `Bearer ${sessionToken}`;
     let response: Response;
     try {

@@ -20,12 +20,18 @@ public class RoadmapRecord {
     private String title;
     @Column(length = 4000)
     private String overview;
-    @Column(length = 4000)
+    @Column(length = 12000)
     private String weeklyPlan;
     @Column(length = 4000)
     private String safetyNotes;
     @Column(nullable = false, length = 30)
     private String source;
+    @Column(length = 20)
+    private String status = "ACTIVE";
+    @Column(name = "start_date")
+    private java.time.LocalDate startDate;
+    @Column(name = "duration_weeks")
+    private Integer durationWeeks;
     @Column(nullable = false)
     private Instant createdAt;
 }

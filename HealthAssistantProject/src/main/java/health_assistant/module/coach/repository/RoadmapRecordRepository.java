@@ -7,5 +7,6 @@ import java.util.List;
 
 public interface RoadmapRecordRepository extends JpaRepository<RoadmapRecord, Long> {
     List<RoadmapRecord> findTop10ByUserIdOrderByCreatedAtDesc(Long userId);
+    java.util.Optional<RoadmapRecord> findFirstByUserIdAndStatusOrderByCreatedAtDesc(Long userId, String status);
     long countByUserId(Long userId);
 }

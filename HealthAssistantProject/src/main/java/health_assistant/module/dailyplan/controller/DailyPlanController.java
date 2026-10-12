@@ -9,6 +9,7 @@ import health_assistant.utils.ClientUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -21,5 +22,10 @@ public class DailyPlanController {
     @GetMapping("/today")
     public ResponseEntity<DefaultRes<DailyPlanResponse>> today() {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE, dailyPlanService.today()));
+    }
+
+    @PostMapping("/today/generate")
+    public ResponseEntity<DefaultRes<DailyPlanResponse>> generateToday() {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED, dailyPlanService.generateToday()));
     }
 }

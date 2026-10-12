@@ -46,11 +46,13 @@ cd heathreact
 npm install
 ```
 
-Cấu hình backend URL trong file `.env` hoặc `app.config.js`:
+Cấu hình backend URL trong file `.env` (có thể sao chép từ `.env.example`):
 
 ```env
 EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080
 ```
+
+Giá trị trên dành cho Android Emulator. Với điện thoại thật, thay `10.0.2.2` bằng IPv4 LAN của máy đang chạy backend; với iOS Simulator có thể dùng `localhost`. Chỉ nhập origin và port, không thêm `/api/v1` vì app tự nối path đó. Sau khi sửa `.env`, khởi động lại Expo để nạp cấu hình mới.
 
 Chạy Expo:
 

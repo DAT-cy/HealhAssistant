@@ -8,6 +8,7 @@ import DailyPlanPage from '@/features/Health/pages/DailyPlan';
 import WorkoutPage from '@/features/Health/pages/Workout';
 import ProgressPage from '@/features/Health/pages/Progress';
 import CoachPage from '@/features/Health/pages/Coach';
+import { navigationRef, navigationService } from '@/routes';
 import { useUserStore } from '@/stores/user';
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
@@ -53,8 +54,25 @@ function IndexScreen() {
 // Root navigator
 // ============================================================
 export default function RootNavigator() {
+  const token = useUserStore((s) => s.token);
+  const initialized = useUserStore((s) => s.initialized);
+  const init = useUserStore((s) => s.init);
+  const prevTokenRef = React.useRef(token);
+
+  React.useEffect(() => {
+    init().catch(() => {});
+  }, [init]);
+
+  // Phản ứng lập tức khi đăng xuất (chuyển đổi từ có token sang mất token)
+  React.useEffect(() => {
+    if (initialized && prevTokenRef.current && !token) {
+      navigationService.replace('Login');
+    }
+    prevTokenRef.current = token;
+  }, [initialized, token]);
+
   return (
-    <NavigationContainer>
+    <NavigationContainer ref={navigationRef}>
       <Stack.Navigator
         initialRouteName="Index"
         screenOptions={{ headerShown: false, animation: 'slide_from_right' }}

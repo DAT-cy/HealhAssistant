@@ -9,7 +9,7 @@ import java.time.Duration;
 @ConfigurationProperties(prefix = "gemini")
 public class GeminiProperties {
     private String apiKey;
-    private String model = "gemini-1.5-flash";
+    private String model = "gemini-3.8-flash";
     private Duration timeout = Duration.ofSeconds(30);
 
     public String getApiKey() { return apiKey; }

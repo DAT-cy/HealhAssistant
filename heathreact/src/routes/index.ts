@@ -1,12 +1,11 @@
-import React from 'react';
-import type { NavigationContainerRef } from '@react-navigation/native';
+import { createNavigationContainerRef } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from './RootNavigator';
 
 // ============================================================
 // Navigation ref – dùng để navigate từ file không phải component
 // ============================================================
-export const navigationRef = React.createRef<NavigationContainerRef<RootStackParamList>>();
+export const navigationRef = createNavigationContainerRef<RootStackParamList>();
 
 // ============================================================
 // Type helpers
@@ -23,24 +22,49 @@ function navigate<T extends keyof RootStackParamList>(
   name: T,
   params?: RootStackParamList[T],
 ) {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  navigationRef.current?.navigate(name as any, params as any);
+  if (navigationRef.isReady()) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    navigationRef.navigate(name as any, params as any);
+  } else {
+    setTimeout(() => {
+      if (navigationRef.isReady()) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        navigationRef.navigate(name as any, params as any);
+      }
+    }, 50);
+  }
 }
 
-/** Thay thế trang hiện tại (không back được) */
+/** Thay thế toàn bộ stack và chuyển trang (không back được) */
 function replace<T extends keyof RootStackParamList>(
   name: T,
   params?: RootStackParamList[T],
 ) {
-  navigationRef.current?.reset({
-    index: 0,
-    routes: [{ name, params: params as any }],
-  });
+  const resetAction = () => {
+    try {
+      if (navigationRef.isReady()) {
+        navigationRef.reset({
+          index: 0,
+          routes: [{ name: name as any, params: params as any }],
+        });
+      }
+    } catch (e) {
+      console.warn('[navigationService.replace] error:', e);
+    }
+  };
+
+  if (navigationRef.isReady()) {
+    resetAction();
+  } else {
+    setTimeout(resetAction, 50);
+  }
 }
 
 /** Quay lại trang trước */
 function goBack() {
-  navigationRef.current?.goBack();
+  if (navigationRef.isReady() && navigationRef.canGoBack()) {
+    navigationRef.goBack();
+  }
 }
 
 export const navigationService = { navigate, replace, goBack };

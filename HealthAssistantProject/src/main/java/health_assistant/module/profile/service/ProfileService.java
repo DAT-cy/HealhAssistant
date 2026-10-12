@@ -41,9 +41,20 @@ public class ProfileService {
                 .orElseThrow(() -> new EntityNotFoundException("Chưa có hồ sơ tập luyện."));
     }
 
+    @Transactional
+    public ProfileResponse updateAvatar(String avatarUrl, String avatarPublicId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        UserProfile profile = repository.findByUserId(userId)
+                .orElseThrow(() -> new EntityNotFoundException("Chưa có hồ sơ tập luyện."));
+        profile.setAvatarUrl(avatarUrl);
+        profile.setAvatarPublicId(avatarPublicId);
+        profile.setUpdatedAt(Instant.now());
+        return toResponse(repository.save(profile));
+    }
+
     private ProfileResponse toResponse(UserProfile profile) {
         return new ProfileResponse(profile.getId(), profile.getUserId(), profile.getGoal(), profile.getActivityLevel(),
                 profile.getAge(), profile.getHeightCm(), profile.getWeightKg(), profile.getRestrictions(),
-                profile.getPainAreas(), profile.isConsent());
+                profile.getPainAreas(), profile.isConsent(), profile.getAvatarUrl());
     }
 }

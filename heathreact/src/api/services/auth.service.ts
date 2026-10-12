@@ -5,6 +5,8 @@ import { apiVersion } from '@/config/api.config';
 export const authService = {
   login: (username: string, password: string) =>
     apiClient.request<LoginResponse>(`${apiVersion}/auth/login`, { method: 'POST', body: JSON.stringify({ username, password }) }),
+  signUp: (email: string, password: string) =>
+    apiClient.request<boolean>(`${apiVersion}/auth/signup`, { method: 'POST', body: JSON.stringify({ email, password }) }),
   profile: () => apiClient.request<ProfileUser>(`${apiVersion}/auth/profile`),
 };
 
