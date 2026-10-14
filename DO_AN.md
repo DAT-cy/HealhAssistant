@@ -1,385 +1,587 @@
-# ĐỒ ÁN: ỨNG DỤNG HỖ TRỢ SỨC KHỎE VÀ LUYỆN TẬP CÁ NHÂN
+# HEALTH ÁSSISTANT
 
-> Kế hoạch 15 tuần, tổ chức thành 7 đợt: 6 đợt x 2 tuần và đợt cuối x 3 tuần. Đây là kế hoạch thực hiện, không phải xác nhận các tính năng đã hoàn thành.
+## Đề tài đồ án: Xây dựng hệ thống AI cá nhân hóa lộ trình dinh dưỡng và tập luyện thể chất
 
-## Mục lục
+## Định hướng dự án
 
-- [1. Tổng quan](#1-tổng-quan)
-- [2. Phạm vi và giả định](#2-phạm-vi-và-giả-định)
-- [3. Cơ sở kỹ thuật cần nắm](#3-cơ-sở-kỹ-thuật-cần-nắm)
-- [4. Phân tích và thiết kế](#4-phân-tích-và-thiết-kế)
-- [5. Lộ trình 7 đợt / 15 tuần](#5-lộ-trình-7-đợt--15-tuần)
-- [6. Bảng theo dõi tiến độ](#6-bảng-theo-dõi-tiến-độ)
-- [7. Kiểm thử, đánh giá và triển khai](#7-kiểm-thử-đánh-giá-và-triển-khai)
-- [8. Báo cáo và bảo vệ](#8-báo-cáo-và-bảo-vệ)
-- [9. Checklist tổng thể](#9-checklist-tổng-thể)
-- [10. Tài liệu tham khảo](#10-tài-liệu-tham-khảo)
-- [11. Tiến độ hiện tại](#11-tiến-độ-hiện-tại)
+**Health Assistant** là hệ thống hỗ trợ người dùng quản lý quá trình cải thiện thể chất thông qua trí tuệ nhân tạo, kết hợp dữ liệu cá nhân, cơ sở tri thức chuyên môn (Knowledge Base) và các quy tắc nghiệp vụ để tạo, theo dõi và điều chỉnh lộ trình dinh dưỡng, tập luyện.
 
-## 1. Tổng quan
+Hệ thống tập trung vào ba vấn đề chính:
 
-### Tên đề tài
+1. AI sử dụng Knowledge Base để đưa ra lộ trình dinh dưỡng và tập luyện có căn cứ, phù hợp với hồ sơ người dùng.
+2. Hệ thống lập kế hoạch trước 7 ngày, dựa trên mục tiêu, thể trạng, điều kiện tập luyện và thời gian rảnh.
+3. Hệ thống theo dõi kết quả thực tế, sau đó điều chỉnh lộ trình tương lai khi người dùng ăn uống không đúng kế hoạch, bỏ buổi tập hoặc thay đổi lịch sinh hoạt.
 
-**Xây dựng ứng dụng di động hỗ trợ theo dõi tư thế và cá nhân hóa kế hoạch luyện tập với trợ lý AI.**
+Chức năng nhận diện động tác gym bằng camera được xếp vào phần mở rộng. Ngay cả khi không triển khai được camera trong thời gian quy định, sản phẩm vẫn có thể hoàn thành bài toán chính và có đủ nội dung để đánh giá thực nghiệm.
 
-Tên có thể điều chỉnh theo mẫu của trường. Sản phẩm gồm ứng dụng di động `heathreact` (Expo/React Native, TypeScript) và backend `HealthAssistantProject` (Java 17, Spring Boot, REST API, MySQL). Trong mã hiện có các nhóm màn hình hồ sơ, quét tư thế, lộ trình, kế hoạch ngày, huấn luyện, tiến độ và coach; backend có các module tương ứng về auth, profile, posture, coach, daily plan và progress. Đây là quan sát cấu trúc, không thay cho kiểm thử chức năng.
+# PHẦN I. NGHIỆP VỤ CHI TIẾT CỦA DỰ ÁN
 
-### Bối cảnh, bài toán và mục tiêu
+## 1. Mục tiêu và phạm vi dự án
 
-Người tập tại nhà thường khó duy trì lịch tập, theo dõi tiến độ và tự nhận biết một số lỗi tư thế cơ bản. Đồ án xây dựng một công cụ hỗ trợ ghi nhận thông tin người dùng, đưa ra kế hoạch tập có cấu trúc, hỗ trợ đánh giá tư thế dựa trên landmark đầu vào và tổng hợp tiến độ. AI có thể diễn giải hoặc đề xuất nội dung có giới hạn; các quy tắc an toàn và tính toán xác định phải được kiểm soát bởi ứng dụng.
+### 1.1. Mục tiêu
 
-- **Mục tiêu học thuật:** phân tích yêu cầu, thiết kế app-client/API/backend/database; tìm hiểu xử lý landmark, kiểm thử phần mềm và đánh giá đầu ra AI có cấu trúc.
-- **Mục tiêu sản phẩm:** hoàn thành một luồng MVP có thể trình diễn từ đăng nhập, khai báo hồ sơ đến xem kế hoạch, ghi nhận buổi tập và xem tiến độ; quét tư thế/coach được đưa vào MVP nếu luồng camera và dịch vụ hoạt động ổn định.
-- **Đối tượng:** người trưởng thành muốn tập luyện thể chất phổ thông tại nhà; quản trị viên chỉ trong phạm vi quản lý tài khoản/demo nếu chức năng này cần thiết.
-- **Kết quả dự kiến:** mã nguồn hai phần, hợp đồng API, thiết kế dữ liệu, bộ test và kết quả chạy thực tế, hướng dẫn cài đặt, báo cáo và kịch bản demo.
+Xây dựng một hệ thống hỗ trợ người dùng quản lý quá trình cải thiện thể chất thông qua trí tuệ nhân tạo, kết hợp dữ liệu cá nhân, cơ sở tri thức chuyên môn và các quy tắc nghiệp vụ để:
 
-### Phạm vi nghiên cứu và phương pháp
+- Đánh giá thể trạng ban đầu dựa trên thông tin người dùng cung cấp.
+- Xác định mục tiêu và xây dựng lộ trình dinh dưỡng, tập luyện cá nhân hóa.
+- Tạo kế hoạch cuốn chiếu cho 7 ngày tiếp theo, phù hợp với thời gian rảnh của người dùng.
+- Theo dõi mức độ tuân thủ kế hoạch thông qua nhật ký ăn uống, tập luyện và cân nặng.
+- Điều chỉnh kế hoạch dựa trên kết quả thực tế và những thay đổi trong sinh hoạt.
+- Giải thích các khuyến nghị dựa trên kiến thức được lưu trong Knowledge Base.
+- Cung cấp báo cáo tiến độ để người dùng đánh giá quá trình thực hiện mục tiêu.
 
-Nghiên cứu REST/client-server, React Native/Expo, Spring Boot, xác thực JWT, mô hình dữ liệu quan hệ, xử lý landmark/đếm lần lặp theo luật, tích hợp LLM có kiểm tra schema và an toàn. Thực hiện theo vòng lặp: khảo sát mã hiện có, xác định luồng ưu tiên, thiết kế, triển khai từng lát cắt dọc mobile-API-database, kiểm thử, ghi nhận kết quả và cập nhật thiết kế khi có bằng chứng.
+### 1.2. Phạm vi thực hiện
 
-## 2. Phạm vi và giả định
+#### Phạm vi bắt buộc
 
-### MVP ưu tiên
+- Quản lý tài khoản và hồ sơ thể chất.
+- Đánh giá ban đầu và xác định mục tiêu.
+- Quản lý Knowledge Base.
+- AI lập kế hoạch ăn uống và tập luyện 7 ngày.
+- Quản lý lịch rảnh trong tuần.
+- Nhật ký thực hiện và theo dõi cân nặng.
+- Điều chỉnh kế hoạch khi dữ liệu thực tế thay đổi.
+- Dashboard, báo cáo và kiểm thử.
 
-1. Đăng ký/đăng nhập và truy cập API có JWT.
-2. Tạo/xem hồ sơ tập luyện của chính người dùng.
-3. Tạo hoặc lấy lộ trình và kế hoạch ngày; có phản hồi an toàn khi AI lỗi.
-4. Ghi nhận buổi tập và tổng hợp tiến độ cơ bản.
-5. Kết nối các màn hình mobile với backend, thể hiện trạng thái tải/lỗi/rỗng và xử lý phiên đăng nhập.
+#### Phạm vi mở rộng
 
-Đánh giá tư thế qua landmark, đếm rep thời gian thực và chat AI là chức năng nâng cao có điều kiện: chỉ đưa vào bản demo chính nếu có dữ liệu kiểm tra, độ tin cậy được thể hiện và xử lý camera/AI ổn định. Không mở rộng thành tư vấn dinh dưỡng/y khoa, chẩn đoán bệnh, nhận diện mọi bài tập, social, thanh toán hoặc dashboard vận hành hoàn chỉnh.
+- Nhận diện tư thế tập gym bằng camera.
+- Đếm số lần lặp và phát hiện một số lỗi kỹ thuật cơ bản.
+- Phản hồi gần thời gian thực trong quá trình tập.
 
-### Hiện trạng quan sát được trong repository
+Trong phạm vi đồ án, hệ thống là công cụ hỗ trợ xây dựng thói quen và quản lý thể chất, không phải hệ thống chẩn đoán bệnh hay thay thế bác sĩ, chuyên gia dinh dưỡng hoặc huấn luyện viên.
 
-- Mobile có các trang `Login`, `Home`, `Scan`, `Roadmap`, `DailyPlan`, `Workout`, `Progress`, `Profile`, `Coach`; có API service và cấu hình điều hướng.
-- Backend có controller/service cho auth, profile, posture assess/report, roadmap/chat, pose angle, workout tracking/end, daily plan today và progress summary. Có test cho `PostureAssessmentService` và `ExerciseRepService`.
-- Backend khai báo Java 17, Spring Boot, JPA, MyBatis, Spring Security, JWT, OpenAPI, MySQL; mobile hiện dùng Expo SDK 57, React Native 0.86 và TypeScript.
-- Tên file, checklist và endpoint hiện có không chứng minh luồng đã hoạt động end-to-end. Đợt đầu phải chạy baseline, kiểm tra cấu hình và ghi lỗi trước khi sửa.
+## 2. Đối tượng sử dụng
 
-### Giả định, giới hạn và rủi ro
+| Đối tượng | Nghiệp vụ chính |
+|---|---|
+| Người dùng | Khai báo thông tin thể chất, đặt mục tiêu, lập lịch rảnh, nhận kế hoạch, ghi nhận kết quả và theo dõi tiến độ. |
+| Quản trị viên | Quản lý tài khoản, danh mục bài tập, thực phẩm, tài liệu tri thức và các quy tắc nghiệp vụ. |
+| AI Assistant | Phân tích dữ liệu đầu vào, truy xuất kiến thức và đề xuất kế hoạch hoặc điều chỉnh phù hợp. |
 
-- Kế hoạch giả định một sinh viên hoặc nhóm nhỏ, 15 tuần, có máy Android và môi trường phát triển Java/Node/MySQL. iOS là mục tiêu phụ nếu không có thiết bị phù hợp.
-- Cần xác nhận quy định báo cáo, mẫu trường, thiết bị demo và quyền sử dụng dữ liệu/video. Không dùng ảnh/video sức khỏe của người khác khi chưa có đồng ý.
-- Landmark từ camera 2D bị ảnh hưởng bởi góc đặt máy, che khuất, ánh sáng, kích thước khung hình và khác biệt cơ thể. Kết quả không phải đánh giá y khoa.
-- Không ghi API key, JWT secret, mật khẩu hoặc dữ liệu định danh vào Git/log. Không tuyên bố độ chính xác, hiệu năng hay lợi ích sức khỏe nếu chưa đo.
+AI Assistant là thành phần xử lý của hệ thống, không phải một tài khoản người dùng độc lập.
 
-## 3. Cơ sở kỹ thuật cần nắm
+## 3. Nghiệp vụ quản lý hồ sơ thể chất
 
-| Chủ đề | Cần hiểu và áp dụng trong đồ án | Cách kiểm chứng |
-|---|---|---|
-| Client-server và REST | Mobile gửi HTTP request; backend xác thực, kiểm tra dữ liệu, thực hiện nghiệp vụ và trả response có quy ước. | Đối chiếu request/response với API chạy trên Swagger/Postman và app. |
-| React Native/Expo | Component, state, navigation, quyền camera, cấu hình môi trường; không giả định API web hoạt động giống native. | Chạy thiết bị/emulator, kiểm tra quyền, trạng thái offline/loading/error. |
-| Spring Boot | Controller nhận request, DTO validation, service chứa nghiệp vụ, repository truy cập dữ liệu, exception handler chuẩn hóa lỗi. | Unit/integration test theo từng lớp và luồng. |
-| JWT và bảo mật | Token được gửi qua Authorization; backend xác minh chữ ký/hạn dùng; chỉ lấy dữ liệu theo danh tính đã xác thực. | Token thiếu/sai/hết hạn và thử truy cập chéo tài khoản. |
-| MySQL và mô hình dữ liệu | Khóa, quan hệ, ràng buộc, transaction; dữ liệu sức khỏe gắn đúng người dùng. | Migration/schema, truy vấn kiểm tra tính toàn vẹn và test transaction. |
-| Landmark và luật tư thế | Tọa độ/visibility, chuẩn hóa, góc hình học, ngưỡng, FSM cho rep; dữ liệu thấp tin cậy phải từ chối kết luận. | Fixture landmark tự tạo/được phép sử dụng, trường hợp biên và video test có nhãn. |
-| LLM có cấu trúc | Model có thể trả lời sai hoặc sai schema; validate, giới hạn timeout, fallback và lưu phiên bản prompt/model phù hợp. | Bộ ca hợp lệ, sai schema, timeout, nội dung ngoài phạm vi/an toàn. |
-| Kiểm thử | Unit kiểm tra quy tắc nhỏ; integration kiểm tra ranh giới DB/API; E2E kiểm tra luồng người dùng. | Gắn ID test case, dữ liệu, bước, mong đợi và kết quả thực chạy. |
+### 3.1. Thông tin đầu vào
 
-Ưu tiên tài liệu chính thức tương ứng với phiên bản thực tế trong lockfile/build file. Ghi rõ định nghĩa, vai trò, lý do chọn, giới hạn và phương án thay thế trong chương cơ sở lý thuyết; không đưa công nghệ AI/ML mới vào nếu không đủ dữ liệu và thời gian đánh giá.
+Người dùng cung cấp:
 
-## 4. Phân tích và thiết kế
+- Tuổi, chiều cao, cân nặng hiện tại.
+- Mục tiêu: giảm cân, duy trì cân nặng hoặc tăng cơ.
+- Cân nặng mục tiêu và khoảng thời gian mong muốn.
+- Mức độ vận động và kinh nghiệm tập luyện.
+- Thói quen ăn uống, số bữa mỗi ngày và thực phẩm cần tránh.
+- Điều kiện tập luyện: tại nhà, phòng gym và dụng cụ hiện có.
+- Thời gian rảnh dự kiến trong tuần.
+- Các hạn chế vận động, chấn thương hoặc yếu tố sức khỏe liên quan nếu người dùng đồng ý cung cấp.
 
-### Tác nhân và use case MVP
-
-- **Người dùng:** đăng ký/đăng nhập, cập nhật hồ sơ, xem/tạo kế hoạch, ghi nhận tập luyện, xem tiến độ; yêu cầu coach nếu phạm vi cho phép.
-- **Dịch vụ AI bên ngoài:** nhận đầu vào giới hạn, trả nội dung đề xuất; có thể timeout, trả dữ liệu lỗi hoặc không khả dụng.
-- **Quản trị viên:** chỉ đưa vào nếu đồ án cần minh họa quản lý tài khoản; không để lấn át luồng người tập.
+### 3.2. Luồng nghiệp vụ
 
 ```mermaid
-flowchart LR
-  U[Người tập] --> M[Ứng dụng React Native]
-  M -->|HTTPS + JWT| API[REST API Spring Boot]
-  API --> DB[(MySQL)]
-  API -->|Nội dung có cấu trúc| AI[Dịch vụ AI tùy chọn]
-  API --> M
+flowchart TD
+    A["Đăng ký tài khoản"] --> B["Nhập hồ sơ thể chất"]
+    B --> C["Đặt mục tiêu"]
+    C --> D["Kiểm tra tính hợp lệ"]
+    D --> E{"Thông tin đầy đủ?"}
+    E -- "Chưa" --> F["Yêu cầu bổ sung"]
+    F --> B
+    E -- "Rồi" --> G["Tính toán chỉ số tham khảo"]
+    G --> H["Lưu hồ sơ"]
+    H --> I["Đánh giá ban đầu"]
+    I --> J["Chuyển sang lập kế hoạch"]
 ```
 
-### Kiến trúc và ranh giới trách nhiệm
+### 3.3. Kết quả đầu ra
 
-App chịu trách nhiệm giao diện, quyền thiết bị, trạng thái phiên và hiển thị kết quả. Backend chịu trách nhiệm xác thực, quyền sở hữu dữ liệu, validation, nghiệp vụ, persistence và gọi dịch vụ ngoài. Mobile không tự tin cậy userId do client gửi; backend lấy danh tính từ principal/token. Tính toán định lượng/quy tắc an toàn cần xác định được thì không giao toàn bộ cho LLM.
+Hệ thống lưu hồ sơ làm dữ liệu đầu vào cho các lần lập kế hoạch tiếp theo, bao gồm:
 
-### Nhóm dữ liệu cần đặc tả
+- Thông tin thể chất và mục tiêu hiện tại.
+- Các chỉ số tham khảo được tính toán.
+- Điều kiện tập luyện và các giới hạn cần lưu ý.
+- Trạng thái hồ sơ đã sẵn sàng lập kế hoạch hay cần bổ sung.
 
-Đối chiếu schema thực tế trước khi chốt ERD: User/Role, UserProfile và ràng buộc sức khỏe, PostureReport, RoadmapRecord, DailyPlan (nếu persist), WorkoutSession, lịch sử tương tác AI nếu thực sự lưu. Với mỗi bảng ghi khóa, kiểu dữ liệu, nullable, quan hệ, chỉ mục, quyền đọc/ghi, thời hạn lưu và dữ liệu nhạy cảm. Tránh lưu camera frame/video nếu không cần cho MVP.
+Các chỉ số như BMI hoặc nhu cầu năng lượng chỉ là ước tính tham khảo, không được dùng riêng lẻ để chẩn đoán bệnh hoặc khẳng định khả năng giảm cân.
 
-### Hợp đồng API
+## 4. Nghiệp vụ quản lý Knowledge Base
 
-Các route dưới đây được phát hiện trong controller hiện tại; kiểm tra prefix/version, HTTP status, DTO, security và response thực tế trước khi đưa vào đặc tả cuối. Không coi danh sách này là bảo đảm API đã chạy.
+Đây là cơ sở tri thức để AI đưa ra khuyến nghị có căn cứ, hạn chế việc tạo ra nội dung thiếu chính xác.
 
-| Nhóm | Route quan sát được |
+### 4.1. Nội dung tri thức
+
+| Nhóm dữ liệu | Nội dung |
 |---|---|
-| Auth | `POST /auth/login`, `POST /auth/signup`, `GET /auth/profile` |
-| Profile | `POST /profiles`, `GET /profiles/me` |
-| Posture | `POST /posture/assess`, `GET /posture/reports/me` |
-| Coach | `POST /coach/roadmap`, `GET /coach/roadmaps/me`, `POST /coach/chat` |
-| Workout/Pose | `POST /workout-engine/track`, `POST /workout-engine/end`, `POST /pose-engine/angle` |
-| Daily plan/Progress | `GET /daily-plans/today`, `GET /progress/summary` |
+| Dinh dưỡng | Nguyên tắc cân bằng năng lượng, chất dinh dưỡng, khẩu phần và chế độ ăn. |
+| Thực phẩm | Thành phần dinh dưỡng, năng lượng tham khảo, khẩu phần và nguyên liệu thay thế. |
+| Bài tập | Nhóm cơ, kỹ thuật, dụng cụ, cấp độ, số hiệp và số lần lặp tham khảo. |
+| Lập kế hoạch | Nguyên tắc phân bổ buổi tập, nghỉ ngơi, phục hồi và tăng dần cường độ. |
+| Điều chỉnh kế hoạch | Xử lý trường hợp ăn sai, bỏ buổi tập, thay đổi lịch rảnh hoặc cân nặng biến động. |
+| An toàn | Chống chỉ định cần lưu ý, dấu hiệu nên dừng tập và trường hợp cần tư vấn chuyên môn. |
 
-Mỗi API cần đặc tả auth, request/response mẫu, validation, lỗi 400/401/403/404/409/5xx phù hợp và quyền sở hữu dữ liệu. Chuẩn hóa lỗi để app phân biệt lỗi nhập liệu, hết phiên, mất mạng và lỗi dịch vụ.
+### 4.2. Quy trình xử lý tài liệu
 
-## 5. Lộ trình 7 đợt / 15 tuần
+```mermaid
+flowchart TD
+    A["Admin tải tài liệu"] --> B["Trích xuất và làm sạch"]
+    B --> C["Chia thành các đoạn nhỏ"]
+    C --> D["Tạo embedding"]
+    D --> E["Lưu vào Vector Database"]
+    F["Người dùng yêu cầu tư vấn"] --> G["Truy xuất đoạn liên quan"]
+    E --> G
+    G --> H["LLM tổng hợp khuyến nghị"]
+    H --> I["Kiểm tra quy tắc nghiệp vụ"]
+    I --> J["Trả kết quả kèm nguồn"]
+```
 
-Mỗi đợt kéo dài 2 tuần, ngoại trừ đợt 7 kéo dài 3 tuần. Bên trong vẫn có đầu ra/nghiệm thu theo từng tuần để theo dõi tiến độ; tuần sau chỉ bắt đầu khi lưu được đầu ra tuần trước hoặc ghi rõ ngoại lệ/rủi ro.
+### 4.3. Quy tắc nghiệp vụ
 
-### Đợt 1 — Khảo sát, chốt phạm vi và yêu cầu (Tuần 1–2, 2 tuần)
+- Chỉ sử dụng tài liệu được chấp nhận trong Knowledge Base.
+- Lưu nguồn tài liệu và thông tin phiên bản.
+- Ưu tiên các đoạn kiến thức phù hợp với câu hỏi và hồ sơ người dùng.
+- Trả về nguồn tham khảo để người dùng có thể kiểm tra.
+- Khi không tìm được kiến thức phù hợp, phải thông báo giới hạn thay vì tự tạo kết luận chắc chắn.
 
-**Mục tiêu/kiến thức:** xác định bài toán thật, đối tượng, use case, MVP; phân biệt yêu cầu chức năng và phi chức năng. Học cách khảo sát repository và viết tiêu chí chấp nhận có thể kiểm tra.
+**Nguyên tắc:** Knowledge Base cung cấp căn cứ chuyên môn; các phép tính năng lượng, kiểm tra lịch, giới hạn dinh dưỡng và quy tắc an toàn cần được thực hiện hoặc xác thực bằng logic nghiệp vụ riêng. LLM không được tự ý bỏ qua các ràng buộc này.
 
-**Tuần 1 — Baseline và đề cương.** Chạy riêng mobile/backend theo README/config; ghi môi trường, lệnh, lỗi, endpoint khả dụng và ảnh màn hình. Đọc các trang app, service API, controller và schema. Chốt mục tiêu, đối tượng, giới hạn và ưu tiên tính năng. Không sửa lỗi nền tảng trước khi có log baseline.
+## 5. Nghiệp vụ đánh giá thể trạng và xác định mục tiêu
 
-- Đầu ra: đề cương 1–2 trang; sơ đồ luồng hiện trạng; bảng chức năng `đã quan sát / chưa xác minh / ngoài MVP`; nhật ký chạy baseline.
-- Nghiệm thu: có thể trình bày bài toán trong 1 phút; phân biệt được mã có mặt với luồng đã kiểm thử; có bằng chứng lệnh chạy hoặc lỗi tái hiện.
-- Tự hỏi: Người dùng gặp vấn đề gì? Bằng chứng nào chứng minh một màn hình đang gọi backend thật?
+Sau khi hồ sơ hoàn tất, hệ thống thực hiện đánh giá ban đầu để xác định hướng lập kế hoạch phù hợp.
 
-**Tuần 2 — Yêu cầu và use case.** Mô tả tác nhân, luồng đăng nhập, tạo hồ sơ, lấy kế hoạch, hoàn thành buổi tập và xem tiến độ. Với mỗi luồng ghi tiền/hậu điều kiện, luồng lỗi và dữ liệu cần bảo vệ. Chuyển yêu cầu thành tiêu chí chấp nhận.
+### 5.1. Quy trình xử lý
 
-- Đầu ra: SRS ngắn; use case/flow; danh sách quy tắc nghiệp vụ; backlog MVP và ngoài phạm vi.
-- Nghiệm thu: mỗi yêu cầu MVP có ID, tác nhân, tiêu chí pass/fail và liên kết tới màn hình/API dự kiến.
-- Tự hỏi/phản biện: vì sao chatbot hoặc đếm rep có thể để ngoài MVP? Cách xử lý khi AI không phản hồi?
-- Điều kiện chuyển đợt: phạm vi, người dùng, luồng chính và giới hạn sức khỏe được chốt; báo cáo ghi rõ giả định.
-- Báo cáo: chương 1 và phần phân tích yêu cầu chương 2.
+1. Kiểm tra độ đầy đủ và tính hợp lệ của dữ liệu.
+2. Tính các chỉ số tham khảo từ thông tin thể chất.
+3. Xác định mục tiêu và mức độ vận động hiện tại.
+4. Truy xuất kiến thức liên quan từ Knowledge Base.
+5. Đưa ra đánh giá ban đầu, giải thích các yếu tố cần lưu ý.
+6. Đề xuất mục tiêu và kế hoạch sơ bộ để người dùng xác nhận.
 
-### Đợt 2 — Nghiên cứu, kiến trúc và hợp đồng (Tuần 3–4, 2 tuần)
+### 5.2. Dự báo tiến độ
 
-**Mục tiêu/kiến thức:** hiểu công nghệ đang dùng và lý do lựa chọn; mô hình hóa kiến trúc, luồng dữ liệu, bảo mật và phụ thuộc ngoài.
+Hệ thống hiển thị xu hướng cân nặng dự kiến, thời gian ước tính để tiến gần mục tiêu và các yếu tố có thể ảnh hưởng đến kết quả.
 
-**Tuần 3 — Cơ sở lý thuyết và quyết định công nghệ.** Nghiên cứu client-server, React Native/Expo, REST, Spring Boot, JWT, MySQL, pose landmark và LLM có kiểm soát. Với mỗi chủ đề ghi khái niệm, vai trò, ưu/nhược, thay thế và nguồn chính thức phù hợp phiên bản.
+Hệ thống có thể đưa ra một khoảng cân nặng dự kiến theo từng tuần, sau đó cập nhật dự báo khi có thêm dữ liệu thực tế. Không cam kết người dùng chắc chắn giảm một số kilogram cố định trong một khoảng thời gian, vì cân nặng còn chịu ảnh hưởng của lượng nước, giấc ngủ, vận động và nhiều yếu tố khác.
 
-- Đầu ra: bản nháp cơ sở lý thuyết; bảng quyết định công nghệ (ADR ngắn); danh sách kiến thức cần bổ sung.
-- Nghiệm thu: mọi công nghệ trong sơ đồ có vai trò cụ thể; không nêu độ chính xác hoặc hiệu quả AI chưa đo.
+## 6. Nghiệp vụ lập kế hoạch 7 ngày
 
-**Tuần 4 — Kiến trúc và luồng nghiệp vụ.** Vẽ component/container, sequence đăng nhập và lấy kế hoạch, luồng ghi buổi tập; xác định module, boundary app/backend/AI/database và các lỗi/mất kết nối. Kiểm tra sơ đồ dựa vào code hiện tại, ghi sai khác thay vì vẽ theo mong muốn.
+Đây là chức năng cốt lõi đầu tiên cần hoàn thiện.
 
-- Đầu ra: sơ đồ kiến trúc, sequence/hoạt động cho 2–3 luồng, ADR về xác thực, tích hợp AI và nơi áp dụng quy tắc an toàn.
-- Nghiệm thu: sơ đồ có request, response, persistence và nhánh lỗi; mỗi module khớp một khu vực source hoặc được đánh dấu dự kiến.
-- Tự hỏi/phản biện: nếu Gemini hỏng, phần nào còn sử dụng được? Vì sao backend là nguồn tin cậy về user identity?
-- Điều kiện chuyển đợt: kiến trúc và MVP thống nhất; mọi khác biệt giữa thiết kế và hiện trạng được ghi nhận.
-- Báo cáo: chương cơ sở lý thuyết và chương phân tích/thiết kế.
+### 6.1. Khai báo lịch rảnh
 
-### Đợt 3 — Mô hình dữ liệu, API và nền chạy ổn định (Tuần 5–6, 2 tuần)
+Người dùng được phép thiết lập nhiều khung giờ rảnh cho mỗi ngày trong tuần.
 
-**Mục tiêu/kiến thức:** thiết kế dữ liệu/API trước tích hợp; hiểu DTO, validation, lỗi, migration/config và cách quản lý bí mật.
+Thông tin bao gồm:
 
-**Tuần 5 — ERD và API contract.** Đọc SQL init, entity, repository và DTO; lập ERD phản ánh schema thật. Đặc tả API MVP, quyền truy cập, validation, status/error và ví dụ JSON. Đánh dấu chỗ thiếu hoặc bất nhất giữa mobile service và controller.
+- Ngày áp dụng.
+- Giờ bắt đầu và kết thúc.
+- Loại hoạt động có thể thực hiện.
+- Địa điểm và dụng cụ tập luyện.
+- Các hạn chế hoặc ưu tiên về thời gian.
 
-- Đầu ra: ERD; data dictionary; danh mục API/OpenAPI hoặc Postman; ma trận quyền; bảng ánh xạ endpoint mobile-backend.
-- Nghiệm thu: ID/quan hệ/ràng buộc nhất quán; request-response khớp DTO; dữ liệu người dùng không truy cập chỉ bằng userId client cung cấp.
+Ví dụ, người dùng rảnh tối thứ Hai, thứ Tư và thứ Sáu, đồng thời có thể đi bộ vào sáng Chủ Nhật. Hệ thống phải tạo lịch dựa trên các khung giờ đó thay vì áp dụng một lịch tập cố định cho tất cả người dùng.
 
-**Tuần 6 — Môi trường và vertical slice đầu tiên.** Chuẩn hóa hướng dẫn chạy app, backend, DB; cấu hình URL theo môi trường; không commit secrets. Chạy auth hoặc profile end-to-end, tạo test API smoke và ghi phiên bản công cụ.
+### 6.2. Quy trình tạo kế hoạch
 
-- Đầu ra: README chạy local; cấu hình mẫu không chứa bí mật; bản chạy app/backend/DB; smoke test một luồng.
-- Nghiệm thu: thành viên khác có thể làm theo hướng dẫn; lỗi môi trường có thông báo rõ; test chứng minh API và DB kết nối.
-- Tự hỏi/phản biện: token được lưu và gửi thế nào? Vì sao không để credential trong source?
-- Điều kiện chuyển đợt: môi trường tái lập được và hợp đồng đầu tiên khớp ở cả hai phía.
-- Báo cáo: ERD, data dictionary, API contract và môi trường thực nghiệm.
+```mermaid
+flowchart TD
+    A["Hồ sơ thể chất và mục tiêu"] --> E["Bộ lập kế hoạch"]
+    B["Lịch rảnh 7 ngày"] --> E
+    C["Knowledge Base"] --> E
+    D["Danh mục thực phẩm và bài tập"] --> E
+    E --> F["Tạo thực đơn"]
+    E --> G["Tạo lịch tập"]
+    F --> H["Kiểm tra ràng buộc"]
+    G --> H
+    H --> I{"Kế hoạch hợp lệ?"}
+    I -- "Không" --> J["Điều chỉnh đề xuất"]
+    J --> H
+    I -- "Có" --> K["Hiển thị kế hoạch"]
+    K --> L["Người dùng xác nhận"]
+    L --> M["Lưu phiên bản kế hoạch"]
+```
 
-### Đợt 4 — Nghiệp vụ lõi và tích hợp app/backend (Tuần 7–8, 2 tuần)
+### 6.3. Kế hoạch dinh dưỡng
 
-**Mục tiêu/kiến thức:** triển khai lát cắt dọc theo thứ tự giá trị; hiểu controller-service-repository, state UI và xử lý lỗi mạng.
+Mỗi ngày bao gồm:
 
-**Tuần 7 — Auth, profile và quyền sở hữu dữ liệu.** Hoàn thiện hoặc sửa luồng đăng ký/đăng nhập/profile theo code đã kiểm tra. Đảm bảo API yêu cầu JWT phù hợp; kiểm tra dữ liệu của user A không thể đọc/sửa bởi user B. Trên app xử lý token, hết phiên, loading và validation.
+- Các bữa ăn và thời gian ăn dự kiến.
+- Tên món ăn, nguyên liệu và khẩu phần.
+- Năng lượng và thành phần dinh dưỡng ước tính.
+- Các lựa chọn thay thế tương đương.
+- Danh sách thực phẩm cần mua.
+- Hướng dẫn chế biến cơ bản.
 
-- Đầu ra: luồng auth/profile chạy được; test backend và checklist app; ảnh chụp luồng thành công/lỗi.
-- Nghiệm thu: token sai/thiếu bị từ chối; user chỉ xem dữ liệu của mình; lỗi nhập liệu có thể hiểu và sửa.
+Khi người dùng thay đổi món ăn hoặc khẩu phần, hệ thống tính lại tổng dinh dưỡng và kiểm tra các giới hạn đã đặt ra.
 
-**Tuần 8 — Kế hoạch ngày, buổi tập, tiến độ.** Nối trang kế hoạch/Workout/Progress với API thật theo ưu tiên. Xác định dữ liệu nào được lưu và nguồn tổng hợp; nếu AI sinh kế hoạch, validate schema và có fallback/template an toàn. Không sinh số liệu giả để lấp dashboard.
+### 6.4. Kế hoạch tập luyện
 
-- Đầu ra: tối thiểu một luồng hoàn chỉnh từ app tới DB và quay lại; request/response mẫu; test thành công và lỗi dịch vụ.
-- Nghiệm thu: dữ liệu tạo ra xuất hiện lại sau tải mới; lỗi không làm app treo; số liệu tiến độ truy xuất từ dữ liệu đã ghi.
-- Tự hỏi/phản biện: đâu là nguồn sự thật của tiến độ? Kế hoạch mẫu khác kế hoạch do AI tạo thế nào?
-- Điều kiện chuyển đợt: MVP có luồng chính chạy được; backlog lỗi còn lại được xếp mức độ.
-- Báo cáo: mô tả cài đặt theo module, ảnh UI thật và API triển khai.
+Mỗi buổi tập bao gồm:
 
-### Đợt 5 — Tư thế, realtime và tính năng AI có giới hạn (Tuần 9–10, 2 tuần)
+- Mục tiêu và nhóm cơ.
+- Danh sách bài tập.
+- Số hiệp, số lần lặp hoặc thời lượng.
+- Thời gian nghỉ.
+- Dụng cụ cần thiết.
+- Hướng dẫn kỹ thuật và lỗi cần tránh.
+- Bài tập thay thế khi không có thiết bị hoặc không phù hợp.
 
-**Mục tiêu/kiến thức:** kiểm tra thuật toán bằng fixture, hiểu sai số/visibility và rủi ro AI; ưu tiên khả năng từ chối an toàn hơn kết luận thiếu căn cứ.
+### 6.5. Điều kiện để kế hoạch được chấp nhận
 
-**Tuần 9 — Posture assessment.** Xác minh contract landmark, hệ tọa độ, view, visibility và công thức góc trong service. Tạo fixture bình thường, lệch có kiểm soát, thiếu landmark/visibility thấp. Kiểm thử output và thông điệp giới hạn; không dùng kết quả như chẩn đoán.
+Hệ thống phải kiểm tra tối thiểu:
 
-- Đầu ra: tài liệu landmark; fixture/test cho assessment; kết quả sai số trên fixture; UI hiển thị confidence/giới hạn nếu có hỗ trợ.
-- Nghiệm thu: input thiếu/không tin cậy không đưa ra kết luận chắc chắn; từng finding truy được về rule/metric.
+- Thời lượng buổi tập không vượt quá khung giờ rảnh.
+- Các buổi tập có thời gian phục hồi phù hợp.
+- Bài tập phù hợp với cấp độ và điều kiện tập luyện.
+- Lịch ăn uống đáp ứng các ràng buộc dinh dưỡng đã thiết lập.
+- Không vi phạm các giới hạn an toàn.
+- Kế hoạch không bị trùng hoặc mâu thuẫn với lịch đã xác nhận.
 
-**Tuần 10 — Workout tracking và AI guardrails.** Kiểm tra FSM/rep service với chuỗi landmark và trường hợp mất visibility; chỉ bật camera nếu pipeline mobile thực tế khả dụng. Với roadmap/chat, xác định prompt, schema, timeout, retry hợp lý, fallback và nội dung ngoài phạm vi. Không gọi LLM trên từng frame.
+AI có thể tạo phương án ban đầu, nhưng kế hoạch chỉ được lưu sau khi qua bước kiểm tra.
 
-- Đầu ra: test rep/form trên fixture; quyết định bật/tắt camera trong MVP; bảng test AI (schema sai, timeout, input rủi ro, thiếu dữ liệu); bản ghi prompt/model nếu triển khai.
-- Nghiệm thu: không đếm rep từ landmark không đủ tin cậy; AI lỗi không làm mất luồng cốt lõi; không chẩn đoán hay khuyến nghị tập khi có dấu hiệu cần chuyên gia.
-- Tự hỏi/phản biện: ngưỡng được chọn bằng dữ liệu nào? Đầu ra AI được xác thực ra sao? Giới hạn tổng quát hóa?
-- Điều kiện chuyển đợt: tính năng nâng cao có bằng chứng kiểm thử hoặc được hạ khỏi phạm vi demo.
-- Báo cáo: thuật toán, fixture/dataset có quyền sử dụng, giới hạn và kết quả đo thật.
+## 7. Nghiệp vụ theo dõi thực hiện hằng ngày
 
-### Đợt 6 — Hoàn thiện, kiểm thử và đánh giá (Tuần 11–12, 2 tuần)
+### 7.1. Nhật ký dinh dưỡng
 
-**Mục tiêu/kiến thức:** kiểm thử theo rủi ro, xử lý lỗi xuyên tầng và đo mức đạt mục tiêu bằng dữ liệu tái lập.
+Người dùng có thể xác nhận đã ăn đúng thực đơn, thay đổi khẩu phần, ghi nhận bữa ăn ngoài kế hoạch hoặc đánh dấu bỏ bữa.
 
-**Tuần 11 — Chất lượng và bảo mật.** Lập test matrix cho validation, auth/authorization, dữ liệu rỗng, request trùng, mất mạng, timeout AI và lỗi DB. Bổ sung unit/integration test; rà log và cấu hình không lộ thông tin nhạy cảm. Chỉ tối ưu khi có phép đo.
+Hệ thống so sánh dữ liệu thực tế với kế hoạch, sau đó cập nhật:
 
-- Đầu ra: test cases có ID/input/bước/mong đợi/thực tế; danh sách bug theo mức độ; kết quả test tự động và thủ công.
-- Nghiệm thu: lỗi blocker/high của luồng demo được sửa hoặc có biện pháp tránh rõ; kết quả ghi theo lần chạy thật.
+- Tổng năng lượng và chất dinh dưỡng ước tính.
+- Mức chênh lệch so với mục tiêu.
+- Tỷ lệ tuân thủ thực đơn.
+- Các thông tin cần xem xét khi điều chỉnh kế hoạch.
 
-**Tuần 12 — E2E và đánh giá.** Chạy luồng auth → profile → plan → workout → progress; chạy lại sau cài mới; kiểm thử app trên thiết bị mục tiêu. Nếu đánh giá posture/AI, mô tả mẫu dữ liệu, cách gán nhãn, metric phù hợp và giới hạn. Không tạo số liệu khi không có phép đo.
+Nếu sử dụng AI nhận diện món ăn qua ảnh, kết quả chỉ là ước tính. Người dùng cần xác nhận món ăn và khẩu phần trước khi lưu nhật ký chính thức.
 
-- Đầu ra: báo cáo kiểm thử; bảng mục tiêu/đạt/chưa đạt; ảnh/video evidence; danh sách giới hạn và rủi ro còn lại.
-- Nghiệm thu: mỗi tuyên bố trong báo cáo dẫn tới test/log/ảnh hoặc được ghi là mục tiêu chưa xác minh.
-- Tự hỏi/phản biện: trường hợp nào thất bại? Mẫu thử có đại diện người dùng thật không? Có thể kết luận gì từ cỡ mẫu đó?
-- Điều kiện chuyển đợt: luồng demo ổn định; test quan trọng có bằng chứng và backlog cuối được chốt.
-- Báo cáo: chương kiểm thử/đánh giá, kết quả và phân tích hạn chế.
+### 7.2. Nhật ký tập luyện
 
-### Đợt 7 — Đóng gói, báo cáo và bảo vệ (Tuần 13–15, 3 tuần)
+Người dùng có thể bắt đầu hoặc kết thúc buổi tập, xác nhận bài tập đã hoàn thành, ghi số hiệp, số lần lặp, mức tạ và cảm nhận sau buổi tập.
 
-**Mục tiêu/kiến thức:** đóng gói tái lập, trình bày kết quả trung thực, chuẩn bị demo có phương án dự phòng và trả lời phản biện.
+Các trạng thái bài tập có thể gồm:
 
-**Tuần 13 — Triển khai và freeze tính năng.** Chọn môi trường mục tiêu khả thi (local/Docker/server đã có); quản lý secrets qua env, cấu hình DB và health check; cài lại theo README. Sửa blocker, không mở rộng chức năng mới nếu đe dọa demo.
+- Chưa thực hiện.
+- Đang thực hiện.
+- Hoàn thành.
+- Bỏ qua.
+- Hoãn sang thời gian khác.
 
-- Đầu ra: release candidate; hướng dẫn cài/chạy; cấu hình mẫu; dữ liệu demo phi nhạy cảm; danh sách known issues.
-- Nghiệm thu: triển khai lại được từ hướng dẫn; không có secret trong repository; app kết nối đúng backend môi trường demo.
+### 7.3. Theo dõi cân nặng
 
-**Tuần 14 — Hoàn thiện báo cáo và minh chứng.** Viết/chỉnh chương: đặt vấn đề; cơ sở lý thuyết; yêu cầu; thiết kế; cài đặt; kiểm thử; kết luận. Chụp màn hình từ bản chạy thật, đưa sơ đồ đúng phiên bản code, ghi rõ phần đạt/chưa đạt. Kiểm tra quy định trường và trích dẫn nguồn đã đọc.
+Người dùng nhập cân nặng theo ngày hoặc theo lịch định kỳ. Hệ thống lưu lịch sử và hiển thị xu hướng so với mục tiêu.
 
-- Đầu ra: báo cáo gần hoàn chỉnh; danh mục hình/sơ đồ; phụ lục API/test; bảng đối chiếu mục tiêu-kết quả.
-- Nghiệm thu: không có sơ đồ hoặc ảnh minh họa bị trình bày như tính năng nếu chưa tồn tại; số liệu truy về test/đo đạc.
+Một lần tăng cân không đồng nghĩa với việc kế hoạch thất bại. Hệ thống cần xem xét xu hướng qua nhiều lần đo, tránh tự động thay đổi khẩu phần hoặc cường độ tập chỉ vì một biến động ngắn hạn.
 
-**Tuần 15 — Tổng duyệt và bảo vệ.** Chốt slide, demo 5–7 phút, kiểm tra thiết bị/tài khoản/mạng, chuẩn bị video hoặc ảnh dự phòng. Luyện giải thích kiến trúc, lựa chọn công nghệ, quyền dữ liệu, giới hạn AI/pose, kết quả test và việc chưa hoàn thành.
+## 8. Nghiệp vụ điều chỉnh lộ trình thích ứng
 
-- Đầu ra: bản cuối báo cáo, slide, kịch bản demo, backup demo, danh sách câu hỏi và trả lời ngắn.
-- Nghiệm thu: demo chạy từ đầu theo kịch bản; mỗi thành viên giải thích được module mình làm; trình bày rõ giới hạn và hướng phát triển.
-- Tự hỏi/phản biện: vì sao chọn kiến trúc hiện tại? Nếu bỏ AI, phần nào còn giá trị? Dữ liệu sức khỏe được bảo vệ và xóa như thế nào?
-- Báo cáo: hiệu đính toàn văn, kết luận, hướng phát triển và phụ lục.
+Đây là chức năng cốt lõi thứ hai, quyết định tính cá nhân hóa của hệ thống.
 
-## 6. Bảng theo dõi tiến độ
+### 8.1. Các tình huống cần xử lý
 
-Trạng thái mặc định là **Chưa thực hiện**. Chỉ cập nhật sau khi có đầu ra và bằng chứng nghiệm thu.
+| Tình huống | Hành vi của hệ thống |
+|---|---|
+| Người dùng ăn đúng kế hoạch | Ghi nhận kết quả và tiếp tục theo dõi. |
+| Người dùng ăn vượt kế hoạch | Cập nhật nhật ký, đánh giá mức chênh lệch và xem xét kế hoạch tương lai nếu cần. |
+| Người dùng bỏ buổi tập | Kiểm tra lịch còn lại, thời gian phục hồi và đề xuất lịch thay thế phù hợp. |
+| Người dùng thay đổi thời gian rảnh | Tạo lịch tập mới từ các khung giờ được cập nhật. |
+| Người dùng liên tục không hoàn thành kế hoạch | Đề xuất kế hoạch đơn giản hoặc dễ duy trì hơn. |
+| Cân nặng biến động bất thường | Kiểm tra dữ liệu, theo dõi xu hướng và tránh điều chỉnh cực đoan. |
+| Người dùng báo đau hoặc chóng mặt | Dừng hoạt động liên quan và hướng dẫn tìm hỗ trợ y tế phù hợp khi cần. |
 
-| Tuần | Đợt | Trọng tâm | Sản phẩm bàn giao | Tiêu chí hoàn thành | Trạng thái |
-|---:|---:|---|---|---|---|
-| 1 | 1 | Baseline, đề cương | Nhật ký chạy, phạm vi, sơ đồ hiện trạng | Chạy/lỗi có thể tái hiện; phân biệt hiện trạng và giả định | Chưa thực hiện |
-| 2 | 1 | Yêu cầu/use case | SRS ngắn, backlog, tiêu chí chấp nhận | Mỗi luồng MVP có actor và pass/fail | Chưa thực hiện |
-| 3 | 2 | Lý thuyết/công nghệ | Chương nháp, ADR | Có lý do, hạn chế, nguồn cho công nghệ chính | Chưa thực hiện |
-| 4 | 2 | Kiến trúc | Component, sequence, luồng lỗi | Sơ đồ khớp code hoặc đánh dấu dự kiến | Chưa thực hiện |
-| 5 | 3 | ERD/API | ERD, data dictionary, contract | DTO, quyền, lỗi và DB nhất quán | Chưa thực hiện |
-| 6 | 3 | Môi trường/vertical slice | README, app/backend/DB, smoke test | Cài/chạy theo hướng dẫn, không lộ secret | Chưa thực hiện |
-| 7 | 4 | Auth/profile | Luồng và test auth/profile | Token và quyền sở hữu được kiểm tra | Chưa thực hiện |
-| 8 | 4 | Plan/workout/progress | Luồng MVP app-API-DB | Dữ liệu tồn tại sau tải lại; lỗi có xử lý | Chưa thực hiện |
-| 9 | 5 | Posture | Fixture, test assessment | Landmark không tin cậy bị từ chối phù hợp | Chưa thực hiện |
-| 10 | 5 | Realtime/AI | Test FSM và AI, quyết định phạm vi | Guardrail/fallback hoặc loại khỏi demo có lý do | Chưa thực hiện |
-| 11 | 6 | Test chất lượng | Test matrix, bug log | Kết quả test thực tế, blocker được xử lý/ghi rõ | Chưa thực hiện |
-| 12 | 6 | E2E/đánh giá | Báo cáo test và evidence | Luồng demo có kết quả, mục tiêu được đối chiếu | Chưa thực hiện |
-| 13 | 7 | Đóng gói | Release candidate, README, known issues | Cài lại được, secrets tách khỏi source | Chưa thực hiện |
-| 14 | 7 | Báo cáo | Bản gần cuối, hình/sơ đồ | Báo cáo khớp sản phẩm và kết quả | Chưa thực hiện |
-| 15 | 7 | Bảo vệ | Báo cáo, slide, demo | Tổng duyệt đạt, có backup và trả lời giới hạn | Chưa thực hiện |
+### 8.2. Luồng xử lý khi ăn sai kế hoạch
 
-## 7. Kiểm thử, đánh giá và triển khai
+```mermaid
+flowchart TD
+    A["Ghi nhận bữa ăn thực tế"] --> B["Tính chênh lệch dinh dưỡng"]
+    B --> C["Cập nhật nhật ký"]
+    C --> D["Đánh giá mức độ sai lệch"]
+    D --> E{"Cần điều chỉnh?"}
+    E -- "Không" --> F["Giữ nguyên kế hoạch"]
+    E -- "Có" --> G["Đề xuất phương án mới"]
+    G --> H["Kiểm tra quy tắc an toàn"]
+    H --> I["Thông báo lý do"]
+    I --> J["Người dùng xác nhận"]
+    J --> K["Lưu phiên bản kế hoạch mới"]
+```
 
-### Bộ test tối thiểu
+Khi người dùng ăn nhiều hơn dự kiến, hệ thống không tự động yêu cầu nhịn ăn vào ngày tiếp theo. Thay vào đó, hệ thống ghi nhận sai lệch, giải thích ảnh hưởng và đánh giá xem có cần thay đổi kế hoạch hay không.
 
-| ID | Mục tiêu | Dữ liệu/tình huống | Mong đợi |
+### 8.3. Cơ chế lập kế hoạch cuốn chiếu
+
+Sử dụng cơ chế **Rolling 7-day planning**:
+
+1. Lập kế hoạch cho 7 ngày tiếp theo.
+2. Ghi nhận kết quả thực tế của từng ngày.
+3. Giữ nguyên lịch sử các ngày đã hoàn thành.
+4. Đánh giá lại những ngày chưa thực hiện dựa trên dữ liệu mới.
+5. Tạo hoặc cập nhật kế hoạch cho 7 ngày tiếp theo.
+6. Hiển thị những thay đổi và lý do để người dùng xác nhận.
+
+Khi người dùng thực hiện tốt, kế hoạch có thể tiếp tục theo định hướng hiện tại. Khi dữ liệu thay đổi, hệ thống điều chỉnh có kiểm soát. Không cần huấn luyện lại mô hình AI mỗi ngày; có thể sử dụng quy tắc nghiệp vụ, dữ liệu nhật ký và RAG để triển khai trong phạm vi đồ án.
+
+## 9. Nghiệp vụ báo cáo và dashboard
+
+Dashboard cung cấp cái nhìn tổng quan về quá trình thực hiện:
+
+- Cân nặng hiện tại và mục tiêu.
+- Xu hướng cân nặng theo thời gian.
+- Tiến độ hoàn thành thực đơn.
+- Số buổi tập đã hoàn thành.
+- Lịch tập và thực đơn hôm nay.
+- Mức độ tuân thủ kế hoạch.
+- Lịch sử thay đổi kế hoạch.
+- Các khuyến nghị cần ưu tiên trong thời gian tới.
+
+Cần phân biệt rõ kế hoạch ban đầu, kế hoạch đã điều chỉnh và kết quả thực tế để có thể đánh giá hiệu quả của hệ thống.
+
+## 10. Nghiệp vụ quản trị hệ thống
+
+Quản trị viên thực hiện:
+
+1. Quản lý người dùng và phân quyền.
+2. Quản lý danh mục thực phẩm, bài tập và nhóm cơ.
+3. Quản lý tài liệu trong Knowledge Base.
+4. Theo dõi trạng thái xử lý tài liệu và lỗi truy xuất.
+5. Quản lý các quy tắc lập kế hoạch và ngưỡng cảnh báo.
+6. Theo dõi lịch sử đề xuất và điều chỉnh.
+7. Quản lý phiên bản tri thức và nguồn tham khảo.
+
+Dữ liệu sức khỏe phải được bảo vệ, giới hạn quyền truy cập và chỉ được sử dụng đúng mục đích đã thông báo cho người dùng.
+
+# PHẦN II. KẾ HOẠCH THỰC HIỆN ĐỒ ÁN TRONG 15 TUẦN
+
+Kế hoạch được chia thành đúng 5 đợt theo yêu cầu, với nguyên tắc mỗi đợt tạo ra sản phẩm đầu ra cụ thể để làm cơ sở cho đợt tiếp theo.
+
+## 1. Bảng kế hoạch tổng quát
+
+| Đợt | Nội dung thực hiện | Thời gian | Kết quả dự kiến |
 |---|---|---|---|
-| AUTH-01 | Đăng nhập hợp lệ | Tài khoản demo hợp lệ | Token/response đúng contract; app vào màn hình phù hợp |
-| AUTH-02 | Từ chối truy cập | Không token/token sai/hết hạn | API từ chối; app yêu cầu đăng nhập lại phù hợp |
-| SEC-01 | Ngăn truy cập chéo | User A gọi dữ liệu User B | Không trả hoặc sửa dữ liệu của B |
-| PROF-01 | Validate hồ sơ | Thiếu/sai trường bắt buộc | Lỗi validation có cấu trúc; DB không lưu dữ liệu sai |
-| PLAN-01 | Lấy kế hoạch | Có dữ liệu kế hoạch hôm nay | Response khớp schema và app hiển thị đúng |
-| AI-01 | AI timeout/sai JSON | Stub/mock timeout hoặc JSON lỗi | Timeout giới hạn; fallback an toàn hoặc lỗi rõ, không bịa kết quả |
-| POST-01 | Landmark thiếu tin cậy | Visibility thấp/điểm thiếu | Không kết luận chắc chắn; trả lý do/đánh dấu không đủ dữ liệu |
-| WORK-01 | Chuỗi rep | Fixture UP-DOWN-UP và nhiễu | Đếm đúng theo luật hoặc bỏ frame không tin cậy |
-| E2E-01 | Luồng demo | Auth → profile → plan → workout → progress | Luồng chạy liên tục và dữ liệu nhất quán |
+| 1 | Nghiên cứu cơ sở lý thuyết về AI, RAG, dinh dưỡng, tập luyện và công nghệ liên quan. | Tuần 1–2 | Báo cáo cơ sở lý thuyết, xác định bài toán và lựa chọn công nghệ. |
+| 2 | Phân tích yêu cầu, tác nhân, nghiệp vụ lập kế hoạch, theo dõi và điều chỉnh. | Tuần 3–5 | Đặc tả yêu cầu, sơ đồ use case, quy trình nghiệp vụ và tiêu chí nghiệm thu. |
+| 3 | Thiết kế kiến trúc, cơ sở dữ liệu, API, giao diện và module AI. | Tuần 6–8 | Sơ đồ kiến trúc, ERD, thiết kế giao diện và tài liệu thiết kế kỹ thuật. |
+| 4 | Phát triển backend, frontend, Knowledge Base, AI lập kế hoạch, nhật ký và điều chỉnh. | Tuần 9–12 | Hệ thống tích hợp có thể chạy và trình diễn các nghiệp vụ chính. |
+| 5 | Kiểm thử, đánh giá thực nghiệm, hoàn thiện báo cáo và chuẩn bị bảo vệ. | Tuần 13–15 | Sản phẩm hoàn thiện, báo cáo kết quả, slide và kịch bản demo. |
 
-Khi chạy test, bổ sung các cột: phiên bản commit, ngày chạy, môi trường, bước thực hiện, kết quả thực tế, pass/fail, liên kết log/ảnh và bug liên quan. Với posture/AI, nếu không có tập dữ liệu đủ quyền sử dụng thì chỉ báo cáo test fixture/kịch bản, không suy rộng thành độ chính xác ngoài thực tế.
+## 2. Kế hoạch chi tiết theo tuần
 
-### Triển khai
+### Đợt 1. Cơ sở lý thuyết — Tuần 1–2
 
-1. Chốt cách khởi chạy backend và MySQL từ cấu hình hiện có; xác minh file compose, profile Spring và schema seed trước khi dùng.
-2. Đưa DB credential, JWT secret và Gemini key vào biến môi trường/secret manager; kiểm tra cấu hình không ghi giá trị thật trong README hoặc log.
-3. Cấu hình URL API cho emulator/thiết bị thật và môi trường demo; không hardcode localhost dùng chung cho mọi thiết bị.
-4. Khởi chạy DB, backend, kiểm tra health/API; sau đó mở app và chạy smoke test. Ghi phiên bản, lệnh và lỗi còn tồn tại.
-5. Chuẩn bị user/dữ liệu demo phi nhạy cảm, phương án offline (video/ảnh ghi trước) và hướng khôi phục nếu mạng/AI không khả dụng.
+#### Tuần 1 — Nghiên cứu bài toán
 
-## 8. Báo cáo và bảo vệ
+- Tìm hiểu các hệ thống hỗ trợ dinh dưỡng, quản lý cân nặng và tập luyện.
+- Nghiên cứu các chỉ số thể chất và nguyên tắc xây dựng kế hoạch cá nhân hóa.
+- Tìm hiểu các vấn đề của kế hoạch cố định và nhu cầu điều chỉnh theo kết quả thực tế.
+- Xác định mục tiêu, đối tượng sử dụng và phạm vi đồ án.
 
-### Cấu trúc báo cáo gợi ý
+**Kết quả:** Báo cáo tổng quan bài toán, mục tiêu và phạm vi nghiên cứu.
 
-1. Giới thiệu, bối cảnh, mục tiêu và phạm vi.
-2. Cơ sở lý thuyết và công nghệ (chỉ nội dung đã nghiên cứu, liên hệ trực tiếp đề tài).
-3. Khảo sát, yêu cầu, use case và tiêu chí chấp nhận.
-4. Kiến trúc, ERD, API, luồng nghiệp vụ và quyết định thiết kế.
-5. Cài đặt app/backend theo module; ảnh chụp từ phiên bản thực tế.
-6. Kiểm thử, đánh giá, kết quả và phân tích lỗi/giới hạn.
-7. Kết luận và hướng phát triển.
-8. Tài liệu tham khảo, phụ lục API/test/hướng dẫn chạy.
+#### Tuần 2 — Nghiên cứu công nghệ
 
-### Demo gợi ý
+- Tìm hiểu LLM, prompt engineering, embedding và RAG.
+- Nghiên cứu vector database và cơ chế truy xuất tri thức.
+- Tìm hiểu công nghệ backend, frontend và lưu trữ dữ liệu.
+- Nghiên cứu các phương pháp kiểm thử và đánh giá chất lượng AI.
+- Khảo sát MediaPipe và pose estimation ở mức định hướng mở rộng.
 
-1. Đăng nhập tài khoản demo và xem hồ sơ.
-2. Xem kế hoạch trong ngày; giải thích nguồn dữ liệu và trạng thái fallback nếu AI không sẵn sàng.
-3. Ghi nhận một buổi tập; xem tiến độ được cập nhật.
-4. Nếu posture scan/realtime vượt qua nghiệm thu, trình diễn với điều kiện camera và giới hạn rõ; nếu không, dùng fixture/video đã chuẩn bị và gọi đó là minh họa kiểm thử, không phải live feature.
-5. Kết thúc bằng kiến trúc, bằng chứng test, giới hạn và hướng phát triển.
+**Kết quả:** Báo cáo cơ sở lý thuyết, lựa chọn công nghệ và mô hình giải pháp sơ bộ.
 
-### Câu hỏi phản biện nên chuẩn bị
+### Đợt 2. Phân tích hệ thống — Tuần 3–5
 
-- Tại sao cần app mobile và backend riêng? Vì sao chọn công nghệ trong repo thay vì phương án khác?
-- Làm sao đảm bảo dữ liệu một người dùng không lộ cho người khác?
-- Landmark 2D bị sai bởi góc camera/che khuất như thế nào? Hệ thống từ chối kết luận khi nào?
-- LLM có thể bịa hoặc trả JSON sai; validation, fallback và giới hạn tư vấn được xử lý ở đâu?
-- Những test nào đã chạy thật? Kết quả có giới hạn gì về thiết bị, dữ liệu và kích thước mẫu?
-- Tính năng nào chưa hoàn thành và vì sao? Nếu có thêm thời gian, ưu tiên việc gì?
+#### Tuần 3 — Phân tích yêu cầu
 
-## 9. Checklist tổng thể
+- Xác định tác nhân và các chức năng chính.
+- Phân tích yêu cầu chức năng và phi chức năng.
+- Xây dựng danh sách use case cho người dùng và quản trị viên.
+- Xác định yêu cầu bảo mật và giới hạn của hệ thống tư vấn sức khỏe.
 
-- [ ] Chốt mẫu báo cáo, phạm vi MVP và xác nhận kế hoạch 15 tuần.
-- [ ] Lưu baseline có lệnh chạy, lỗi và bằng chứng hiện trạng.
-- [ ] Hoàn thiện yêu cầu, kiến trúc, ERD, API contract và ADR.
-- [ ] Chạy tái lập mobile/backend/database từ README.
-- [ ] Hoàn thiện luồng MVP app-API-DB và kiểm tra authorization.
-- [ ] Kiểm thử AI/posture bằng fixture; bỏ khỏi demo nếu thiếu độ tin cậy.
-- [ ] Lưu test cases, kết quả thực tế và evidence, không bịa số liệu.
-- [ ] Đóng gói môi trường demo, kiểm tra secret và phương án dự phòng.
-- [ ] Hoàn thiện báo cáo, slide, kịch bản và tổng duyệt.
+**Kết quả:** Danh sách yêu cầu và sơ đồ use case tổng quan.
 
-## 10. Tài liệu tham khảo
+#### Tuần 4 — Phân tích nghiệp vụ lập kế hoạch
 
-Chỉ đưa vào danh mục cuối những tài liệu thực sự đọc và dùng; ưu tiên tài liệu chính thức khớp phiên bản dự án:
+- Phân tích nghiệp vụ đánh giá thể trạng và xác định mục tiêu.
+- Phân tích nghiệp vụ tạo thực đơn, lịch tập và lịch rảnh 7 ngày.
+- Phân tích nhật ký ăn uống, tập luyện và cân nặng.
+- Xây dựng luồng xử lý khi người dùng ăn sai hoặc bỏ buổi tập.
 
-- Expo Documentation: https://docs.expo.dev/
-- React Native Documentation: https://reactnative.dev/docs/getting-started
-- Spring Boot Documentation: https://docs.spring.io/spring-boot/docs/3.2.3/reference/html/
-- Spring Security Reference: https://docs.spring.io/spring-security/reference/
-- MySQL Reference Manual: https://dev.mysql.com/doc/
-- OpenAPI Specification: https://spec.openapis.org/oas/latest.html
-- Tài liệu MediaPipe Pose/Landmarker chỉ dùng nếu xác nhận thư viện/pipeline đó thực sự được tích hợp; ghi phiên bản và ngày truy cập.
+**Kết quả:** Sơ đồ hoạt động, đặc tả use case và bộ quy tắc nghiệp vụ.
 
----
+#### Tuần 5 — Phân tích nghiệp vụ AI và thích ứng
 
-**Thông tin cần người thực hiện xác nhận:** tên đề tài theo quy định khoa, mẫu/chương báo cáo bắt buộc, thiết bị demo (Android/iOS), môi trường backend mục tiêu và phạm vi được phép dùng dữ liệu/camera. Khi chưa xác nhận, kế hoạch giả định báo cáo CNTT thông thường, Android/local demo và không dùng dữ liệu sức khỏe định danh.
+- Phân tích luồng quản lý Knowledge Base và truy xuất RAG.
+- Xác định cách kiểm tra tính hợp lệ của kế hoạch AI.
+- Phân tích cơ chế Rolling 7-day planning.
+- Xác định các tình huống ngoại lệ và tiêu chí đánh giá hệ thống.
+- Chốt chức năng bắt buộc và chức năng mở rộng.
 
-## 11. Tiến độ hiện tại
+**Kết quả:** Tài liệu đặc tả nghiệp vụ hoàn chỉnh, tiêu chí nghiệm thu và phạm vi triển khai đã chốt.
 
-### Kết luận tại thời điểm rà repository
+### Đợt 3. Thiết kế hệ thống — Tuần 6–8
 
-**Dự án đã qua bước dựng khung ban đầu và đang ở giai đoạn hoàn thiện các lát cắt chức năng/tích hợp mobile-backend. Chưa đủ bằng chứng để đánh dấu hoàn thành trọn vẹn đợt nào trong kế hoạch 7 đợt.** Có mã nguồn cho nhiều module, nhưng trạng thái chạy end-to-end chưa được xác minh. Đây là đánh giá tĩnh theo mã nguồn đã đọc, không phải kết quả nghiệm thu sản phẩm.
+#### Tuần 6 — Thiết kế kiến trúc
 
-| Hạng mục | Bằng chứng đang có | Đánh giá hiện tại | Việc tiếp theo |
-|---|---|---|---|
-| Mobile app | Có màn Login, Home, Profile, Scan, Roadmap, DailyPlan, Workout, Progress, Coach và API services tương ứng. | Khung màn hình và một số kết nối service đã có; chưa kiểm tra hết luồng trên thiết bị. | Chạy app, kiểm tra từng màn hình, quyền, loading/error/empty và đối chiếu response API. |
-| Đăng nhập | App có login/profile và signup; backend có controller và Spring Security/JWT. Native lưu token bằng SecureStore; Web giữ token trong memory của phiên hiện tại vì SecureStore không có implementation web. | Đã kiểm tra login demo qua API và CORS trả HTTP 200; đã sửa bước lưu token cho Web, TypeScript/lint và bundle Web đều qua. | Thử login/signup trực tiếp trên browser và thiết bị; logout, reload Web (phiên sẽ hết), token hết hạn và truy cập trái phép. |
-| Hồ sơ | App có lưu/lấy profile; backend có `ProfileService.save/getMine`. Màn Profile tải dữ liệu, consent rõ ràng và có upload avatar JPEG/PNG tới backend để signed-upload lên Cloudinary. | Luồng avatar đã nối ở mức mã nguồn; chưa build/test backend hoặc xác minh upload thật trên Cloudinary. | Chạy với JDK, restart backend với `.env`; test upload, file quá cỡ/sai MIME, thay avatar và user không có profile. Secret đã từng được chia sẻ trong chat nên cần rotate trước production. |
-| Quét tư thế | Backend có assess, lưu report và endpoint reports/me; có unit test reliability theo visibility. Mobile Scan hiện gửi `demoRequest` (landmark mẫu). | Có đánh giá rule-based và test nguồn; **chưa phải camera scan thật được xác minh**. | Chốt pipeline camera/pose landmark hoặc ghi rõ demo hiện dùng fixture; chạy test khi có Java. |
-| Lộ trình | App gọi `POST /coach/roadmap`; backend gọi Gemini client chung, yêu cầu JSON schema, kiểm tra đúng số tuần, lưu kết quả và fallback nếu lỗi. | Đã có code + unit tests nguồn; chưa chạy do thiếu JDK và chưa có API key để kiểm tra gọi thật. | Cấu hình key local, kiểm tra API thật, HTTP 429/timeout/JSON sai và history DB. |
-| Chat coach | App gọi `POST /coach/chat`; backend có safety gate trước Gemini, context hồ sơ tối thiểu theo consent, JSON schema và fallback khi AI lỗi. | Đã nối Gemini ở code; chưa có lịch sử chat/RAG và chưa kiểm tra API thật. | Kiểm tra prompt ngoài phạm vi, dấu hiệu đau, prompt injection, timeout và câu trả lời grounded. |
-| Kế hoạch ngày | App gọi `GET /daily-plans/today`; backend lưu theo user/ngày, tạo template hoặc Gemini plan. `POST /daily-plans/today/generate` cho phép tạo lại; validate duration, số hoạt động và safety notes trước khi lưu. | Persistence, source AI/fallback và safety rule khi profile báo vùng đau đã có trong code; chưa chạy DB/test và chưa gọi Gemini thật. | Cấu hình key; kiểm tra consent, đau, schema sai, ngày/user uniqueness và kết quả UI. |
-| Theo dõi buổi tập | Mobile có hook gọi track/end; backend có engine đếm rep và entity/repository workout; unit test có chu kỳ rep, visibility và cô lập session theo user. Engine hiện dùng khóa kết hợp userId/sessionId. | Đếm rep dựa joint angle nhận từ client; chưa thấy bằng chứng pipeline camera/landmark realtime hoàn chỉnh. Thay đổi cô lập session đã có test nguồn nhưng chưa chạy do thiếu Java. | Chạy unit test; kiểm tra API với hai tài khoản cùng client sessionId; xác minh dữ liệu session được lưu và xử lý khi kết thúc/trùng request. |
-| Tiến độ | App gọi progress summary; backend tổng hợp số posture report, roadmap và workout session theo user. | Bản tổng hợp cơ bản đã có trong code. | Tạo dữ liệu demo qua luồng thật và đối chiếu số đếm với DB/UI. |
-| Database/deploy | Có schema/seed SQL, cấu hình Spring profiles và Docker Compose trong repo. | Tệp cấu hình hiện hữu; chưa xác nhận dựng sạch thành công trên máy này. | Chạy DB/backend theo hướng dẫn, kiểm tra schema, secret, migration/seed và README. |
-| Kiểm thử | Có unit test cho posture visibility, rep FSM/session isolation, roadmap schema/fallback, chat safety, daily plan AI validation/persistence. | Test đã được viết nhưng **chưa chạy được trong môi trường hiện tại**: `gradlew.bat test` báo không tìm thấy Java/JAVA_HOME. Chưa có kết quả pass/fail thực tế. | Cài/chọn JDK 17, cấu hình `JAVA_HOME`, chạy lại toàn bộ test và lưu log kết quả. |
-| Tài liệu đồ án | Có `Business.md`, `AI_ROADMAP.md`, `IMPLEMENTATION_CHECKLIST.md`, các phase note và tài liệu này. | Có tài liệu định hướng kỹ thuật; báo cáo học thuật, sơ đồ khớp code và kết quả kiểm thử chưa được xác nhận hoàn thiện. | Dùng checklist 15 tuần phía trên để bổ sung bằng chứng, sơ đồ và báo cáo theo tiến độ thật. |
+- Thiết kế kiến trúc frontend, backend, AI service và các thành phần lưu trữ.
+- Xác định ranh giới giữa LLM và logic nghiệp vụ.
+- Thiết kế luồng truy xuất tri thức và xác thực kết quả AI.
+- Xây dựng sơ đồ thành phần và sơ đồ triển khai.
 
-### Bạn đang ở đoạn nào của lộ trình?
+**Kết quả:** Tài liệu kiến trúc tổng thể.
 
-Đối chiếu với kế hoạch trong tài liệu này, phần code hiện tại gần với **công việc của Đợt 3–4** (đã có cấu trúc dữ liệu/API và một số luồng nghiệp vụ mobile-backend), đồng thời có một phần nền tảng của **Đợt 5** (rule đánh giá posture, đếm rep và tích hợp roadmap AI). Tuy nhiên, do chưa chạy được test và chưa xác minh end-to-end nên đây là **ước lượng vị trí công việc**, không phải xác nhận các đợt đã hoàn thành. Phần khảo sát/đặc tả/thiết kế/bằng chứng kiểm thử vẫn cần được hoàn tất hoặc bổ sung vào báo cáo.
+#### Tuần 7 — Thiết kế cơ sở dữ liệu và API
 
-### Việc nên làm tiếp theo
+- Thiết kế ERD cho tài khoản, hồ sơ, mục tiêu, thực phẩm và bài tập.
+- Thiết kế dữ liệu lịch rảnh, kế hoạch, nhật ký và lịch sử điều chỉnh.
+- Thiết kế các bảng quản lý nguồn tri thức và phiên bản kế hoạch.
+- Xác định REST API, request/response và quy tắc xác thực.
 
-1. Cài hoặc cấu hình JDK 17, chạy `HealthAssistantProject\gradlew.bat test`; ghi rõ test nào pass/fail.
-2. Chạy DB, backend và mobile; nghiệm thu auth → profile (bao gồm tải hồ sơ đã lưu và consent) → roadmap/daily plan (xác nhận lưu ổn định theo user/ngày) → workout (bao gồm session isolation) → progress, lưu ảnh/log cho từng luồng.
-3. Đánh dấu Scan là fixture/demo cho đến khi xác minh camera tạo landmark thật; quyết định rõ phạm vi chat và kế hoạch ngày tĩnh.
-4. Cập nhật trạng thái từng tuần trong bảng tiến độ dựa trên bằng chứng. Không đánh dấu tuần cũ hoàn thành chỉ vì code tính năng tương tự đã tồn tại.
+**Kết quả:** ERD, tài liệu API và thiết kế dữ liệu.
+
+#### Tuần 8 — Thiết kế giao diện và module AI
+
+- Thiết kế dashboard, hồ sơ thể chất, lịch 7 ngày và nhật ký.
+- Thiết kế màn hình thực đơn, buổi tập và báo cáo tiến độ.
+- Thiết kế giao diện quản trị Knowledge Base.
+- Xác định cấu trúc prompt, metadata và tiêu chí kiểm tra đầu ra.
+- Chuẩn bị dữ liệu mẫu phục vụ phát triển.
+
+**Kết quả:** Bộ thiết kế giao diện, tài liệu module AI và tài liệu thiết kế hoàn chỉnh.
+
+### Đợt 4. Phát triển chức năng và thực nghiệm — Tuần 9–12
+
+#### Tuần 9 — Xây dựng nền tảng
+
+- Khởi tạo dự án và cấu hình môi trường.
+- Xây dựng đăng nhập, phân quyền và quản lý hồ sơ thể chất.
+- Xây dựng chức năng đặt mục tiêu và khai báo lịch rảnh.
+- Xây dựng danh mục thực phẩm và bài tập ở mức cơ bản.
+
+**Kết quả:** Nền tảng backend, frontend và dữ liệu nghiệp vụ cơ bản.
+
+#### Tuần 10 — Xây dựng Knowledge Base và AI lập kế hoạch
+
+- Xây dựng quy trình tải lên, xử lý và lưu trữ tài liệu.
+- Tích hợp embedding, vector database và RAG.
+- Xây dựng chức năng tạo thực đơn và lịch tập 7 ngày.
+- Bổ sung bước kiểm tra ràng buộc trước khi lưu kế hoạch.
+
+**Kết quả:** AI có thể truy xuất kiến thức và tạo kế hoạch theo hồ sơ mẫu.
+
+#### Tuần 11 — Xây dựng theo dõi và điều chỉnh
+
+- Xây dựng nhật ký ăn uống, tập luyện và cân nặng.
+- Xây dựng chức năng so sánh kế hoạch với thực tế.
+- Xử lý các trường hợp ăn sai, bỏ buổi và thay đổi lịch.
+- Xây dựng cơ chế lập kế hoạch cuốn chiếu.
+- Hoàn thiện dashboard và biểu đồ tiến độ.
+
+**Kết quả:** Hệ thống có thể theo dõi việc thực hiện và điều chỉnh kế hoạch tương lai.
+
+#### Tuần 12 — Tích hợp và thực nghiệm ban đầu
+
+- Tích hợp các module thành luồng nghiệp vụ hoàn chỉnh.
+- Kiểm thử các kịch bản lập kế hoạch và điều chỉnh.
+- Ghi nhận lỗi, thời gian phản hồi và kết quả đầu ra.
+- Nếu các chức năng cốt lõi đã ổn định, triển khai thử nhận diện một hoặc hai bài tập bằng camera.
+
+**Kết quả:** Phiên bản hệ thống tích hợp, bộ kịch bản thử nghiệm và số liệu ban đầu.
+
+### Đợt 5. Kiểm thử và hoàn thiện — Tuần 13–15
+
+#### Tuần 13 — Kiểm thử chức năng
+
+- Kiểm thử đăng nhập, hồ sơ và phân quyền.
+- Kiểm thử tạo thực đơn, lịch tập và lịch rảnh.
+- Kiểm thử nhật ký, tính toán dinh dưỡng và điều chỉnh kế hoạch.
+- Kiểm thử truy xuất Knowledge Base và nguồn tham khảo.
+- Sửa lỗi và thực hiện kiểm thử hồi quy.
+
+**Kết quả:** Báo cáo kiểm thử chức năng và phiên bản đã sửa lỗi.
+
+#### Tuần 14 — Đánh giá kết quả thực nghiệm
+
+- Đánh giá tính hợp lệ và mức độ phù hợp của kế hoạch AI.
+- Đánh giá chất lượng truy xuất RAG trên bộ câu hỏi mẫu.
+- Đo thời gian phản hồi và tỷ lệ kịch bản kiểm thử đạt.
+- Đánh giá khả năng thích ứng qua các tình huống giả lập.
+- Tổng hợp kết quả, phân tích hạn chế và đề xuất cải tiến.
+
+**Kết quả:** Bảng số liệu, biểu đồ và báo cáo đánh giá thực nghiệm.
+
+#### Tuần 15 — Hoàn thiện và chuẩn bị bảo vệ
+
+- Hoàn thiện báo cáo đồ án và tài liệu hướng dẫn.
+- Hoàn thiện sơ đồ, hình ảnh minh họa và kết quả thực nghiệm.
+- Chuẩn bị slide và kịch bản trình diễn hệ thống.
+- Chuẩn bị dữ liệu mẫu, tài khoản demo và phương án dự phòng.
+- Tổng hợp hạn chế và hướng phát triển tiếp theo.
+
+**Kết quả:** Sản phẩm cuối cùng, báo cáo, slide và kịch bản bảo vệ.
+
+# PHẦN III. ĐÁNH GIÁ ĐỒ ÁN
+
+## 1. Bộ tiêu chí thực nghiệm
+
+Để đồ án có tính khoa học, cần chứng minh hệ thống hoạt động đúng và AI tạo ra kết quả phù hợp. Không cần chứng minh người dùng thật chắc chắn giảm được bao nhiêu kilogram trong thời gian thực hiện đồ án.
+
+| Nội dung | Phương pháp đánh giá | Kết quả cần thu thập |
+|---|---|---|
+| Tính đúng đắn nghiệp vụ | Chạy các kịch bản kiểm thử | Số kịch bản đạt và không đạt. |
+| Chất lượng RAG | So sánh tài liệu truy xuất với nguồn tham chiếu | Mức độ liên quan, độ chính xác của nguồn. |
+| Chất lượng kế hoạch AI | Đối chiếu với bộ tiêu chí nghiệp vụ | Tỷ lệ kế hoạch đáp ứng các ràng buộc. |
+| Khả năng cá nhân hóa | Thử trên các hồ sơ và lịch rảnh khác nhau | Mức độ phù hợp của kế hoạch với từng hồ sơ. |
+| Khả năng thích ứng | Thử các trường hợp ăn sai, bỏ buổi, đổi lịch | Kế hoạch sau điều chỉnh và tính hợp lệ của thay đổi. |
+| Hiệu năng | Đo thời gian xử lý API và tạo kế hoạch | Thời gian phản hồi trong môi trường thử nghiệm. |
+| Trải nghiệm người dùng | Cho người dùng thử và khảo sát | Mức độ dễ sử dụng, mức độ hài lòng. |
+
+Nên chuẩn bị một bộ dữ liệu kiểm thử gồm hồ sơ thể chất giả lập, tài liệu tri thức đã kiểm duyệt, câu hỏi có đáp án tham chiếu và các tình huống thay đổi kế hoạch. Tất cả kết quả cần được đo thực tế, không tự đặt ra số liệu thành tích.
+
+## 2. Công nghệ sử dụng
+
+Bảng dưới tổng hợp stack được sử dụng cho giải pháp Health Assistant, gồm nền tảng hiện có và công nghệ chuyên biệt cho RAG/camera trong phạm vi đề tài.
+
+| Thành phần | Công nghệ sử dụng | Vai trò |
+|---|---|---|
+| Mobile | React Native 0.86.3, Expo SDK 57.0.27, React 19.2.3, TypeScript ~6.0.3 | Xây dựng ứng dụng iOS/Android và giao diện Web. |
+| Điều hướng và trạng thái | React Navigation 7, Zustand 5 | Điều hướng màn hình và quản lý trạng thái phiên/nghiệp vụ phía client. |
+| Camera chụp/quét | `expo-camera` | Mở camera, hướng dẫn người dùng chụp chính diện/nghiêng và lấy ảnh đầu vào cho xử lý pose cục bộ. |
+| Camera realtime | `react-native-vision-camera` và frame output/native plugin | Đọc frame camera cho bài tập realtime; dùng Expo development build/EAS vì cần mã native, không chạy bằng Expo Go hoặc Web. |
+| Pose estimation | MediaPipe Tasks Vision (Kotlin Android, Swift iOS); MediaPipe Tasks Vision JavaScript cho Web | Trích xuất landmark/visibility tại thiết bị; app gửi điểm hoặc chỉ số cần thiết, không gửi video thô cho Gemini. |
+| API client và lưu token | Fetch API qua `src/api/client.ts`, Expo SecureStore trên native | Gọi REST API, truyền JWT; Web giữ token trong bộ nhớ phiên. |
+| Backend | Java 17, Spring Boot 3.2.3, Spring Web, WebFlux, Validation, Spring Security | REST API, xác thực, validation, luật nghiệp vụ và tích hợp Gemini/Qdrant. |
+| Truy cập dữ liệu | Spring Data JPA, MyBatis Spring Boot Starter 3.0.3 | Lưu entity và thực hiện truy vấn SQL theo các module backend. |
+| Cơ sở dữ liệu quan hệ | MySQL 8.0, MySQL Connector/J | Lưu tài khoản, hồ sơ, posture report, roadmap, daily plan và workout. |
+| AI tạo nội dung | Google Gemini API qua backend `GeminiClient` | Sinh roadmap, daily plan và phản hồi có cấu trúc; backend kiểm tra schema, quy tắc an toàn và fallback. API key chỉ đặt ở backend environment. |
+| Embedding và RAG | Gemini Embedding API + quy trình ingest/chunk/retrieve trong backend Java | Tạo vector cho tài liệu tri thức và câu hỏi; truy xuất đoạn liên quan để đưa làm context cho Gemini. |
+| Vector database | Qdrant | Lưu embedding cùng metadata nguồn/chủ đề và tìm các đoạn tri thức tương đồng; chạy cùng MySQL qua Docker Compose. |
+| Ảnh đại diện | Cloudinary SDK 2.5.0 | Upload ảnh đại diện có ký xác thực; ảnh tư thế được xử lý cục bộ, không dùng avatar làm dữ liệu đánh giá. |
+| Tài liệu API | Springdoc OpenAPI 2.3.0 | Sinh giao diện và đặc tả REST API backend. |
+| Kiểm thử | JUnit 5, Mockito/AssertJ qua Spring Boot Test, Spring Security Test; TypeScript/ESLint cho mobile | Kiểm thử nghiệp vụ, schema/fallback, API/bảo mật và chất lượng mã client. |
+| Build và môi trường | Gradle 8.8 Wrapper, Node.js 22.13, npm, Expo/EAS, Docker Compose | Build backend/mobile; dựng MySQL và Qdrant phục vụ phát triển, kiểm thử. |
+
+Luồng RAG: tài liệu có nguồn → chuẩn hóa/chia đoạn → Gemini tạo embedding → lưu vector và metadata vào Qdrant → truy xuất theo câu hỏi → gửi đoạn phù hợp cùng hồ sơ tối thiểu cho Gemini tạo câu trả lời. Kích thước vector lưu trong Qdrant phải khớp cấu hình embedding đã chọn. [Gemini Embeddings](https://ai.google.dev/gemini-api/docs/embeddings), [Qdrant Collections](https://qdrant.tech/documentation/manage-data/collections/).
+
+Luồng camera: Expo Camera/VisionCamera → MediaPipe trên thiết bị → landmark và visibility → API posture/workout hiện có → luật backend → UI hiển thị kết quả có ngưỡng tin cậy. MediaPipe hỗ trợ xử lý ảnh đơn, video và livestream trên Android/iOS; camera realtime yêu cầu native development build. [MediaPipe Pose Android](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/android), [MediaPipe Pose iOS](https://developers.google.com/edge/mediapipe/solutions/vision/pose_landmarker/ios), [Expo Camera SDK 57](https://docs.expo.dev/versions/v57.0.0/sdk/camera/), [VisionCamera Frame Output](https://visioncamera.margelo.com/docs/frame-output).
+
+Không huấn luyện LLM riêng. Gemini tạo nội dung; backend Java chịu trách nhiệm kiểm tra schema, số liệu, quyền dữ liệu và quy tắc an toàn. Ảnh/video cơ thể không gửi tới Gemini; chỉ sử dụng landmark/metadata tối thiểu sau khi xử lý tại thiết bị và có consent phù hợp.
+
+## 3. Sản phẩm cần bàn giao
+
+- [ ] Tài liệu cơ sở lý thuyết và phân tích nghiệp vụ.
+- [ ] Sơ đồ use case, activity diagram, kiến trúc và ERD.
+- [ ] Mã nguồn frontend và backend.
+- [ ] Knowledge Base mẫu cùng quy trình truy xuất RAG.
+- [ ] Chức năng lập thực đơn và lịch tập 7 ngày.
+- [ ] Chức năng theo dõi ăn uống, tập luyện và cân nặng.
+- [ ] Cơ chế điều chỉnh kế hoạch theo dữ liệu thực tế.
+- [ ] Dashboard báo cáo tiến độ.
+- [ ] Bộ dữ liệu và kịch bản kiểm thử.
+- [ ] Báo cáo thực nghiệm có số liệu đo được.
+- [ ] Báo cáo đồ án, slide và kịch bản demo.
+
+## 4. Kết luận và định hướng triển khai
+
+Trong 15 tuần, cần tập trung hoàn thiện vòng lặp nghiệp vụ:
+
+**Đánh giá thể trạng → Tạo kế hoạch 7 ngày → Người dùng thực hiện → Ghi nhận dữ liệu → Đánh giá sai lệch → Điều chỉnh kế hoạch tiếp theo.**
+
+Điểm đáng giá nhất của đề tài không chỉ là tích hợp chatbot AI, mà là xây dựng hệ thống kết hợp tri thức chuyên môn, dữ liệu cá nhân và quy tắc nghiệp vụ để tạo ra kế hoạch có thể kiểm tra, theo dõi và điều chỉnh.
+
+Module camera gym sẽ giúp tăng tính trực quan và độ khó kỹ thuật, nhưng chỉ nên triển khai sau khi vòng lặp nghiệp vụ chính đã hoạt động ổn định. Đây là cách phân bổ nguồn lực phù hợp để đồ án vừa có chiều sâu AI, vừa có đầy đủ nghiệp vụ phần mềm và có thể bảo vệ bằng kết quả thực nghiệm.

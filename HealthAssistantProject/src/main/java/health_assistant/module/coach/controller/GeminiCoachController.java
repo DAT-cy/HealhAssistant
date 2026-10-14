@@ -32,6 +32,7 @@ import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import org.springframework.transaction.annotation.Transactional;
 
 @RestController
 @RequestMapping(ClientUtils.VERSION + "/coach")
@@ -70,11 +71,14 @@ public class GeminiCoachController {
     }
 
     @PostMapping("/roadmap/activate")
+    @Transactional
     public ResponseEntity<DefaultRes<RoadmapRecord>> activate(@Valid @RequestBody ActivateRoadmapRequest request) {
         Long userId = SecurityUtils.getCurrentUserId();
         var profile = profileRepository.findByUserId(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Hãy lưu hồ sơ trước khi kích hoạt lộ trình."));
         if (!profile.isConsent()) throw new IllegalArgumentException("Cần đồng ý sử dụng dữ liệu hồ sơ trước.");
+        if (profile.getHeightCm() == null || profile.getWeightKg() == null)
+            throw new IllegalArgumentException("Hãy nhập chiều cao và cân nặng trước khi kích hoạt lộ trình.");
         if (request.weeklyPlan().size() != request.weeks())
             throw new IllegalArgumentException("Số tuần và nội dung lộ trình không khớp.");
         if (!List.of("gemini", "fallback").contains(request.source()))

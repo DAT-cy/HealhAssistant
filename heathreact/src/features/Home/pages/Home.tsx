@@ -87,6 +87,7 @@ export default function HomePage() {
   const today = new Date();
   const elapsedDays = Math.max(0, Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - startedAt.getTime()) / 86400000));
   const totalDays = (activeRoadmap?.durationWeeks ?? 0) * 7;
+  const roadmapComplete = totalDays > 0 && elapsedDays >= totalDays;
 
   // Điều hướng Bottom Tab
   const handleSelectTab = (tab: 'Home' | 'Workout' | 'Progress' | 'Profile') => {
@@ -156,14 +157,14 @@ export default function HomePage() {
             <Pressable accessibilityRole="button" onPress={() => navigationService.navigate('Profile')} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cập nhật hồ sơ</Text></Pressable>
           </View> : null}
           {!loading && activeRoadmap ? <View style={styles.planArea}>
-            <View style={styles.planHeading}><View style={{ flex: 1 }}><Text style={styles.kicker}>ĐANG THỰC HIỆN</Text><Text style={styles.planTitle}>{activeRoadmap.title}</Text><Text style={styles.planSubtitle}>Ngày {Math.min(elapsedDays + 1, totalDays)} / {totalDays} · Bắt đầu {startedAt.toLocaleDateString('vi-VN')}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Xem lộ trình" onPress={() => navigationService.navigate('Roadmap')}><Ionicons name="open-outline" size={22} color="#16A34A" /></Pressable></View>
-            <Pressable style={styles.todayRow} onPress={handleStartTodayWorkout}><View style={{ flex: 1 }}><Text style={styles.kicker}>HÔM NAY</Text><Text style={styles.todayText}>{weeklyPlan[Math.min(Math.floor(elapsedDays / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Ngày phục hồi hoặc vận động nhẹ'}</Text></View><Ionicons name="play-circle" size={30} color="#16A34A" /></Pressable>
+            <View style={styles.planHeading}><View style={{ flex: 1 }}><Text style={styles.kicker}>{roadmapComplete ? 'ĐÃ HOÀN THÀNH' : 'ĐANG THỰC HIỆN'}</Text><Text style={styles.planTitle}>{activeRoadmap.title}</Text><Text style={styles.planSubtitle}>{roadmapComplete ? `${totalDays} / ${totalDays} ngày · ` : `Ngày ${elapsedDays + 1} / ${totalDays} · `}Bắt đầu {startedAt.toLocaleDateString('vi-VN')}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Xem lộ trình" onPress={() => navigationService.navigate('Roadmap')}><Ionicons name="open-outline" size={22} color="#16A34A" /></Pressable></View>
+            {roadmapComplete ? <View style={styles.todayRow}><View style={{ flex: 1 }}><Text style={styles.kicker}>LỘ TRÌNH ĐÃ KẾT THÚC</Text><Text style={styles.todayText}>Xem lại tiến độ hoặc tạo lộ trình mới phù hợp với mục tiêu tiếp theo.</Text></View></View> : <Pressable style={styles.todayRow} onPress={handleStartTodayWorkout}><View style={{ flex: 1 }}><Text style={styles.kicker}>HÔM NAY</Text><Text style={styles.todayText}>{weeklyPlan[Math.min(Math.floor(elapsedDays / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Ngày phục hồi hoặc vận động nhẹ'}</Text></View><Ionicons name="play-circle" size={30} color="#16A34A" /></Pressable>}
             <Text style={styles.sectionTitle}>Lịch lộ trình</Text>
             {Array.from({ length: totalDays }, (_, index) => {
               const date = new Date(startedAt); date.setDate(startedAt.getDate() + index);
               const isToday = index === elapsedDays;
               const isRestDay = index % 7 > 4;
-              return <Pressable key={index} disabled={!isToday || isRestDay} onPress={handleStartTodayWorkout} style={[styles.dayRow, isToday && styles.dayRowToday]}><Text style={styles.dayNumber}>{String(index + 1).padStart(2, '0')}</Text><View style={{ flex: 1 }}><Text style={styles.dayLabel}>{date.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'short' })}{isToday ? ' · Hôm nay' : ''}</Text><Text style={styles.dayFocus}>{isRestDay ? 'Nghỉ và phục hồi' : weeklyPlan[Math.min(Math.floor(index / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Buổi vận động nhẹ'}</Text></View><Ionicons name={index < elapsedDays ? 'checkmark-circle' : isRestDay ? 'bed-outline' : 'ellipse-outline'} size={19} color={index < elapsedDays ? '#16A34A' : '#94A3B8'} /></Pressable>;
+              return <Pressable key={index} disabled={!isToday || isRestDay || roadmapComplete} onPress={handleStartTodayWorkout} style={[styles.dayRow, isToday && styles.dayRowToday]}><Text style={styles.dayNumber}>{String(index + 1).padStart(2, '0')}</Text><View style={{ flex: 1 }}><Text style={styles.dayLabel}>{date.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'short' })}{isToday ? ' · Hôm nay' : ''}</Text><Text style={styles.dayFocus}>{isRestDay ? 'Nghỉ và phục hồi' : weeklyPlan[Math.min(Math.floor(index / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Buổi vận động nhẹ'}</Text></View><Ionicons name={isRestDay ? 'bed-outline' : isToday && !roadmapComplete ? 'play-circle-outline' : 'ellipse-outline'} size={19} color={isToday && !roadmapComplete ? '#16A34A' : '#94A3B8'} /></Pressable>;
             })}
           </View> : null}
         </View>
