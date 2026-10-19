@@ -1,0 +1,118 @@
+<mxfile host="app.diagrams.net" agent="Codex">
+  <diagram id="overview" name="Tổng quan ERD">
+    <mxGraphModel dx="2946" dy="1619" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="2100" pageHeight="1440" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" style="text;html=1;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=26;fontColor=#0f172a;" value="&lt;b&gt;HEALTH ASSISTANT&lt;/b&gt;&lt;br&gt;&lt;font style=&quot;font-size:20px&quot;&gt;Database ERD&lt;/font&gt;&lt;br&gt;&lt;font color=&quot;#64748b&quot;&gt;health_assistant · MySQL 8 · 21 bảng nghiệp vụ&lt;/font&gt;" vertex="1">
+          <mxGeometry height="88" width="690" x="42" y="22" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#e2e8f0;fontSize=12;align=left;spacingLeft=14;" value="&lt;b&gt;Quan hệ&lt;/b&gt;  &lt;font color=&quot;#2563eb&quot;&gt;━━━━ FK thật&lt;/font&gt;　&lt;font color=&quot;#94a3b8&quot;&gt;┄┄┄ liên kết logic&lt;/font&gt;　 &lt;font color=&quot;#64748b&quot;&gt;PK khóa chính · FK khóa ngoại&lt;/font&gt;" vertex="1">
+          <mxGeometry height="56" width="880" x="1170" y="38" as="geometry" />
+        </mxCell>
+        <mxCell id="h_auth" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e0f2fe;strokeColor=#bae6fd;fontColor=#075985;fontStyle=1;fontSize=13;align=left;spacingLeft=12;" value="01　TÀI KHOẢN &amp; HỒ SƠ" vertex="1">
+          <mxGeometry height="38" width="365" x="40" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="h_track" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dcfce7;strokeColor=#bbf7d0;fontColor=#166534;fontStyle=1;fontSize=13;align=left;spacingLeft=12;" value="02　MỤC TIÊU &amp; THEO DÕI" vertex="1">
+          <mxGeometry height="38" width="365" x="440" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="h_plan" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fef3c7;strokeColor=#fde68a;fontColor=#92400e;fontStyle=1;fontSize=13;align=left;spacingLeft=12;" value="03　KẾ HOẠCH TẬP LUYỆN" vertex="1">
+          <mxGeometry height="38" width="365" x="840" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="h_food" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fce7f3;strokeColor=#fbcfe8;fontColor=#9d174d;fontStyle=1;fontSize=13;align=left;spacingLeft=12;" value="04　DINH DƯỠNG &amp; DANH MỤC" vertex="1">
+          <mxGeometry height="38" width="365" x="1240" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="h_kb" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f3e8ff;strokeColor=#e9d5ff;fontColor=#6b21a8;fontStyle=1;fontSize=13;align=left;spacingLeft=12;" value="05　KNOWLEDGE BASE" vertex="1">
+          <mxGeometry height="38" width="410" x="1640" y="128" as="geometry" />
+        </mxCell>
+        <mxCell id="tbl_users" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#38bdf8;strokeWidth=2;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;tbl_users&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; user_id BIGINT&lt;br&gt;username, password, email&lt;br&gt;display_name, role, enable&lt;br&gt;is_deleted, created_at / updated_at" vertex="1">
+          <mxGeometry height="150" width="365" x="40" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="auth_identities" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#38bdf8;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;auth_identities&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; user_id&lt;br&gt;provider, provider_subject&lt;br&gt;provider_email, email_verified&lt;br&gt;created_at, last_login_at&lt;br&gt;UQ(provider, subject), UQ(user, provider)" vertex="1">
+          <mxGeometry height="175" width="365" x="40" y="352" as="geometry" />
+        </mxCell>
+        <mxCell id="user_profiles" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#38bdf8;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;user_profiles&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　user_id UNIQUE (logic)&lt;br&gt;goal, activity_level, gender, age&lt;br&gt;height_cm, weight_kg, consent&lt;br&gt;restrictions, pain_areas&lt;br&gt;avatar_url, avatar_public_id, updated_at" vertex="1">
+          <mxGeometry height="175" width="365" x="40" y="547" as="geometry" />
+        </mxCell>
+        <mxCell id="health_goals" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4ade80;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;health_goals&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; user_id&lt;br&gt;goal_type, start_weight_kg, target_weight_kg&lt;br&gt;start_date, target_date, status, notes&lt;br&gt;created_at, updated_at" vertex="1">
+          <mxGeometry height="155" width="365" x="440" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="availability_slots" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4ade80;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;availability_slots&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; user_id&lt;br&gt;day_of_week, start_time, end_time&lt;br&gt;activity_type, location_type&lt;br&gt;equipment_notes, is_active, created_at" vertex="1">
+          <mxGeometry height="150" width="365" x="440" y="357" as="geometry" />
+        </mxCell>
+        <mxCell id="weight_logs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4ade80;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;weight_logs&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; user_id&lt;br&gt;measured_on, weight_kg, note&lt;br&gt;created_at · UQ(user_id, measured_on)" vertex="1">
+          <mxGeometry height="130" width="365" x="440" y="527" as="geometry" />
+        </mxCell>
+        <mxCell id="daily_checkins" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4ade80;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;daily_checkins&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　user_id (logic)&lt;br&gt;check_in_date, weight_kg, energy_level&lt;br&gt;sleep_hours, sleep_quality, fatigue_level&lt;br&gt;mood, activity_notes, note&lt;br&gt;created_at, updated_at · UQ(user, date)" vertex="1">
+          <mxGeometry height="175" width="365" x="440" y="677" as="geometry" />
+        </mxCell>
+        <mxCell id="posture_reports" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4ade80;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;posture_reports&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　user_id (logic)&lt;br&gt;view, reliable, created_at&lt;br&gt;shoulder_imbalance_degrees&lt;br&gt;pelvic_tilt_degrees, forward_head_degrees&lt;br&gt;findings, recommendations" vertex="1">
+          <mxGeometry height="160" width="365" x="440" y="872" as="geometry" />
+        </mxCell>
+        <mxCell id="workout_sessions" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#4ade80;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;workout_sessions&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　user_id (logic)&lt;br&gt;exercise, reps, completed_at" vertex="1">
+          <mxGeometry height="105" width="365" x="440" y="1052" as="geometry" />
+        </mxCell>
+        <mxCell id="roadmaps" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#fbbf24;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;roadmaps&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　user_id (logic)&lt;br&gt;title, overview, weekly_plan, safety_notes&lt;br&gt;source, status, start_date, duration_weeks&lt;br&gt;version_number, previous_roadmap_id&lt;br&gt;change_reason, prompt_version, schema_version&lt;br&gt;created_at" vertex="1">
+          <mxGeometry height="200" width="365" x="840" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="roadmap_previews" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#fbbf24;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;roadmap_previews&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id VARCHAR(36)&lt;br&gt;user_id, profile_updated_at (logic)&lt;br&gt;options_json, expires_at, consumed_at" vertex="1">
+          <mxGeometry height="130" width="365" x="840" y="402" as="geometry" />
+        </mxCell>
+        <mxCell id="daily_plans" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#fbbf24;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;daily_plans&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　user_id (logic)&lt;br&gt;plan_date, title, duration&lt;br&gt;activities, safety_notes, source, created_at&lt;br&gt;UQ(user_id, plan_date)" vertex="1">
+          <mxGeometry height="145" width="365" x="840" y="552" as="geometry" />
+        </mxCell>
+        <mxCell id="plan_adjustments" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#fbbf24;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;plan_adjustments&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; user_id, roadmap_id&lt;br&gt;trigger_type, reason, proposed_changes JSON&lt;br&gt;status, created_at, decided_at" vertex="1">
+          <mxGeometry height="145" width="365" x="840" y="717" as="geometry" />
+        </mxCell>
+        <mxCell id="exercise_catalog" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#f472b6;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;exercise_catalog&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id · code UNIQUE&lt;br&gt;name, muscle_group, difficulty&lt;br&gt;equipment, instructions, safety_notes&lt;br&gt;is_active" vertex="1">
+          <mxGeometry height="145" width="365" x="1240" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="food_catalog" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#f472b6;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;food_catalog&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id&lt;br&gt;name, serving_name, serving_grams&lt;br&gt;calories_kcal, protein_g, carbohydrates_g&lt;br&gt;fat_g, source, is_active" vertex="1">
+          <mxGeometry height="145" width="365" x="1240" y="347" as="geometry" />
+        </mxCell>
+        <mxCell id="meal_logs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#f472b6;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;meal_logs&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; user_id&lt;br&gt;logged_at, meal_type, status, notes&lt;br&gt;created_at" vertex="1">
+          <mxGeometry height="120" width="365" x="1240" y="512" as="geometry" />
+        </mxCell>
+        <mxCell id="meal_log_items" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#f472b6;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;meal_log_items&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; meal_log_id, food_id?&lt;br&gt;food_name_snapshot, quantity, serving_grams&lt;br&gt;calories_kcal, protein_g, carbohydrates_g, fat_g" vertex="1">
+          <mxGeometry height="145" width="365" x="1240" y="652" as="geometry" />
+        </mxCell>
+        <mxCell id="kb_categories" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#c084fc;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;kb_categories&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; category_id&lt;br&gt;code UNIQUE, name, active, sort_order" vertex="1">
+          <mxGeometry height="110" width="410" x="1640" y="182" as="geometry" />
+        </mxCell>
+        <mxCell id="kb_documents" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#c084fc;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;kb_documents&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; document_id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; category_id&lt;br&gt;title, description, document_type, status&lt;br&gt;source_organization, source_url, license_name&lt;br&gt;rights_confirmed, original_filename, detected_mime&lt;br&gt;file_size_bytes, file_sha256, storage_key&lt;br&gt;extracted_text, chunk_count, extraction_warning&lt;br&gt;created_by, reviewed_by, review_note&lt;br&gt;created_at, updated_at, reviewed_at, deleted_at, row_version" vertex="1">
+          <mxGeometry height="230" width="410" x="1640" y="312" as="geometry" />
+        </mxCell>
+        <mxCell id="kb_chunks" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#c084fc;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;kb_chunks&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; chunk_id　·　&lt;font color=&quot;#2563eb&quot;&gt;FK&lt;/font&gt; document_id&lt;br&gt;chunk_index, content MEDIUMTEXT" vertex="1">
+          <mxGeometry height="110" width="410" x="1640" y="562" as="geometry" />
+        </mxCell>
+        <mxCell id="kb_audit_logs" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#c084fc;fontColor=#0f172a;fontSize=12;align=left;verticalAlign=top;spacing=12;" value="&lt;b&gt;kb_audit_logs&lt;/b&gt;&lt;hr&gt;&lt;font color=&quot;#2563eb&quot;&gt;PK&lt;/font&gt; audit_id&lt;br&gt;document_id, actor_id (logical references)&lt;br&gt;action, details, created_at" vertex="1">
+          <mxGeometry height="120" width="410" x="1640" y="692" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-auth" edge="1" parent="1" source="tbl_users" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERone;endArrow=ERmany;strokeWidth=2;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" target="auth_identities" value="1:N · FK">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-profile" edge="1" parent="1" source="tbl_users" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;startArrow=ERone;endArrow=ERone;strokeColor=#94a3b8;fontSize=10;labelBackgroundColor=#ffffff;" target="user_profiles" value="1:1 · logic">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-plan-roadmap" edge="1" parent="1" source="roadmaps" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERone;endArrow=ERmany;strokeWidth=2;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" target="plan_adjustments" value="FK">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-meal" edge="1" parent="1" source="meal_logs" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERone;endArrow=ERmany;strokeWidth=2;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" target="meal_log_items" value="1:N · FK cascade">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-food" edge="1" parent="1" source="food_catalog" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERone;endArrow=ERmany;strokeWidth=2;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" target="meal_log_items" value="optional FK">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-category" edge="1" parent="1" source="kb_categories" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERone;endArrow=ERmany;strokeWidth=2;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" target="kb_documents" value="1:N · FK">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="rel-chunk" edge="1" parent="1" source="kb_documents" style="edgeStyle=orthogonalEdgeStyle;rounded=1;orthogonalLoop=1;jettySize=auto;html=1;startArrow=ERone;endArrow=ERmany;strokeWidth=2;strokeColor=#2563eb;fontSize=10;labelBackgroundColor=#ffffff;" target="kb_chunks" value="1:N · FK">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="footer" parent="1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8fafc;strokeColor=#e2e8f0;fontColor=#475569;fontSize=11;align=left;spacing=12;" value="&lt;b&gt;Ghi chú schema&lt;/b&gt;　Các bảng JPA được Hibernate tạo/cập nhật khi ứng dụng chạy. Một số cột user_id chỉ là liên kết logic, chưa có FK vật lý. `food_catalog`, `exercise_catalog`, `meal_logs`, `meal_log_items`, `plan_adjustments` đã có schema nhưng một số API nghiệp vụ còn chưa hoàn thiện. File gốc Knowledge Base lưu trên filesystem, không nằm trong MySQL." vertex="1">
+          <mxGeometry height="85" width="2010" x="40" y="1210" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
