@@ -3,6 +3,7 @@ import { authService } from '@/api/services/auth.service';
 import { apiClient } from '@/api/client';
 import { navigationService } from '@/routes';
 import { appStorage } from '@/utils/storage';
+import { LoginResponse, Role } from '@/api/types';
 
 const TOKEN_KEY = 'auth_token';
 
@@ -12,10 +13,12 @@ const TOKEN_KEY = 'auth_token';
 interface UserState {
   token: string | null;
   username: string;
+  role: Role | null;
   initialized: boolean;
 
   init: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
+  completeLogin: (response: LoginResponse) => Promise<void>;
   logout: () => Promise<void>;
 }
 
@@ -25,6 +28,7 @@ interface UserState {
 export const useUserStore = create<UserState>((set) => ({
   token: null,
   username: '',
+  role: null,
   initialized: false,
 
   init: async () => {
@@ -34,28 +38,32 @@ export const useUserStore = create<UserState>((set) => ({
         apiClient.setToken(token);
         try {
           const profile = await authService.profile();
-          set({ token, username: profile.username || '', initialized: true });
+          set({ token, username: profile.username || '', role: profile.role ?? null, initialized: true });
         } catch {
           // Token không còn hợp lệ trên backend -> dọn dẹp sạch sẽ
           await appStorage.removeItem(TOKEN_KEY);
           apiClient.setToken(null);
-          set({ token: null, username: '', initialized: true });
+          set({ token: null, username: '', role: null, initialized: true });
         }
       } else {
         apiClient.setToken(null);
-        set({ token: null, username: '', initialized: true });
+        set({ token: null, username: '', role: null, initialized: true });
       }
     } catch {
       apiClient.setToken(null);
-      set({ token: null, username: '', initialized: true });
+      set({ token: null, username: '', role: null, initialized: true });
     }
   },
 
   login: async (username: string, password: string) => {
     const response = await authService.login(username, password);
+    await useUserStore.getState().completeLogin(response);
+  },
+
+  completeLogin: async (response: LoginResponse) => {
     await appStorage.setItem(TOKEN_KEY, response.token);
     apiClient.setToken(response.token);
-    set({ token: response.token, username: response.username || username });
+    set({ token: response.token, username: response.username || '', role: response.role ?? null });
   },
 
   logout: async () => {
@@ -68,8 +76,8 @@ export const useUserStore = create<UserState>((set) => ({
     // 2. Xóa header Authorization trong apiClient
     apiClient.setToken(null);
     // 3. Cập nhật state Zustand
-    set({ token: null, username: '' });
-    // 4. Reset điều hướng sang màn hình Login ngay lập tức
+    set({ token: null, username: '', role: null });
+    // 4. Replace with the unauthenticated route immediately.
     navigationService.replace('Login');
   },
 }));

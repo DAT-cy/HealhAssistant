@@ -1,70 +1,53 @@
-import { createNavigationContainerRef } from '@react-navigation/native';
-import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import type { RootStackParamList } from './RootNavigator';
+import { router, type Href } from 'expo-router';
 
-// ============================================================
-// Navigation ref – dùng để navigate từ file không phải component
-// ============================================================
-export const navigationRef = createNavigationContainerRef<RootStackParamList>();
+export type AppRoute =
+  | 'Index'
+  | 'Welcome'
+  | 'Login'
+  | 'Home'
+  | 'NotFound'
+  | 'Profile'
+  | 'Scan'
+  | 'Roadmap'
+  | 'DailyPlan'
+  | 'DailyCheckin'
+  | 'Workout'
+  | 'WorkoutSession'
+  | 'Progress'
+  | 'Nutrition'
+  | 'Coach'
+  | 'AdminKnowledge';
 
-// ============================================================
-// Type helpers
-// ============================================================
-export type { RootStackParamList };
-export type RootNavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const routePaths: Record<AppRoute, Href> = {
+  Index: '/',
+  Welcome: '/welcome',
+  Login: '/login',
+  Home: '/(user)',
+  NotFound: '/not-found',
+  Profile: '/(user)/profile',
+  Scan: '/(user)/scan',
+  Roadmap: '/(user)/roadmap',
+  DailyPlan: '/(user)/daily-plan',
+  DailyCheckin: '/(user)/daily-check-in',
+  Workout: '/(user)/workout',
+  WorkoutSession: '/(user)/workout-session',
+  Progress: '/(user)/progress',
+  Nutrition: '/(user)/nutrition',
+  Coach: '/(user)/coach',
+  AdminKnowledge: '/admin/knowledge',
+};
 
-// ============================================================
-// Navigation helpers – gọi được từ bất kỳ đâu
-// ============================================================
-
-/** Chuyển trang (bấm Back quay lại được) */
-function navigate<T extends keyof RootStackParamList>(
-  name: T,
-  params?: RootStackParamList[T],
-) {
-  if (navigationRef.isReady()) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    navigationRef.navigate(name as any, params as any);
-  } else {
-    setTimeout(() => {
-      if (navigationRef.isReady()) {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        navigationRef.navigate(name as any, params as any);
-      }
-    }, 50);
-  }
+function navigate(name: AppRoute) {
+  router.push(routePaths[name]);
 }
 
-/** Thay thế toàn bộ stack và chuyển trang (không back được) */
-function replace<T extends keyof RootStackParamList>(
-  name: T,
-  params?: RootStackParamList[T],
-) {
-  const resetAction = () => {
-    try {
-      if (navigationRef.isReady()) {
-        navigationRef.reset({
-          index: 0,
-          routes: [{ name: name as any, params: params as any }],
-        });
-      }
-    } catch (e) {
-      console.warn('[navigationService.replace] error:', e);
-    }
-  };
-
-  if (navigationRef.isReady()) {
-    resetAction();
-  } else {
-    setTimeout(resetAction, 50);
-  }
+function replace(name: AppRoute) {
+  router.replace(routePaths[name]);
 }
 
-/** Quay lại trang trước */
 function goBack() {
-  if (navigationRef.isReady() && navigationRef.canGoBack()) {
-    navigationRef.goBack();
-  }
+  if (router.canGoBack()) router.back();
+  else router.replace('/');
 }
 
 export const navigationService = { navigate, replace, goBack };

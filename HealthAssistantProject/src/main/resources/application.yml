@@ -7,11 +7,17 @@ spring:
     multipart:
       max-file-size: 5MB
       max-request-size: 6MB
+  knowledge-base:
+    storage-dir: ${KB_STORAGE_DIR:./data/knowledge-base}
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-3.8-flash}
   timeout: ${GEMINI_TIMEOUT:30s}
+
+google:
+  oauth:
+    client-ids: ${GOOGLE_OAUTH_CLIENT_IDS:}
 
 cloudinary:
   enabled: ${CLOUDINARY_ENABLED:false}

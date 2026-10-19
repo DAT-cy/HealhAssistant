@@ -11,6 +11,7 @@ import health_assistant.module.ai.service.GeminiException;
 import health_assistant.module.coach.dto.GeminiRoadmapRequest;
 import health_assistant.module.coach.dto.GeminiRoadmapResponse;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -18,18 +19,24 @@ import java.util.List;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GeminiCoachService {
-    private static final String PROMPT_VERSION = "ROADMAP_V2";
+    public static final String PROMPT_VERSION = "ROADMAP_V2";
+    public static final String SCHEMA_VERSION = "ROADMAP_SCHEMA_V1";
     private final GeminiClient geminiClient;
     private final ObjectMapper objectMapper;
 
     public GeminiRoadmapResponse plan(GeminiRoadmapRequest request) {
-        if (!geminiClient.isConfigured()) return fallback(request);
+        if (!geminiClient.isConfigured()) {
+            log.warn("Gemini roadmap is using fallback because the API key is not configured.");
+            return fallback(request);
+        }
         try {
             String prompt = prompt(request);
             JsonNode output = objectMapper.readTree(geminiClient.generateJson(prompt, responseSchema()));
             return validate(output, request.weeks());
         } catch (GeminiException | JsonProcessingException | IllegalArgumentException exception) {
+            log.warn("Gemini roadmap is using fallback ({})", exception.getClass().getSimpleName());
             return fallback(request);
         }
     }
@@ -42,7 +49,7 @@ public class GeminiCoachService {
         String overview = requiredText(output, "overview", 2000);
         List<String> weeklyPlan = stringList(output, "weeklyPlan", 500);
         List<String> safetyNotes = stringList(output, "safetyNotes", 500);
-        if (weeklyPlan.size() != expectedWeeks || safetyNotes.isEmpty()) {
+        if (weeklyPlan.size() != expectedWeeks || safetyNotes.isEmpty() || safetyNotes.size() > 8) {
             throw new IllegalArgumentException("Gemini roadmap did not satisfy the response contract.");
         }
         return new GeminiRoadmapResponse(title, overview, weeklyPlan, safetyNotes, "gemini");

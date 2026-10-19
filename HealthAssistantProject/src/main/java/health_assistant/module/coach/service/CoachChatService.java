@@ -10,6 +10,7 @@ import health_assistant.module.ai.service.GeminiException;
 import health_assistant.module.coach.dto.CoachChatResponse;
 import health_assistant.module.profile.entity.UserProfile;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -17,6 +18,7 @@ import java.util.Locale;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class CoachChatService {
     private static final String PROMPT_VERSION = "COACH_CHAT_V1";
     private static final String SAFETY_MESSAGE = "Hãy dừng buổi tập và không cố tập tiếp khi đang đau hoặc khó chịu. Công cụ này không thể đánh giá triệu chứng; hãy tìm hỗ trợ chuyên môn phù hợp.";
@@ -29,7 +31,10 @@ public class CoachChatService {
         if (requiresSafetyEscalation(sanitizedMessage)) {
             return new CoachChatResponse(SAFETY_MESSAGE, "safety-rule", true);
         }
-        if (!geminiClient.isConfigured()) return fallback();
+        if (!geminiClient.isConfigured()) {
+            log.warn("Gemini coach is using fallback because the API key is not configured.");
+            return fallback();
+        }
 
         try {
             JsonNode output = objectMapper.readTree(
@@ -45,6 +50,7 @@ public class CoachChatService {
             if (safety.asBoolean()) return new CoachChatResponse(SAFETY_MESSAGE, "safety-rule", true);
             return new CoachChatResponse(answer, "gemini", false);
         } catch (GeminiException | IllegalArgumentException | com.fasterxml.jackson.core.JsonProcessingException exception) {
+            log.warn("Gemini coach is using fallback ({})", exception.getClass().getSimpleName());
             return fallback();
         }
     }

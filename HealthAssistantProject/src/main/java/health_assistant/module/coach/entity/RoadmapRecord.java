@@ -18,11 +18,11 @@ public class RoadmapRecord {
     private Long userId;
     @Column(nullable = false, length = 160)
     private String title;
-    @Column(length = 4000)
+    @Column(columnDefinition = "TEXT")
     private String overview;
-    @Column(length = 12000)
+    @Column(name = "weekly_plan", columnDefinition = "MEDIUMTEXT")
     private String weeklyPlan;
-    @Column(length = 4000)
+    @Column(name = "safety_notes", columnDefinition = "TEXT")
     private String safetyNotes;
     @Column(nullable = false, length = 30)
     private String source;
@@ -32,6 +32,16 @@ public class RoadmapRecord {
     private java.time.LocalDate startDate;
     @Column(name = "duration_weeks")
     private Integer durationWeeks;
+    @Column(name = "version_number")
+    private Integer versionNumber;
+    @Column(name = "previous_roadmap_id")
+    private Long previousRoadmapId;
+    @Column(name = "change_reason", length = 500)
+    private String changeReason;
+    @Column(name = "prompt_version", length = 40)
+    private String promptVersion;
+    @Column(name = "schema_version", length = 40)
+    private String schemaVersion;
     @Column(nullable = false)
     private Instant createdAt;
 }

@@ -3,6 +3,9 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { navigationService } from '@/routes';
 import { palette, spacing } from '@/theme/tokens';
+import HomeTabBar from '@/features/Home/components/HomeTabBar';
+
+type MainTab = 'Home' | 'Workout' | 'Progress' | 'Profile';
 
 interface Props {
   title: string;
@@ -11,9 +14,10 @@ interface Props {
   scroll?: boolean;
   showBack?: boolean;
   right?: React.ReactNode;
+  activeTab?: Exclude<MainTab, 'Home'>;
 }
 
-export default function Screen({ title, subtitle, children, scroll = true, showBack = false, right }: Props) {
+export default function Screen({ title, subtitle, children, scroll = true, showBack = false, right, activeTab }: Props) {
   const insets = useSafeAreaInsets();
   const header = (
     <View style={[styles.header, showBack && styles.headerCompact]}>
@@ -32,10 +36,14 @@ export default function Screen({ title, subtitle, children, scroll = true, showB
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {header}
       {scroll ? (
-        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + spacing.xl }}>{body}</ScrollView>
+        <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: insets.bottom + (activeTab ? 92 : spacing.xl) }}>{body}</ScrollView>
       ) : (
         body
       )}
+      {activeTab ? <HomeTabBar bottomInset={insets.bottom} activeTab={activeTab} onSelectTab={(tab) => {
+        if (tab === 'Home') navigationService.replace('Home');
+        else navigationService.replace(tab);
+      }} /> : null}
     </View>
   );
 }
@@ -46,7 +54,7 @@ const styles = StyleSheet.create({
   headerCompact: { paddingTop: spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   titleWrap: { flex: 1 },
-  back: { color: palette.text, fontSize: 34, lineHeight: 36, marginTop: -4 },
+  back: { color: palette.primary, fontSize: 34, lineHeight: 36, marginTop: -4 },
   title: { color: palette.text, fontSize: 24, fontWeight: '800' },
   subtitle: { color: palette.textMuted, fontSize: 14, marginTop: 5 },
   body: { paddingHorizontal: spacing.xl, gap: spacing.md },

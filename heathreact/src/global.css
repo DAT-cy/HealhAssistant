@@ -1,3 +1,20 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+html,
+body,
+#root {
+  min-height: 100%;
+  background-color: #f7f8fc;
+}
+
+#auth-screen input:-webkit-autofill,
+#auth-screen input:-webkit-autofill:hover,
+#auth-screen input:-webkit-autofill:focus,
+#auth-screen input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 1000px #ffffff inset !important;
+  -webkit-text-fill-color: #20213a !important;
+  caret-color: #20213a;
+  transition: background-color 99999s ease-out 0s;
+}

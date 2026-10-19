@@ -1,12 +1,15 @@
-import { navigationService } from '@/routes';
 import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
 import { authService } from '@/api/services/auth.service';
+import { signInWithGoogle } from '@/services/googleSignIn';
 import { palette } from '@/theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { appStorage } from '@/utils/storage';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Controller, useForm, useWatch } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import {
   ActivityIndicator,
   Alert,
@@ -23,16 +26,32 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SAVED_USER_KEY = 'saved_username';
-const SAVED_PWD_KEY = 'saved_password';
+const LEGACY_SAVED_PWD_KEY = 'saved_password';
 const REMEMBER_ME_KEY = 'saved_remember_me';
+
+const authSchemaFor = (mode: 'login' | 'signup') => z.object({
+  username: z.string().trim().min(1, 'Vui lòng nhập tài khoản hoặc email.').refine(
+    (value) => mode !== 'signup' || /^[^\s@]+@gmail\.com$/i.test(value),
+    'Vui lòng sử dụng địa chỉ email @gmail.com hợp lệ.',
+  ),
+  pwd: z.string().min(1, 'Vui lòng nhập mật khẩu.').refine(
+    (value) => mode !== 'signup' || value.length >= 8,
+    'Mật khẩu cần tối thiểu 8 ký tự để bảo vệ tài khoản.',
+  ),
+  confirmPwd: z.string(),
+}).superRefine((values, context) => {
+  if (mode === 'signup' && values.pwd !== values.confirmPwd) {
+    context.addIssue({ code: 'custom', path: ['confirmPwd'], message: 'Mật khẩu xác nhận không trùng khớp.' });
+  }
+});
+
+type AuthFormValues = z.infer<ReturnType<typeof authSchemaFor>>;
 
 export default function LoginPage() {
   const insets = useSafeAreaInsets();
   const login = useUserStore((state) => state.login);
+  const completeLogin = useUserStore((state) => state.completeLogin);
 
-  const [username, setUsername] = useState('');
-  const [pwd, setPwd] = useState('');
-  const [confirmPwd, setConfirmPwd] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
@@ -40,6 +59,15 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const formSchema = useMemo(() => authSchemaFor(mode), [mode]);
+  const { control, setValue, handleSubmit, clearErrors } = useForm<AuthFormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: { username: '', pwd: '', confirmPwd: '' },
+    mode: 'onSubmit',
+  });
+  const username = useWatch({ control, name: 'username' }) ?? '';
+  const pwd = useWatch({ control, name: 'pwd' }) ?? '';
+  const confirmPwd = useWatch({ control, name: 'confirmPwd' }) ?? '';
 
   // Nạp tài khoản đã lưu nếu người dùng đã bật 'Ghi nhớ tôi'
   useEffect(() => {
@@ -48,9 +76,7 @@ export default function LoginPage() {
         const rem = await appStorage.getItem(REMEMBER_ME_KEY);
         if (rem === 'true' || rem === null) {
           const savedU = await appStorage.getItem(SAVED_USER_KEY);
-          const savedP = await appStorage.getItem(SAVED_PWD_KEY);
-          if (savedU) setUsername(savedU);
-          if (savedP) setPwd(savedP);
+          if (savedU) setValue('username', savedU);
           setRememberMe(true);
         } else if (rem === 'false') {
           setRememberMe(false);
@@ -59,8 +85,9 @@ export default function LoginPage() {
         // Fallback an toàn
       }
     }
+    void appStorage.removeItem(LEGACY_SAVED_PWD_KEY);
     void loadSavedCredentials();
-  }, []);
+  }, [setValue]);
 
   const triggerHaptic = (type: 'light' | 'medium' | 'success' | 'error' = 'light') => {
     try {
@@ -79,16 +106,7 @@ export default function LoginPage() {
     triggerHaptic('light');
     setMode(newMode);
     setError('');
-  };
-
-  const handleDemoFill = () => {
-    triggerHaptic('medium');
-    setUsername('demo@gmail.com');
-    setPwd('123456');
-    if (mode === 'signup') {
-      setConfirmPwd('123456');
-    }
-    setError('');
+    clearErrors();
   };
 
   const handleForgotPassword = () => {
@@ -100,61 +118,35 @@ export default function LoginPage() {
     );
   };
 
-  const handleLogin = async () => {
+  const handleLogin = async (values: AuthFormValues) => {
     triggerHaptic('medium');
-    const trimmedUser = username.trim();
-    const trimmedPwd = pwd.trim();
-
-    if (!trimmedUser || !trimmedPwd) {
-      triggerHaptic('error');
-      setError('Vui lòng điền đầy đủ tài khoản và mật khẩu!');
-      return;
-    }
-
-    if (mode === 'signup') {
-      if (!/^[^\s@]+@gmail\.com$/i.test(trimmedUser)) {
-        triggerHaptic('error');
-        setError('Vui lòng sử dụng địa chỉ email @gmail.com hợp lệ.');
-        return;
-      }
-      if (trimmedPwd.length < 6) {
-        triggerHaptic('error');
-        setError('Mật khẩu cần tối thiểu 6 ký tự để đảm bảo an toàn.');
-        return;
-      }
-      if (trimmedPwd !== confirmPwd.trim()) {
-        triggerHaptic('error');
-        setError('Mật khẩu xác nhận không trùng khớp!');
-        return;
-      }
-    }
+    const trimmedUser = values.username.trim();
+    const rawPassword = values.pwd;
 
     setError('');
     setLoading(true);
 
     try {
       if (mode === 'signup') {
-        await authService.signUp(trimmedUser, trimmedPwd);
+        await completeLogin(await authService.signUp(trimmedUser, rawPassword));
+      } else {
+        await login(trimmedUser, rawPassword);
       }
-      await login(trimmedUser, trimmedPwd);
 
       // Lưu hoặc xóa thông tin đăng nhập theo lựa chọn 'Ghi nhớ tôi'
       try {
         if (rememberMe) {
           await appStorage.setItem(REMEMBER_ME_KEY, 'true');
           await appStorage.setItem(SAVED_USER_KEY, trimmedUser);
-          await appStorage.setItem(SAVED_PWD_KEY, trimmedPwd);
         } else {
           await appStorage.setItem(REMEMBER_ME_KEY, 'false');
           await appStorage.removeItem(SAVED_USER_KEY);
-          await appStorage.removeItem(SAVED_PWD_KEY);
         }
       } catch (e) {
         console.warn('Lỗi lưu credentials:', e);
       }
 
       triggerHaptic('success');
-      navigationService.replace('Home');
     } catch (err: unknown) {
       triggerHaptic('error');
       if (err instanceof ApiError) {
@@ -171,16 +163,32 @@ export default function LoginPage() {
     }
   };
 
+  const submitLogin = handleSubmit(handleLogin, (fieldErrors) => {
+    triggerHaptic('error');
+    setError(fieldErrors.username?.message || fieldErrors.pwd?.message || fieldErrors.confirmPwd?.message || 'Vui lòng kiểm tra lại thông tin.');
+  });
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      const idToken = await signInWithGoogle();
+      if (!idToken) return;
+      await completeLogin(await authService.googleLogin(idToken));
+      triggerHaptic('success');
+    } catch (err: unknown) {
+      triggerHaptic('error');
+      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Không thể đăng nhập Google.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const isFieldActive = (field: string) => focusedField === field;
 
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#080C11" translucent />
-
-      {/* Ambient Cyber / Fitness Glow Orbs */}
-      <View style={styles.glowTopRight} />
-      <View style={styles.glowBottomLeft} />
-      <View style={styles.glowCenter} />
+    <View nativeID="auth-screen" style={styles.container}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FC" translucent />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -200,11 +208,10 @@ export default function LoginPage() {
           {/* Header Brand Hero */}
           <View style={styles.header}>
             <View style={styles.logoBadgeContainer}>
-              <View style={styles.logoGlowBackdrop} />
               <View style={styles.logoIconBox}>
                 <Ionicons name="barbell" size={28} color={palette.primary} />
                 <View style={styles.sparkleDot}>
-                  <Ionicons name="sparkles" size={11} color="#080C11" />
+                  <Ionicons name="sparkles" size={11} color="#FFFFFF" />
                 </View>
               </View>
             </View>
@@ -311,28 +318,24 @@ export default function LoginPage() {
                   color={isFieldActive('usr') ? palette.primary : palette.textMuted}
                   style={styles.inputPrefixIcon}
                 />
-                <TextInput
-                  placeholder={
-                    mode === 'login'
-                      ? 'Nhập tên đăng nhập hoặc email'
-                      : 'ví dụ: nguyenvana@gmail.com'
-                  }
-                  placeholderTextColor="#64748B"
-                  value={username}
-                  onChangeText={(val) => {
-                    setUsername(val);
-                    if (error) setError('');
-                  }}
-                  onFocus={() => setFocusedField('usr')}
-                  onBlur={() => setFocusedField(null)}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  keyboardType={mode === 'signup' ? 'email-address' : 'default'}
-                  style={styles.textInput}
-                />
+                <Controller control={control} name="username" render={({ field: { value, onChange, onBlur } }) => (
+                  <TextInput
+                    placeholder={mode === 'login' ? 'Nhập tên đăng nhập hoặc email' : 'ví dụ: nguyenvana@gmail.com'}
+                    placeholderTextColor="#64748B"
+                    value={value}
+                    onChangeText={(val) => { onChange(val); if (error) setError(''); }}
+                    onFocus={() => setFocusedField('usr')}
+                    onBlur={() => { onBlur(); setFocusedField(null); }}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete={mode === 'signup' ? 'email' : 'username'}
+                    keyboardType={mode === 'signup' ? 'email-address' : 'default'}
+                    style={styles.textInput}
+                  />
+                )} />
                 {Boolean(username) && (
                   <Pressable
-                    onPress={() => setUsername('')}
+                    onPress={() => setValue('username', '')}
                     hitSlop={8}
                     style={styles.clearBtn}
                   >
@@ -347,7 +350,7 @@ export default function LoginPage() {
               <View style={styles.fieldLabelRow}>
                 <Text style={styles.fieldLabel}>Mật khẩu</Text>
                 {mode === 'signup' && (
-                  <Text style={styles.fieldHintBadge}>Tối thiểu 6 ký tự</Text>
+                  <Text style={styles.fieldHintBadge}>Tối thiểu 8 ký tự</Text>
                 )}
               </View>
 
@@ -363,21 +366,21 @@ export default function LoginPage() {
                   color={isFieldActive('pwd') ? palette.primary : palette.textMuted}
                   style={styles.inputPrefixIcon}
                 />
-                <TextInput
-                  placeholder="Nhập mật khẩu của bạn"
-                  placeholderTextColor="#64748B"
-                  value={pwd}
-                  onChangeText={(val) => {
-                    setPwd(val);
-                    if (error) setError('');
-                  }}
-                  onFocus={() => setFocusedField('pwd')}
-                  onBlur={() => setFocusedField(null)}
-                  secureTextEntry={!showPwd}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  style={styles.textInput}
-                />
+                <Controller control={control} name="pwd" render={({ field: { value, onChange, onBlur } }) => (
+                  <TextInput
+                    placeholder="Nhập mật khẩu của bạn"
+                    placeholderTextColor="#64748B"
+                    value={value}
+                    onChangeText={(val) => { onChange(val); if (error) setError(''); }}
+                    onFocus={() => setFocusedField('pwd')}
+                    onBlur={() => { onBlur(); setFocusedField(null); }}
+                    secureTextEntry={!showPwd}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                    style={styles.textInput}
+                  />
+                )} />
                 <Pressable
                   onPress={() => {
                     triggerHaptic('light');
@@ -420,21 +423,21 @@ export default function LoginPage() {
                     color={isFieldActive('confirmPwd') ? palette.primary : palette.textMuted}
                     style={styles.inputPrefixIcon}
                   />
-                  <TextInput
-                    placeholder="Nhập lại mật khẩu để xác nhận"
-                    placeholderTextColor="#64748B"
-                    value={confirmPwd}
-                    onChangeText={(val) => {
-                      setConfirmPwd(val);
-                      if (error) setError('');
-                    }}
-                    onFocus={() => setFocusedField('confirmPwd')}
-                    onBlur={() => setFocusedField(null)}
-                    secureTextEntry={!showConfirmPwd}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    style={styles.textInput}
-                  />
+                  <Controller control={control} name="confirmPwd" render={({ field: { value, onChange, onBlur } }) => (
+                    <TextInput
+                      placeholder="Nhập lại mật khẩu để xác nhận"
+                      placeholderTextColor="#64748B"
+                      value={value}
+                      onChangeText={(val) => { onChange(val); if (error) setError(''); }}
+                      onFocus={() => setFocusedField('confirmPwd')}
+                      onBlur={() => { onBlur(); setFocusedField(null); }}
+                      secureTextEntry={!showConfirmPwd}
+                      autoCapitalize="none"
+                      autoCorrect={false}
+                      autoComplete="new-password"
+                      style={styles.textInput}
+                    />
+                  )} />
                   <Pressable
                     onPress={() => {
                       triggerHaptic('light');
@@ -472,7 +475,7 @@ export default function LoginPage() {
                     ]}
                   >
                     {rememberMe && (
-                      <Ionicons name="checkmark" size={13} color="#080C11" />
+                      <Ionicons name="checkmark" size={13} color="#FFFFFF" />
                     )}
                   </View>
                   <Text style={styles.rememberMeText}>Ghi nhớ tôi</Text>
@@ -484,24 +487,9 @@ export default function LoginPage() {
               </View>
             )}
 
-            {/* Quick Demo Fill Pill */}
-            <Pressable
-              onPress={handleDemoFill}
-              style={({ pressed }) => [
-                styles.demoChip,
-                pressed && styles.demoChipPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <Ionicons name="flash-outline" size={14} color={palette.accent} />
-              <Text style={styles.demoChipText}>
-                Điền nhanh tài khoản Demo (demo@gmail.com)
-              </Text>
-            </Pressable>
-
             {/* Submit Action Button */}
             <Pressable
-              onPress={handleLogin}
+              onPress={() => void submitLogin()}
               disabled={loading}
               style={({ pressed }) => [
                 styles.submitBtn,
@@ -512,7 +500,7 @@ export default function LoginPage() {
             >
               {loading ? (
                 <View style={styles.submitBtnContent}>
-                  <ActivityIndicator size="small" color="#080C11" />
+                  <ActivityIndicator size="small" color="#FFFFFF" />
                   <Text style={styles.submitBtnText}>
                     {mode === 'login' ? 'Đang xác thực...' : 'Đang khởi tạo tài khoản...'}
                   </Text>
@@ -522,10 +510,30 @@ export default function LoginPage() {
                   <Text style={styles.submitBtnText}>
                     {mode === 'login' ? 'Đăng nhập ngay' : 'Đăng ký tài khoản'}
                   </Text>
-                  <Ionicons name="arrow-forward" size={18} color="#080C11" />
+                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
                 </View>
               )}
             </Pressable>
+
+            {Platform.OS !== 'web' ? (
+              <>
+                <View style={styles.authDivider}>
+                  <View style={styles.authDividerLine} />
+                  <Text style={styles.authDividerText}>HOẶC</Text>
+                  <View style={styles.authDividerLine} />
+                </View>
+                <Pressable
+                  onPress={() => void handleGoogleSignIn()}
+                  disabled={loading}
+                  style={({ pressed }) => [styles.googleButton, (pressed || loading) && styles.googleButtonPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel="Tiếp tục với Google"
+                >
+                  <Ionicons name="logo-google" size={18} color="#4285F4" />
+                  <Text style={styles.googleButtonText}>Tiếp tục với Google</Text>
+                </Pressable>
+              </>
+            ) : null}
 
             {/* Switch Mode Footer */}
             <Pressable
@@ -542,22 +550,6 @@ export default function LoginPage() {
             </Pressable>
           </View>
 
-          {/* Trust & Feature Badges */}
-          <View style={styles.featuresRow}>
-            <View style={styles.featurePill}>
-              <Ionicons name="shield-checkmark" size={13} color={palette.primary} />
-              <Text style={styles.featurePillText}>JWT An toàn</Text>
-            </View>
-            <View style={styles.featurePill}>
-              <Ionicons name="scan" size={13} color={palette.accent} />
-              <Text style={styles.featurePillText}>AI Pose Scan</Text>
-            </View>
-            <View style={styles.featurePill}>
-              <Ionicons name="fitness" size={13} color="#F59E0B" />
-              <Text style={styles.featurePillText}>Lộ trình cá nhân</Text>
-            </View>
-          </View>
-
           {/* Academic / Project Note Footer */}
           <Text style={styles.footerNote}>
             Health Assistant • Trợ lý sức khỏe & luyện tập thông minh
@@ -571,7 +563,7 @@ export default function LoginPage() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#080C11',
+    backgroundColor: palette.bg,
   },
   keyboardView: {
     flex: 1,
@@ -579,38 +571,6 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     alignItems: 'center',
-  },
-
-  /* Glow Orbs Background Effects */
-  glowTopRight: {
-    position: 'absolute',
-    top: -60,
-    right: -60,
-    width: 280,
-    height: 280,
-    borderRadius: 140,
-    backgroundColor: '#22C55E',
-    opacity: 0.12,
-  },
-  glowBottomLeft: {
-    position: 'absolute',
-    bottom: 40,
-    left: -80,
-    width: 300,
-    height: 300,
-    borderRadius: 150,
-    backgroundColor: '#38BDF8',
-    opacity: 0.08,
-  },
-  glowCenter: {
-    position: 'absolute',
-    top: '35%',
-    left: '20%',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: '#1E293B',
-    opacity: 0.25,
   },
 
   /* Header Branding */
@@ -625,28 +585,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  logoGlowBackdrop: {
-    position: 'absolute',
-    width: 74,
-    height: 74,
-    borderRadius: 22,
-    backgroundColor: '#22C55E',
-    opacity: 0.22,
-  },
   logoIconBox: {
-    width: 66,
-    height: 66,
-    borderRadius: 20,
-    backgroundColor: '#0E1724',
-    borderWidth: 1.5,
-    borderColor: '#22C55E55',
+    width: 58,
+    height: 58,
+    borderRadius: 18,
+    backgroundColor: palette.primary,
+    borderWidth: 1,
+    borderColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#22C55E',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.35,
-    shadowRadius: 12,
-    elevation: 8,
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 5 },
+    shadowOpacity: 0.18,
+    shadowRadius: 10,
+    elevation: 4,
   },
   sparkleDot: {
     position: 'absolute',
@@ -659,14 +611,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#080C11',
+    borderColor: palette.bg,
   },
   aiTagPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#22C55E14',
+    backgroundColor: palette.primarySoft,
     borderWidth: 1,
-    borderColor: '#22C55E33',
+    borderColor: '#DFDDFF',
     paddingHorizontal: 12,
     paddingVertical: 5,
     borderRadius: 20,
@@ -680,15 +632,15 @@ const styles = StyleSheet.create({
     letterSpacing: 1.1,
   },
   title: {
-    color: '#F8FAFC',
+    color: palette.text,
     fontSize: 27,
     fontWeight: '800',
-    letterSpacing: -0.5,
+    letterSpacing: 0,
     textAlign: 'center',
     marginBottom: 6,
   },
   subtitle: {
-    color: '#94A3B8',
+    color: palette.textMuted,
     fontSize: 13.5,
     textAlign: 'center',
     lineHeight: 20,
@@ -698,11 +650,11 @@ const styles = StyleSheet.create({
   /* Segmented Mode Switcher */
   segmentContainer: {
     flexDirection: 'row',
-    backgroundColor: '#0E1622',
+    backgroundColor: '#EEF0F8',
     borderRadius: 16,
     padding: 4,
     borderWidth: 1,
-    borderColor: '#1E293B',
+    borderColor: palette.border,
     marginBottom: 20,
     width: '100%',
     maxWidth: 400,
@@ -717,17 +669,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   segmentTabActive: {
-    backgroundColor: '#192636',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1,
-    borderColor: '#22C55E44',
+    borderColor: '#DAD7FF',
   },
   segmentText: {
-    color: '#94A3B8',
+    color: palette.textMuted,
     fontSize: 14,
     fontWeight: '600',
   },
   segmentTextActive: {
-    color: '#F8FAFC',
+    color: palette.primaryDark,
     fontWeight: '800',
   },
 
@@ -735,25 +687,25 @@ const styles = StyleSheet.create({
   card: {
     width: '100%',
     maxWidth: 400,
-    backgroundColor: '#0F1723',
+    backgroundColor: '#FFFFFF',
     borderRadius: 24,
     padding: 22,
     borderWidth: 1,
-    borderColor: '#1E293B',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.4,
-    shadowRadius: 20,
-    elevation: 6,
+    borderColor: palette.border,
+    shadowColor: '#34305E',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.08,
+    shadowRadius: 18,
+    elevation: 3,
   },
 
   /* Error Banner */
   errorBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#EF444415',
+    backgroundColor: '#FFF0F3',
     borderWidth: 1,
-    borderColor: '#EF444440',
+    borderColor: '#FFD6DF',
     borderRadius: 12,
     paddingHorizontal: 12,
     paddingVertical: 10,
@@ -762,7 +714,7 @@ const styles = StyleSheet.create({
   },
   errorText: {
     flex: 1,
-    color: '#FCA5A5',
+    color: '#C94363',
     fontSize: 12.5,
     lineHeight: 18,
     fontWeight: '500',
@@ -779,7 +731,7 @@ const styles = StyleSheet.create({
     marginBottom: 7,
   },
   fieldLabel: {
-    color: '#CBD5E1',
+    color: palette.text,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -801,19 +753,19 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#090E17',
+    backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
-    borderColor: '#1E293B',
+    borderColor: palette.border,
     borderRadius: 14,
     paddingHorizontal: 14,
     minHeight: 52,
   },
   inputWrapperFocused: {
     borderColor: palette.primary,
-    backgroundColor: '#0D1522',
+    backgroundColor: '#FBFAFF',
     shadowColor: palette.primary,
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.2,
+    shadowOpacity: 0.1,
     shadowRadius: 6,
   },
   inputPrefixIcon: {
@@ -821,7 +773,7 @@ const styles = StyleSheet.create({
   },
   textInput: {
     flex: 1,
-    color: '#F8FAFC',
+    color: palette.text,
     fontSize: 15,
     paddingVertical: 12,
   },
@@ -850,7 +802,7 @@ const styles = StyleSheet.create({
     height: 18,
     borderRadius: 5,
     borderWidth: 1.5,
-    borderColor: '#475569',
+    borderColor: '#B7BBD0',
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: 'transparent',
@@ -860,35 +812,12 @@ const styles = StyleSheet.create({
     borderColor: palette.primary,
   },
   rememberMeText: {
-    color: '#94A3B8',
+    color: palette.textMuted,
     fontSize: 13,
   },
   forgotPwdText: {
     color: palette.accent,
     fontSize: 13,
-    fontWeight: '600',
-  },
-
-  /* Demo Chip */
-  demoChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#38BDF810',
-    borderWidth: 1,
-    borderColor: '#38BDF830',
-    borderRadius: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    marginBottom: 16,
-    gap: 6,
-  },
-  demoChipPressed: {
-    opacity: 0.7,
-  },
-  demoChipText: {
-    color: palette.accent,
-    fontSize: 12,
     fontWeight: '600',
   },
 
@@ -919,10 +848,17 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   submitBtnText: {
-    color: '#080C11',
+    color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '800',
   },
+
+  authDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 17 },
+  authDividerLine: { flex: 1, height: 1, backgroundColor: palette.border },
+  authDividerText: { color: palette.textMuted, fontSize: 11, fontWeight: '700' },
+  googleButton: { minHeight: 48, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: palette.border },
+  googleButtonPressed: { opacity: 0.75 },
+  googleButtonText: { color: palette.text, fontSize: 14, fontWeight: '700' },
 
   /* Switch Mode Footer */
   switchModeBtn: {
@@ -931,7 +867,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   switchModePrompt: {
-    color: '#94A3B8',
+    color: palette.textMuted,
     fontSize: 13.5,
   },
   switchModeAction: {
@@ -939,36 +875,9 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
 
-  /* Feature Badges */
-  featuresRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    alignItems: 'center',
-    gap: 8,
-    marginTop: 24,
-    marginBottom: 12,
-    flexWrap: 'wrap',
-  },
-  featurePill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#0E1622',
-    borderWidth: 1,
-    borderColor: '#1E293B',
-    borderRadius: 20,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    gap: 5,
-  },
-  featurePillText: {
-    color: '#94A3B8',
-    fontSize: 11.5,
-    fontWeight: '600',
-  },
-
   /* Footer Note */
   footerNote: {
-    color: '#475569',
+    color: palette.textMuted,
     fontSize: 11,
     textAlign: 'center',
     marginTop: 4,

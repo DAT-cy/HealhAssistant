@@ -8,10 +8,11 @@ import {
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { palette } from '@/theme/tokens';
 
 interface Props {
   bottomInset: number;
-  activeTab: 'Home' | 'Workout' | 'Progress' | 'Profile';
+  activeTab: 'Home' | 'Workout' | 'Progress' | 'Profile' | null;
   onSelectTab: (tab: 'Home' | 'Workout' | 'Progress' | 'Profile') => void;
 }
 
@@ -26,16 +27,16 @@ export default function HomeTabBar({ bottomInset, activeTab, onSelectTab }: Prop
     }
   };
 
-  const tabs: Array<{
+  const tabs: {
     key: 'Home' | 'Workout' | 'Progress' | 'Profile';
     label: string;
     iconActive: keyof typeof Ionicons.glyphMap;
     iconInactive: keyof typeof Ionicons.glyphMap;
-  }> = [
-    { key: 'Home', label: 'Home', iconActive: 'home', iconInactive: 'home-outline' },
-    { key: 'Workout', label: 'Workout', iconActive: 'barbell', iconInactive: 'barbell-outline' },
-    { key: 'Progress', label: 'Progress', iconActive: 'stats-chart', iconInactive: 'stats-chart-outline' },
-    { key: 'Profile', label: 'Profile', iconActive: 'person', iconInactive: 'person-outline' },
+  }[] = [
+    { key: 'Home', label: 'Trang chủ', iconActive: 'home', iconInactive: 'home-outline' },
+    { key: 'Workout', label: 'Tập luyện', iconActive: 'barbell', iconInactive: 'barbell-outline' },
+    { key: 'Progress', label: 'Tiến độ', iconActive: 'stats-chart', iconInactive: 'stats-chart-outline' },
+    { key: 'Profile', label: 'Hồ sơ', iconActive: 'person', iconInactive: 'person-outline' },
   ];
 
   return (
@@ -57,7 +58,7 @@ export default function HomeTabBar({ bottomInset, activeTab, onSelectTab }: Prop
             <Ionicons
               name={isActive ? tab.iconActive : tab.iconInactive}
               size={23}
-              color={isActive ? '#22C55E' : '#64748B'}
+              color={isActive ? palette.primary : palette.textMuted}
             />
             <Text style={[styles.tabText, isActive && styles.tabTextActive]}>
               {tab.label}
@@ -75,9 +76,9 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: palette.surface,
     borderTopWidth: 1,
-    borderTopColor: '#F1F5F9',
+    borderTopColor: palette.border,
     flexDirection: 'row',
     justifyContent: 'space-around',
     paddingTop: 10,
@@ -96,10 +97,10 @@ const styles = StyleSheet.create({
   tabText: {
     fontSize: 11,
     fontWeight: '600',
-    color: '#64748B',
+    color: palette.textMuted,
   },
   tabTextActive: {
-    color: '#22C55E',
+    color: palette.primary,
     fontWeight: '800',
   },
 });

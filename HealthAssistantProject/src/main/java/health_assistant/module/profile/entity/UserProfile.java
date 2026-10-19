@@ -24,6 +24,9 @@ public class UserProfile {
     @Column(name = "activity_level", nullable = false, length = 40)
     private String activityLevel;
 
+    @Column(length = 10)
+    private String gender;
+
     private Integer age;
     private Double heightCm;
     private Double weightKg;

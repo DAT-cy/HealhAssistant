@@ -2,10 +2,12 @@ import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
 import { Platform } from 'react-native';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import type { ProfileGender } from '@/components/ui/Avatar';
 
 export interface ProfileRequest {
   goal: string;
   activityLevel: string;
+  gender?: ProfileGender | null;
   age?: number;
   heightCm?: number;
   weightKg?: number;

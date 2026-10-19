@@ -14,9 +14,9 @@ let onUnauthorized: (() => void) | null = null;
 export const apiClient = {
   setToken(token: string | null) { sessionToken = token; },
   setUnauthorizedHandler(handler: (() => void) | null) { onUnauthorized = handler; },
-  async request<T>(path: string, init: RequestInit & { ai?: boolean } = {}): Promise<T> {
+  async request<T>(path: string, init: RequestInit & { ai?: boolean; timeoutMs?: number } = {}): Promise<T> {
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), init.ai ? AI_TIMEOUT : TIMEOUT);
+    const timeout = setTimeout(() => controller.abort(), init.timeoutMs ?? (init.ai ? AI_TIMEOUT : TIMEOUT));
     const headers: Record<string, string> = { ...(init.headers as Record<string, string> | undefined) };
     const isFormData = typeof FormData !== 'undefined' && init.body instanceof FormData;
     if (!isFormData && !headers['Content-Type']) headers['Content-Type'] = 'application/json;charset=UTF-8';
@@ -30,8 +30,17 @@ export const apiClient = {
     let envelope: ApiEnvelope<T>;
     try { envelope = (await response.json()) as ApiEnvelope<T>; } catch { throw new ApiError(response.status, null, 'Phản hồi máy chủ không hợp lệ.'); }
     if (envelope.statusCode === 401) {
-      if (onUnauthorized) onUnauthorized();
-      throw new ApiError(401, envelope.responseCode, 'Phiên đăng nhập đã hết hạn.');
+      const isAuthenticationAttempt = /(?:^|\/)auth\/(?:login|signup|google)(?:\?|$)/.test(path);
+      if (!isAuthenticationAttempt && onUnauthorized) onUnauthorized();
+
+      const message = isAuthenticationAttempt
+        ? envelope.responseCode === 'AUTH-ERR-408'
+          ? 'Tài khoản hoặc mật khẩu không chính xác.'
+          : envelope.responseCode === 'AUTH-ERR-413'
+            ? 'Tài khoản đã bị vô hiệu hóa.'
+            : envelope.responseMessage || 'Đăng nhập không thành công.'
+        : 'Phiên đăng nhập đã hết hạn.';
+      throw new ApiError(401, envelope.responseCode, message);
     }
     if (envelope.statusCode >= 400 || !response.ok) {
       const errors = envelope.data && typeof envelope.data === 'object' && !Array.isArray(envelope.data) ? (envelope.data as Record<string, string>) : {};

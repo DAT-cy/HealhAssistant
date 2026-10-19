@@ -13,10 +13,13 @@ Tài khoản mới bắt đầu ở Home rỗng. Người dùng nhập hồ sơ 
 ## Tech Stack
 
 - **Expo** + **TypeScript**
-- **React Navigation** (hoặc Expo Router)
+- **Expo Router** với file-based routes và role guards (`ROLE_USER`, `ROLE_ADMIN`)
 - **Zustand** cho client state (auth token)
+- **TanStack Query** cho cache, loading và refetch dữ liệu backend
+- **React Hook Form + Zod** cho validation form
 - **Expo SecureStore** cho token JWT
-- Design system dark-first: palette, spacing, typography đã được tập trung trong `src/theme/tokens.ts`
+- Design system light indigo/blue: palette, spacing, typography tập trung trong `src/theme/tokens.ts`
+- Ảnh fitness `src/assets/images/fitness-home.jpg` tải local từ [Unsplash](https://unsplash.com/photos/a-woman-standing-on-a-block-with-a-pair-of-dumbbells-QBsVExIgTCo); app không tải ảnh hero từ URL runtime.
 - Accessibility: live region cho rep count, role button, label rõ ràng
 
 ## Endpoint đã khả dụng (backend)
@@ -46,13 +49,17 @@ Các endpoint baseline của profile, daily plan, progress, coach chat đã có.
 
 ```bash
 cd heathreact
-npm install
+nvm use
+npm ci
+npx expo start
 ```
+
+The project pins Node.js 22.13.0 in `.nvmrc`; Expo SDK 57/Metro requires a modern Node runtime. In WSL, use Linux Node and Linux-installed dependencies. `npm ci` installs the Linux `lightningcss` binary needed by NativeWind.
 
 Cấu hình backend URL trong file `.env` (có thể sao chép từ `.env.example`):
 
 ```env
-EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8080
+EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8084
 ```
 
 Giá trị trên dành cho Android Emulator. Với điện thoại thật, thay `10.0.2.2` bằng IPv4 LAN của máy đang chạy backend; với iOS Simulator có thể dùng `localhost`. Chỉ nhập origin và port, không thêm `/api/v1` vì app tự nối path đó. Sau khi sửa `.env`, khởi động lại Expo để nạp cấu hình mới.
@@ -63,11 +70,18 @@ Chạy Expo:
 npm start
 ```
 
-Chọn Android emulator, iOS simulator, hoặc scan QR bằng Expo Go.
+Chọn Android emulator, iOS simulator, hoặc scan QR bằng Expo Go. Trên WSL/Linux, cài dependencies bằng `npm ci` trong Linux trước khi chạy Expo; `node_modules` chứa native binaries của hệ điều hành và không dùng chung được giữa Windows và Linux.
 
 ## Cấu trúc thư mục
 
 ```text
+app/
+  _layout.tsx       # QueryClient, SafeAreaProvider, root stack
+  index.tsx         # Điều hướng theo auth state và role
+  login.tsx
+  (user)/            # Route user: Home, profile, roadmap, workout, progress...
+    workout-session.tsx # Bài Squat thử nghiệm landmark, tách khỏi tab Bài tập
+  admin/              # Route admin Knowledge Base only
 src/
   api/              # HTTP client, types, services
   components/ui/    # Screen, Card, AppButton, Badge, StateViews
@@ -77,10 +91,12 @@ src/
     Health/pages/   # Profile, Scan, Roadmap, DailyPlan, Workout, Progress, Coach
   hooks/            # useRoadmap, useWorkoutSession
   i18n/             # Chuỗi tiếng Việt tập trung
-  routes/           # Navigation
+  routes/           # URL mapping helpers cho Expo Router
   stores/           # Zustand: user, onboarding
   theme/            # tokens.ts
 ```
+
+Admin được chuyển thẳng tới `/admin/knowledge`; layout route chặn user không phải admin. Các màn hình user nằm trong `(user)` và layout chặn tài khoản admin.
 
 ## Quy tắc không được vi phạm
 

@@ -38,12 +38,18 @@ public class UserServiceImpl implements UserService {
 
     @Override
     public LoginResponse login(LoginRequest request) {
-        log.info("Attempting login for user: {}", request.getUsername());
+        String username = request.getUsername().trim().toLowerCase(java.util.Locale.ROOT);
+        log.info("Attempting password login");
 
         try {
+            User account = userMapper.findByUsername(username)
+                    .orElseThrow(() -> new CommonException(ErrorCode.WRONG_PASSWORD));
+            if (account.getPassword() == null) {
+                throw new CommonException(ErrorCode.WRONG_PASSWORD);
+            }
             Authentication authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(
-                            request.getUsername(),
+                            username,
                             request.getPassword()
                     )
             );
@@ -52,7 +58,6 @@ public class UserServiceImpl implements UserService {
 
             String jwtToken = jwtService.generateToken(user);
 
-            log.info("User logged in successfully: {}", request.getUsername());
             return LoginResponse.builder()
                     .username(user.getUsername())
                     .token(jwtToken)
@@ -66,10 +71,15 @@ public class UserServiceImpl implements UserService {
         }
     }
     @Override
-    public Boolean signUp(SignUpRequest request) {
-        User user = saveUser(request);
+    public LoginResponse signUp(SignUpRequest request) {
+        String email = request.getEmail().trim().toLowerCase(java.util.Locale.ROOT);
+        User user = saveUser(email, request.getPassword());
         userMapper.insertUser(user);
-        return true;
+        return LoginResponse.builder()
+                .username(user.getUsername())
+                .token(jwtService.generateToken(user))
+                .role(user.getRole())
+                .build();
     }
 
     @Override
@@ -85,12 +95,13 @@ public class UserServiceImpl implements UserService {
 
     }
 
-    private User saveUser(SignUpRequest request) {
-        User user = findUserByEmail(request.getEmail());
+    private User saveUser(String email, String password) {
+        User user = findUserByEmail(email);
         if(user == null) {
             user = new User();
-            user.setUsername(request.getEmail());
-            user.setPassword(passwordEncoder.encode(request.getPassword()));
+            user.setUsername(email);
+            user.setEmail(email);
+            user.setPassword(passwordEncoder.encode(password));
             user.setRole(Role.ROLE_USER);
             user.setEnable(true);
             user.setIsDeleted(false);
@@ -128,4 +139,4 @@ public class UserServiceImpl implements UserService {
     }
 
 
-} 
+}

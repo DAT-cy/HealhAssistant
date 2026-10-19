@@ -2,7 +2,6 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import {
   Alert,
-  Image,
   Modal,
   Platform,
   Pressable,
@@ -13,20 +12,23 @@ import {
 import * as Haptics from 'expo-haptics';
 import { fitnessTheme } from './HomeTypes';
 import { navigationService } from '@/routes';
+import Avatar, { type ProfileGender } from '@/components/ui/Avatar';
 
 interface Props {
   username: string;
+  avatarUrl: string | null;
+  gender: ProfileGender | null;
   onLogout: () => void;
   topInset: number;
 }
 
-export default function HomeHeader({ username, onLogout, topInset }: Props) {
+export default function HomeHeader({ username, avatarUrl, gender, onLogout, topInset }: Props) {
   const [showDropdown, setShowDropdown] = useState(false);
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-  const displayName = username?.split(' ')[0] || 'Tuấn';
+  const displayName = username?.split('@')[0]?.split(/[._]/)[0] || 'bạn';
 
   const triggerHaptic = (type: 'light' | 'medium' | 'success' | 'error' = 'light') => {
     try {
@@ -97,57 +99,40 @@ export default function HomeHeader({ username, onLogout, topInset }: Props) {
             accessibilityRole="button"
             accessibilityLabel="Mở menu tài khoản"
           >
-            <Image
-              source={{
-                uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-              }}
-              style={styles.avatarImage}
-            />
+            <Avatar gender={gender} imageUrl={avatarUrl} size={46} />
           </Pressable>
 
           <View style={styles.greetingMeta}>
-            <Text style={styles.greetingLight}>Good morning,</Text>
+            <Text style={styles.greetingLight}>Chào bạn,</Text>
             <Text style={styles.greetingName}>
               {displayName} 👋
             </Text>
             <Text style={styles.greetingSubtitle}>
-              Sẵn sàng chinh phục mục tiêu hôm nay?
+              Cùng bắt đầu hành trình khỏe mạnh và tốt hơn mỗi ngày!
             </Text>
           </View>
         </View>
 
-        {/* Right: Notification Bell */}
-        <Pressable
-          onPress={() => {
-            triggerHaptic('light');
-            setShowNotificationModal(true);
-          }}
-          style={({ pressed }) => [
-            styles.notificationBtn,
-            pressed && styles.notificationBtnPressed,
-          ]}
-          accessibilityRole="button"
-          accessibilityLabel="Xem thông báo"
-        >
-          <Ionicons name="notifications-outline" size={22} color="#0F172A" />
-          <View style={styles.redDot} />
-        </Pressable>
-      </View>
-
-      {/* ============================================================ */}
-      {/* 2. SUB ROW: DATE & TARGET GOAL BADGE                         */}
-      {/* ============================================================ */}
-      <View style={styles.subRow}>
-        {/* Left: Date */}
-        <View style={styles.dateCol}>
-          <Ionicons name="calendar-outline" size={15} color="#64748B" />
-          <Text style={styles.dateText}>Thứ 5, 24 tháng 4, 2025</Text>
-        </View>
-
-        {/* Right: Target Goal Badge */}
-        <View style={styles.goalPill}>
-          <Ionicons name="disc-outline" size={14} color="#16A34A" />
-          <Text style={styles.goalPillText}>Tăng cơ</Text>
+        <View style={styles.headerActions}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light');
+              setShowNotificationModal(true);
+            }}
+            style={({ pressed }) => [styles.headerAction, pressed && styles.notificationBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Xem thông báo"
+          >
+            <Ionicons name="notifications-outline" size={21} color="#334155" />
+          </Pressable>
+          <Pressable
+            onPress={() => handleNavigate('Profile')}
+            style={({ pressed }) => [styles.headerAction, pressed && styles.notificationBtnPressed]}
+            accessibilityRole="button"
+            accessibilityLabel="Mở cài đặt hồ sơ"
+          >
+            <Ionicons name="settings-outline" size={21} color="#334155" />
+          </Pressable>
         </View>
       </View>
 
@@ -172,23 +157,12 @@ export default function HomeHeader({ username, onLogout, topInset }: Props) {
           >
             {/* Header thông tin người dùng */}
             <View style={styles.dropdownUserRow}>
-              <Image
-                source={{
-                  uri: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-                }}
-                style={styles.dropdownAvatarImg}
-              />
+              <Avatar gender={gender} imageUrl={avatarUrl} size={44} />
               <View style={styles.dropdownUserMeta}>
                 <Text style={styles.dropdownUserName} numberOfLines={1}>
                   {username || 'Tuấn'}
                 </Text>
-                <View style={styles.onlineBadge}>
-                  <View style={styles.onlineDot} />
-                  <Text style={styles.onlineText}>Đang hoạt động</Text>
-                </View>
-                <View style={styles.memberTag}>
-                  <Text style={styles.memberTagText}>Hội viên AI Fitness</Text>
-                </View>
+                <Text style={styles.dropdownUserCaption}>Tài khoản Health Assistant</Text>
               </View>
             </View>
 
@@ -203,7 +177,7 @@ export default function HomeHeader({ username, onLogout, topInset }: Props) {
               ]}
               accessibilityRole="button"
             >
-              <View style={[styles.dropdownItemIcon, { backgroundColor: '#ECFDF5' }]}>
+              <View style={[styles.dropdownItemIcon, { backgroundColor: '#EFEEFF' }]}>
                 <Ionicons name="person-outline" size={17} color={fitnessTheme.primary} />
               </View>
               <View style={styles.dropdownItemMeta}>
@@ -239,8 +213,8 @@ export default function HomeHeader({ username, onLogout, topInset }: Props) {
               ]}
               accessibilityRole="button"
             >
-              <View style={[styles.dropdownItemIcon, { backgroundColor: '#F5F3FF' }]}>
-                <Ionicons name="analytics-outline" size={17} color="#8B5CF6" />
+              <View style={[styles.dropdownItemIcon, { backgroundColor: '#E8F7FF' }]}>
+                <Ionicons name="analytics-outline" size={17} color="#268FCB" />
               </View>
               <View style={styles.dropdownItemMeta}>
                 <Text style={styles.dropdownItemTitle}>Tiến độ & Nhật ký</Text>
@@ -248,6 +222,7 @@ export default function HomeHeader({ username, onLogout, topInset }: Props) {
               </View>
               <Ionicons name="chevron-forward" size={15} color="#94A3B8" />
             </Pressable>
+
 
             <Pressable
               onPress={handleShowProjectInfo}
@@ -313,29 +288,10 @@ export default function HomeHeader({ username, onLogout, topInset }: Props) {
             </View>
 
             <View style={styles.dropdownDivider} />
-
-            <View style={styles.tipItem}>
-              <View style={[styles.tipIconBox, { backgroundColor: '#ECFDF5' }]}>
-                <Ionicons name="water-outline" size={16} color={fitnessTheme.primary} />
-              </View>
-              <View style={styles.tipTextGroup}>
-                <Text style={styles.tipHeadline}>Uống đủ nước trước tập</Text>
-                <Text style={styles.tipBody}>
-                  Uống 300–500ml nước trước buổi tập 20 phút để duy trì tuần hoàn máu tốt.
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.tipItem}>
-              <View style={[styles.tipIconBox, { backgroundColor: '#F0F9FF' }]}>
-                <Ionicons name="scan-outline" size={16} color={fitnessTheme.accent} />
-              </View>
-              <View style={styles.tipTextGroup}>
-                <Text style={styles.tipHeadline}>Quét tư thế khớp gối</Text>
-                <Text style={styles.tipBody}>
-                  Bài Squat hôm nay hỗ trợ AI Landmark Scan kiểm tra góc gối 90° an toàn.
-                </Text>
-              </View>
+            <View style={styles.notificationsEmpty}>
+              <View style={styles.notificationsEmptyIcon}><Ionicons name="notifications-off-outline" size={22} color={fitnessTheme.primary} /></View>
+              <Text style={styles.tipHeadline}>Chưa có thông báo</Text>
+              <Text style={styles.tipBody}>Thông báo sẽ xuất hiện tại đây khi backend hỗ trợ nhắc lịch.</Text>
             </View>
           </View>
         </Pressable>
@@ -364,7 +320,7 @@ export default function HomeHeader({ username, onLogout, topInset }: Props) {
           >
             {/* Icon */}
             <View style={styles.logoutIconCircle}>
-              <Ionicons name="log-out" size={28} color="#EF4444" />
+              <Ionicons name="log-out" size={28} color={fitnessTheme.danger} />
             </View>
 
             {/* Title & Desc */}
@@ -418,7 +374,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 14,
+    marginBottom: 20,
   },
   userSection: {
     flexDirection: 'row',
@@ -437,10 +393,6 @@ const styles = StyleSheet.create({
   avatarBtnPressed: {
     opacity: 0.8,
   },
-  avatarImage: {
-    width: '100%',
-    height: '100%',
-  },
   greetingMeta: {
     flex: 1,
   },
@@ -457,10 +409,17 @@ const styles = StyleSheet.create({
   },
   greetingSubtitle: {
     fontSize: 12,
-    color: '#94A3B8',
+    color: '#64748B',
     marginTop: 2,
+    lineHeight: 17,
+    maxWidth: 220,
   },
-  notificationBtn: {
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  headerAction: {
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -479,49 +438,6 @@ const styles = StyleSheet.create({
   notificationBtnPressed: {
     opacity: 0.75,
   },
-  redDot: {
-    position: 'absolute',
-    top: 9,
-    right: 10,
-    width: 7,
-    height: 7,
-    borderRadius: 3.5,
-    backgroundColor: '#EF4444',
-  },
-
-  /* Sub Row */
-  subRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  dateCol: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-  },
-  dateText: {
-    fontSize: 13,
-    color: '#64748B',
-    fontWeight: '600',
-  },
-  goalPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#DCFCE7',
-    borderWidth: 1,
-    borderColor: '#BBF7D0',
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 20,
-    gap: 5,
-  },
-  goalPillText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#16A34A',
-  },
-
   /* Modal Backdrop */
   modalBackdrop: {
     flex: 1,
@@ -549,11 +465,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
-  dropdownAvatarImg: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
   dropdownUserMeta: {
     flex: 1,
   },
@@ -562,36 +473,7 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
   },
-  onlineBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 5,
-    marginTop: 2,
-  },
-  onlineDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22C55E',
-  },
-  onlineText: {
-    color: '#16A34A',
-    fontSize: 11,
-    fontWeight: '600',
-  },
-  memberTag: {
-    alignSelf: 'flex-start',
-    backgroundColor: '#F1F5F9',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 6,
-    marginTop: 3,
-  },
-  memberTagText: {
-    color: '#64748B',
-    fontSize: 10,
-    fontWeight: '600',
-  },
+  dropdownUserCaption: { color: '#7A8099', fontSize: 11, marginTop: 3 },
   dropdownDivider: {
     height: 1,
     backgroundColor: '#F1F5F9',
@@ -644,7 +526,7 @@ const styles = StyleSheet.create({
     opacity: 0.8,
   },
   dropdownLogoutText: {
-    color: '#EF4444',
+    color: fitnessTheme.danger,
     fontSize: 13,
     fontWeight: '700',
   },
@@ -680,22 +562,8 @@ const styles = StyleSheet.create({
     fontSize: 14.5,
     fontWeight: '800',
   },
-  tipItem: {
-    flexDirection: 'row',
-    gap: 10,
-    marginBottom: 12,
-  },
-  tipIconBox: {
-    width: 30,
-    height: 30,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 2,
-  },
-  tipTextGroup: {
-    flex: 1,
-  },
+  notificationsEmpty: { minHeight: 128, alignItems: 'center', justifyContent: 'center', gap: 7, paddingHorizontal: 12 },
+  notificationsEmptyIcon: { width: 42, height: 42, borderRadius: 15, backgroundColor: '#EFEEFF', alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
   tipHeadline: {
     color: '#0F172A',
     fontSize: 12.5,
@@ -777,11 +645,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     paddingVertical: 12,
     borderRadius: 14,
-    backgroundColor: '#EF4444',
+    backgroundColor: fitnessTheme.danger,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    shadowColor: '#EF4444',
+    shadowColor: fitnessTheme.danger,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

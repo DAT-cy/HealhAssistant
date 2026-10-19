@@ -1,7 +1,7 @@
-import React, { useCallback, useState } from 'react';
-import { useFocusEffect } from '@react-navigation/native';
+import React, { useCallback, useRef } from 'react';
+import { useFocusEffect } from 'expo-router';
 import {
-  ActivityIndicator,
+  Image,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -14,249 +14,330 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
+import { useQuery } from '@tanstack/react-query';
 
 import { useUserStore } from '@/stores/user';
-import { coachService, ActiveRoadmap } from '@/api/services/coach.service';
+import { ApiError } from '@/api/client';
+import { coachService, type ActiveRoadmap } from '@/api/services/coach.service';
+import { profileService } from '@/api/services/profile.service';
+import type { ProfileGender } from '@/components/ui/Avatar';
 
 import HomeHeader from '../components/HomeHeader';
 import HomeTabBar from '../components/HomeTabBar';
 import { navigationService } from '@/routes';
 
+type HomeRoute = 'Roadmap' | 'Progress' | 'Profile' | 'DailyPlan' | 'Workout' | 'Coach' | 'Nutrition';
+
+const actions: {
+  title: string;
+  detail: string;
+  icon: keyof typeof Ionicons.glyphMap;
+  color: string;
+  background: string;
+  route: HomeRoute;
+}[] = [
+  { title: 'Tạo lộ trình cá nhân', detail: 'Kế hoạch tập luyện và dinh dưỡng riêng cho bạn.', icon: 'locate-outline', color: '#635BFF', background: '#EFEEFF', route: 'Roadmap' },
+  { title: 'Theo dõi tiến độ', detail: 'Ghi nhận và xem lại kết quả mỗi ngày.', icon: 'barbell-outline', color: '#268FCB', background: '#E8F7FF', route: 'Progress' },
+  { title: 'Thống kê sức khỏe', detail: 'Theo dõi cân nặng và hành trình của bạn.', icon: 'stats-chart-outline', color: '#8C72EA', background: '#F2EEFF', route: 'Profile' },
+  { title: 'Dinh dưỡng khoa học', detail: 'Theo dõi bữa ăn và thông tin dinh dưỡng.', icon: 'restaurant-outline', color: '#D88732', background: '#FFF4E8', route: 'Nutrition' },
+  { title: 'Tập luyện cá nhân hóa', detail: 'Xem bài tập theo thể trạng và mục tiêu.', icon: 'walk-outline', color: '#E56F91', background: '#FFF0F3', route: 'Workout' },
+  { title: 'Kiến thức sức khỏe', detail: 'Hỏi trợ lý về vận động và thói quen khỏe.', icon: 'book-outline', color: '#239FC8', background: '#E8F9FF', route: 'Coach' },
+];
+
 export default function HomePage() {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const isTabletOrDesktop = width >= 768;
+  const isWide = width >= 768;
+  const username = useUserStore((state) => state.username);
+  const logout = useUserStore((state) => state.logout);
+  const focusedBefore = useRef(false);
 
-  const username = useUserStore((s) => s.username);
-  const logout = useUserStore((s) => s.logout);
-
-  // States
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [activeRoadmap, setActiveRoadmap] = useState<ActiveRoadmap | null>(null);
-
-  const triggerHaptic = (type: 'light' | 'medium' | 'success' | 'error' = 'light') => {
-    try {
-      if (type === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      else if (type === 'medium') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-      else if (type === 'success') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-      else if (type === 'error') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-    } catch {
-      // Ignore fallback
-    }
-  };
-
-  // Nạp dữ liệu đồng bộ với backend nếu có
-  const loadData = useCallback(async () => {
-    try {
-      setErrorMessage(null);
-
-      const plan = await coachService.active();
-      setActiveRoadmap(plan);
-    } catch (err: unknown) {
-      setActiveRoadmap(null);
-      if (!(err instanceof Error && 'status' in err && (err as { status?: number }).status === 404)) {
-        setErrorMessage('Không thể tải lộ trình. Kéo xuống để thử lại.');
+  const { data: profile, isError: profileFailed, isRefetching: profileRefetching, refetch: refetchProfile } = useQuery({
+    queryKey: ['profile', 'me'],
+    queryFn: profileService.getMine,
+  });
+  const { data: activeRoadmap, isError: roadmapFailed, isRefetching: roadmapRefetching, refetch: refetchRoadmap } = useQuery<ActiveRoadmap | null>({
+    queryKey: ['roadmap', 'active'],
+    queryFn: async () => {
+      try {
+        return await coachService.active();
+      } catch (error) {
+        if (error instanceof ApiError && error.status === 404) return null;
+        throw error;
       }
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
-  }, []);
+    },
+  });
+  const avatarUrl = profile?.avatarUrl ?? null;
+  const gender: ProfileGender | null = profile?.gender ?? null;
+  const refreshing = profileRefetching || roadmapRefetching;
+  const errorMessage = profileFailed
+    ? 'Không thể tải hồ sơ của bạn.'
+    : roadmapFailed ? 'Không thể tải lộ trình.' : null;
+
+  const loadData = useCallback(async () => {
+    await Promise.all([refetchProfile(), refetchRoadmap()]);
+  }, [refetchProfile, refetchRoadmap]);
 
   useFocusEffect(useCallback(() => {
+    if (!focusedBefore.current) {
+      focusedBefore.current = true;
+      return;
+    }
     void loadData();
   }, [loadData]));
 
   const onRefresh = useCallback(() => {
-    setRefreshing(true);
-    triggerHaptic('light');
-    void loadData();
-  }, [loadData]);
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    void Promise.all([refetchProfile(), refetchRoadmap()]);
+  }, [refetchProfile, refetchRoadmap]);
 
-  // Bắt đầu tập luyện
-  const handleStartTodayWorkout = () => {
-    triggerHaptic('medium');
-    navigationService.navigate('DailyPlan');
+  const navigate = (route: HomeRoute) => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    navigationService.navigate(route);
   };
 
-  // Chọn nhóm cơ
-  const weeklyPlan = activeRoadmap ? parseList(activeRoadmap.weeklyPlan) : [];
-  const startedAt = activeRoadmap?.startDate ? new Date(`${activeRoadmap.startDate}T00:00:00`) : new Date();
-  const today = new Date();
-  const elapsedDays = Math.max(0, Math.floor((new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() - startedAt.getTime()) / 86400000));
-  const totalDays = (activeRoadmap?.durationWeeks ?? 0) * 7;
-  const roadmapComplete = totalDays > 0 && elapsedDays >= totalDays;
-
-  // Điều hướng Bottom Tab
-  const handleSelectTab = (tab: 'Home' | 'Workout' | 'Progress' | 'Profile') => {
-    if (tab === 'Home') return;
-    if (tab === 'Workout') navigationService.navigate('Workout');
-    else if (tab === 'Progress') navigationService.navigate('Progress');
-    else if (tab === 'Profile') navigationService.navigate('Profile');
-  };
+  const cardWidth = isWide ? '31.8%' : width < 360 ? '48.5%' : '31.4%';
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent />
-
+      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FC" translucent />
       <ScrollView
         showsVerticalScrollIndicator={false}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor="#22C55E"
-            colors={['#22C55E']}
-          />
-        }
-        contentContainerStyle={[
-          styles.scrollContainer,
-          {
-            paddingTop: insets.top + 8,
-            paddingBottom: insets.bottom + 75,
-          },
-        ]}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#635BFF" colors={['#635BFF']} />}
+        contentContainerStyle={[styles.scrollContainer, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 92 }]}
       >
-        <View style={[styles.mainWrapper, isTabletOrDesktop && styles.tabletDesktopWrapper]}>
-          {/* ============================================================ */}
-          {/* 1. HEADER: LỜI CHÀO & AVATAR DROPDOWN MENU                   */}
-          {/* ============================================================ */}
+        <View style={[styles.mainWrapper, isWide && styles.wideWrapper]}>
           <HomeHeader
             username={username}
-            onLogout={async () => {
-              await logout();
-            }}
+            avatarUrl={avatarUrl}
+            gender={gender}
+            onLogout={logout}
             topInset={insets.top}
           />
 
-          {/* Loading or Error states */}
-          {loading && (
-            <View style={styles.loadingContainer}>
-              <ActivityIndicator size="large" color="#22C55E" />
-              <Text style={styles.loadingText}>Đang cập nhật dữ liệu...</Text>
-            </View>
-          )}
-
-          {Boolean(errorMessage) && (
-            <View style={styles.errorBox}>
-              <Ionicons name="alert-circle" size={18} color="#EF4444" />
-              <Text style={styles.errorText}>{errorMessage}</Text>
-              <Pressable onPress={() => void loadData()} style={styles.retryBtn}>
-                <Text style={styles.retryBtnText}>Thử lại</Text>
+          <View style={styles.hero}>
+            <View style={styles.heroCopy}>
+              <View style={styles.brandBadge}>
+                <Ionicons name="heart" size={15} color="#635BFF" />
+                <Text style={styles.brandBadgeText}>Health Assistant</Text>
+              </View>
+              <Text style={styles.heroTitle}>Khỏe hơn hôm nay, tốt hơn ngày mai!</Text>
+              <Text style={styles.heroDescription}>AI đồng hành cùng bạn xây dựng lộ trình tập luyện và dinh dưỡng cá nhân, phù hợp với thể trạng và mục tiêu.</Text>
+              <Pressable onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]} accessibilityRole="button">
+                <Text style={styles.heroButtonText}>Tạo lộ trình ngay</Text>
+                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </Pressable>
             </View>
+            <View style={styles.heroArt}>
+              <Image source={require('../../../assets/images/fitness-home.jpg')} resizeMode="cover" accessibilityLabel="Người tập luyện với tạ trong phòng gym" style={styles.heroImage} />
+            </View>
+          </View>
+
+          <View style={styles.sectionHeading}>
+            <Text style={styles.sectionTitle}>Bạn có thể làm gì?</Text>
+          </View>
+          <View style={styles.actionGrid}>
+            {actions.map((action) => (
+              <Pressable
+                key={action.title}
+                onPress={() => navigate(action.route)}
+                accessibilityRole="button"
+                style={({ pressed }) => [styles.actionCard, { width: cardWidth }, pressed && styles.pressed]}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: action.background }]}>
+                  <Ionicons name={action.icon} size={22} color={action.color} />
+                </View>
+                <Text style={styles.actionTitle}>{action.title}</Text>
+                <Text style={styles.actionDetail}>{action.detail}</Text>
+                <Ionicons name="arrow-forward" size={16} color="#64748B" style={styles.actionArrow} />
+              </Pressable>
+            ))}
+          </View>
+
+          {activeRoadmap ? (
+            <ActiveRoadmapSection roadmap={activeRoadmap} onOpenRoadmap={() => navigate('Roadmap')} onOpenDailyPlan={() => navigate('DailyPlan')} />
+          ) : (
+            <Pressable onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.roadmapBanner, pressed && styles.pressed]} accessibilityRole="button">
+              <View style={styles.bannerIcon}><Ionicons name="sparkles" size={22} color="#635BFF" /></View>
+              <View style={styles.bannerCopy}>
+                <Text style={styles.bannerTitle}>Hiện tại bạn chưa có lộ trình nào</Text>
+                <Text style={styles.bannerDetail}>Hãy tạo lộ trình để bắt đầu hành trình khỏe mạnh của mình.</Text>
+              </View>
+              <Ionicons name="chevron-forward" size={20} color="#64748B" />
+            </Pressable>
           )}
 
-          {!loading && !errorMessage && !activeRoadmap ? <View style={styles.emptyState}>
-            <View style={styles.emptyIcon}><Ionicons name="calendar-outline" size={28} color="#16A34A" /></View>
-            <Text style={styles.emptyTitle}>Chưa có lộ trình đang hoạt động</Text>
-            <Text style={styles.emptyCopy}>Hoàn thiện hồ sơ, xem trước các phương án và chọn kế hoạch phù hợp. Lịch tập sẽ xuất hiện tại đây sau khi xác nhận.</Text>
-            <Pressable accessibilityRole="button" onPress={() => navigationService.navigate('Roadmap')} style={styles.primaryButton}><Text style={styles.primaryButtonText}>Tạo lộ trình</Text></Pressable>
-            <Pressable accessibilityRole="button" onPress={() => navigationService.navigate('Profile')} style={styles.secondaryButton}><Text style={styles.secondaryButtonText}>Cập nhật hồ sơ</Text></Pressable>
-          </View> : null}
-          {!loading && activeRoadmap ? <View style={styles.planArea}>
-            <View style={styles.planHeading}><View style={{ flex: 1 }}><Text style={styles.kicker}>{roadmapComplete ? 'ĐÃ HOÀN THÀNH' : 'ĐANG THỰC HIỆN'}</Text><Text style={styles.planTitle}>{activeRoadmap.title}</Text><Text style={styles.planSubtitle}>{roadmapComplete ? `${totalDays} / ${totalDays} ngày · ` : `Ngày ${elapsedDays + 1} / ${totalDays} · `}Bắt đầu {startedAt.toLocaleDateString('vi-VN')}</Text></View><Pressable accessibilityRole="button" accessibilityLabel="Xem lộ trình" onPress={() => navigationService.navigate('Roadmap')}><Ionicons name="open-outline" size={22} color="#16A34A" /></Pressable></View>
-            {roadmapComplete ? <View style={styles.todayRow}><View style={{ flex: 1 }}><Text style={styles.kicker}>LỘ TRÌNH ĐÃ KẾT THÚC</Text><Text style={styles.todayText}>Xem lại tiến độ hoặc tạo lộ trình mới phù hợp với mục tiêu tiếp theo.</Text></View></View> : <Pressable style={styles.todayRow} onPress={handleStartTodayWorkout}><View style={{ flex: 1 }}><Text style={styles.kicker}>HÔM NAY</Text><Text style={styles.todayText}>{weeklyPlan[Math.min(Math.floor(elapsedDays / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Ngày phục hồi hoặc vận động nhẹ'}</Text></View><Ionicons name="play-circle" size={30} color="#16A34A" /></Pressable>}
-            <Text style={styles.sectionTitle}>Lịch lộ trình</Text>
-            {Array.from({ length: totalDays }, (_, index) => {
-              const date = new Date(startedAt); date.setDate(startedAt.getDate() + index);
-              const isToday = index === elapsedDays;
-              const isRestDay = index % 7 > 4;
-              return <Pressable key={index} disabled={!isToday || isRestDay || roadmapComplete} onPress={handleStartTodayWorkout} style={[styles.dayRow, isToday && styles.dayRowToday]}><Text style={styles.dayNumber}>{String(index + 1).padStart(2, '0')}</Text><View style={{ flex: 1 }}><Text style={styles.dayLabel}>{date.toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'short' })}{isToday ? ' · Hôm nay' : ''}</Text><Text style={styles.dayFocus}>{isRestDay ? 'Nghỉ và phục hồi' : weeklyPlan[Math.min(Math.floor(index / 7), Math.max(weeklyPlan.length - 1, 0))] ?? 'Buổi vận động nhẹ'}</Text></View><Ionicons name={isRestDay ? 'bed-outline' : isToday && !roadmapComplete ? 'play-circle-outline' : 'ellipse-outline'} size={19} color={isToday && !roadmapComplete ? '#16A34A' : '#94A3B8'} /></Pressable>;
-            })}
-          </View> : null}
+          {errorMessage ? <Text accessibilityLiveRegion="polite" style={styles.errorText}>{errorMessage}</Text> : null}
+
+          <View style={styles.quoteBanner}>
+            <View style={styles.quoteMark}><Ionicons name="chatbox-ellipses" size={19} color="#635BFF" /></View>
+            <View style={styles.quoteCopy}>
+              <Text style={styles.quoteText}>“Sức khỏe không phải là đích đến, mà là một hành trình.”</Text>
+              <Text style={styles.quoteCaption}>Hãy bắt đầu ngay hôm nay!</Text>
+            </View>
+            <Ionicons name="heart-outline" size={30} color="#36B9F6" />
+          </View>
         </View>
       </ScrollView>
 
-      {/* ============================================================ */}
-      {/* 6. THANH ĐIỀU HƯỚNG CỐ ĐỊNH PHÍA DƯỚI (BOTTOM BAR)           */}
-      {/* ============================================================ */}
-      <HomeTabBar
-        bottomInset={insets.bottom}
-        activeTab="Home"
-        onSelectTab={handleSelectTab}
-      />
+      <HomeTabBar bottomInset={insets.bottom} activeTab="Home" onSelectTab={(tab) => {
+        if (tab === 'Workout') navigate('Workout');
+        else if (tab === 'Progress') navigate('Progress');
+        else if (tab === 'Profile') navigate('Profile');
+      }} />
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  screen: {
-    flex: 1,
-    backgroundColor: '#FFFFFF',
-  },
-  scrollContainer: {
-    paddingHorizontal: 16,
-  },
-  mainWrapper: {
-    width: '100%',
-  },
-  tabletDesktopWrapper: {
-    maxWidth: 720,
-    alignSelf: 'center',
-  },
-  loadingContainer: {
-    paddingVertical: 20,
-    alignItems: 'center',
-    gap: 8,
-  },
-  loadingText: {
-    color: '#64748B',
-    fontSize: 13,
-  },
-  errorBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FEE2E2',
-    borderRadius: 14,
-    padding: 12,
-    marginBottom: 16,
-    gap: 8,
-  },
-  errorText: {
-    flex: 1,
-    color: '#EF4444',
-    fontSize: 12.5,
-  },
-  retryBtn: {
-    backgroundColor: '#EF4444',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 6,
-  },
-  retryBtnText: {
-    color: '#FFFFFF',
-    fontSize: 11,
-    fontWeight: '700',
-  },
-  emptyState: { marginTop: 32, padding: 20, borderTopWidth: 1, borderBottomWidth: 1, borderColor: '#E2E8F0', alignItems: 'center' },
-  emptyIcon: { width: 56, height: 56, borderRadius: 28, backgroundColor: '#DCFCE7', alignItems: 'center', justifyContent: 'center', marginBottom: 14 },
-  emptyTitle: { color: '#0F172A', fontSize: 20, fontWeight: '800', textAlign: 'center' },
-  emptyCopy: { color: '#64748B', textAlign: 'center', lineHeight: 21, marginTop: 8, marginBottom: 18 },
-  primaryButton: { width: '100%', alignItems: 'center', backgroundColor: '#16A34A', borderRadius: 8, paddingVertical: 13 },
-  primaryButtonText: { color: '#FFFFFF', fontWeight: '800' },
-  secondaryButton: { marginTop: 10, padding: 10 },
-  secondaryButtonText: { color: '#15803D', fontWeight: '700' },
-  planArea: { marginTop: 14 },
-  planHeading: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12 },
-  kicker: { color: '#15803D', fontSize: 11, fontWeight: '800' },
-  planTitle: { color: '#0F172A', fontSize: 21, fontWeight: '800', marginTop: 3 },
-  planSubtitle: { color: '#64748B', marginTop: 5, fontSize: 12 },
-  todayRow: { flexDirection: 'row', alignItems: 'center', padding: 14, borderRadius: 10, backgroundColor: '#F0FDF4', borderWidth: 1, borderColor: '#BBF7D0', marginVertical: 10 },
-  todayText: { color: '#0F172A', fontWeight: '700', lineHeight: 20, marginTop: 5 },
-  sectionTitle: { color: '#0F172A', fontWeight: '800', fontSize: 17, marginTop: 16, marginBottom: 6 },
-  dayRow: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 68, paddingHorizontal: 10, borderBottomWidth: 1, borderColor: '#E2E8F0' },
-  dayRowToday: { backgroundColor: '#F0FDF4' },
-  dayNumber: { width: 34, textAlign: 'center', color: '#64748B', fontWeight: '800' },
-  dayLabel: { color: '#0F172A', fontWeight: '700', textTransform: 'capitalize' },
-  dayFocus: { color: '#64748B', fontSize: 12, marginTop: 3, lineHeight: 17 },
+  screen: { flex: 1, backgroundColor: '#F7F8FC' },
+  scrollContainer: { paddingHorizontal: 16 },
+  mainWrapper: { width: '100%' },
+  wideWrapper: { maxWidth: 720, alignSelf: 'center' },
+  hero: { flexDirection: 'row', alignItems: 'center', minHeight: 238, backgroundColor: '#F0F0FF', borderRadius: 20, borderWidth: 1, borderColor: '#E5E3FF', padding: 18, overflow: 'hidden' },
+  heroCopy: { flex: 1.1, alignItems: 'flex-start', paddingRight: 4 },
+  brandBadge: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#E4E1FF', borderRadius: 18, marginBottom: 12 },
+  brandBadgeText: { color: '#4438CA', fontSize: 12, fontWeight: '700' },
+  heroTitle: { color: '#20213A', fontSize: 21, lineHeight: 27, fontWeight: '800' },
+  heroDescription: { color: '#656B87', fontSize: 12, lineHeight: 18, marginTop: 8 },
+  heroButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 44, paddingHorizontal: 16, backgroundColor: '#635BFF', borderRadius: 24, marginTop: 14 },
+  heroButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
+  heroArt: { flex: 0.9, height: 190, justifyContent: 'center', alignItems: 'center', marginRight: -8, borderRadius: 16, overflow: 'hidden' },
+  heroImage: { width: '100%', height: '100%' },
+  sectionHeading: { marginTop: 22, marginBottom: 11 },
+  sectionTitle: { color: '#20213A', fontSize: 18, fontWeight: '800' },
+  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
+  actionCard: { minHeight: 157, padding: 11, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 16, backgroundColor: '#FFFFFF' },
+  actionIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
+  actionTitle: { color: '#20213A', fontSize: 12, lineHeight: 16, fontWeight: '800' },
+  actionDetail: { color: '#7A8099', fontSize: 10, lineHeight: 14, marginTop: 5, paddingBottom: 16 },
+  actionArrow: { position: 'absolute', right: 11, bottom: 9 },
+  roadmapBanner: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginTop: 18, backgroundColor: '#EFEEFF', borderRadius: 16 },
+  bannerIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#E4E1FF', alignItems: 'center', justifyContent: 'center' },
+  bannerCopy: { flex: 1 },
+  bannerTitle: { color: '#4438CA', fontSize: 13, fontWeight: '800' },
+  bannerDetail: { color: '#7A8099', fontSize: 11, lineHeight: 15, marginTop: 4 },
+  quoteBanner: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, marginTop: 14, backgroundColor: '#EAF8FF', borderRadius: 16 },
+  quoteMark: { width: 32, height: 32, borderRadius: 12, backgroundColor: '#D7F3FF', alignItems: 'center', justifyContent: 'center' },
+  quoteCopy: { flex: 1 },
+  quoteText: { color: '#315C7A', fontSize: 12, fontWeight: '700', lineHeight: 17 },
+  quoteCaption: { color: '#7A8099', fontSize: 11, marginTop: 3 },
+  errorText: { color: '#D95070', fontSize: 12, marginTop: 10 },
+  pressed: { opacity: 0.82 },
+  roadmapSection: { marginTop: 18, padding: 14, backgroundColor: '#F2F1FF', borderRadius: 20, borderWidth: 1, borderColor: '#E6E4FF' },
+  roadmapSectionHeading: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  weekSummary: { marginTop: 14, padding: 13, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E8EAF4' },
+  weekSummaryTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
+  weekSummaryTitle: { color: '#4438CA', fontSize: 14, fontWeight: '800' },
+  weekDate: { color: '#7A8099', fontSize: 11 },
+  weekFocusLabel: { marginTop: 10, color: '#7A8099', fontSize: 11, fontWeight: '600' },
+  weekFocus: { marginTop: 4, color: '#363955', fontSize: 13, lineHeight: 19, fontWeight: '600' },
+  weekList: { marginTop: 8 },
+  weekRow: { minHeight: 55, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E8EAF4' },
+  weekRowCurrent: { backgroundColor: '#EAE8FF', borderRadius: 10, paddingHorizontal: 7 },
+  weekNumber: { width: 27, height: 27, alignItems: 'center', justifyContent: 'center', borderRadius: 14, backgroundColor: '#E8EAF4' },
+  weekNumberCurrent: { backgroundColor: '#635BFF' },
+  weekNumberText: { color: '#656B87', fontSize: 11, fontWeight: '700' },
+  weekNumberTextCurrent: { color: '#FFFFFF' },
+  weekRowCopy: { flex: 1, gap: 2 },
+  weekRowTitle: { color: '#363955', fontSize: 11, fontWeight: '700' },
+  weekRowFocus: { color: '#7A8099', fontSize: 11, lineHeight: 16 },
+  currentWeekTag: { color: '#4438CA', fontSize: 10, fontWeight: '800' },
+  scheduleWarning: { marginTop: 12, color: '#D88732', fontSize: 12 },
+  calendarNote: { marginTop: 10, color: '#7A8099', fontSize: 10, lineHeight: 15 },
+  dailyPlanButton: { minHeight: 42, marginTop: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, backgroundColor: '#635BFF' },
+  dailyPlanButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
 });
 
-function parseList(value: string): string[] {
-  try { const parsed: unknown = JSON.parse(value); return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string') : []; }
-  catch { return []; }
+function ActiveRoadmapSection({
+  roadmap,
+  onOpenRoadmap,
+  onOpenDailyPlan,
+}: {
+  roadmap: ActiveRoadmap;
+  onOpenRoadmap: () => void;
+  onOpenDailyPlan: () => void;
+}) {
+  const weeks = parseWeeklyPlan(roadmap.weeklyPlan);
+  const durationWeeks = Math.max(roadmap.durationWeeks || weeks.length, 1);
+  const start = parseLocalDate(roadmap.startDate);
+  const today = new Date();
+  const dayOffset = start ? Math.floor((dateOrdinal(today) - dateOrdinal(start)) / 86_400_000) : 0;
+  const currentWeek = Math.max(0, Math.min(Math.floor(dayOffset / 7), durationWeeks - 1));
+  const ended = dayOffset >= durationWeeks * 7;
+  const weekStart = start ? addDays(start, currentWeek * 7) : null;
+  const weekEnd = weekStart ? addDays(weekStart, 6) : null;
+
+  return (
+    <View style={styles.roadmapSection}>
+      <View style={styles.roadmapSectionHeading}>
+        <View style={styles.bannerIcon}><Ionicons name="sparkles" size={22} color="#635BFF" /></View>
+        <View style={styles.bannerCopy}>
+          <Text style={styles.bannerTitle}>Lộ trình đang hoạt động</Text>
+          <Text style={styles.bannerDetail} numberOfLines={2}>{roadmap.title}</Text>
+        </View>
+        <Pressable onPress={onOpenRoadmap} hitSlop={8} accessibilityRole="button" accessibilityLabel="Mở chi tiết lộ trình">
+          <Ionicons name="chevron-forward" size={20} color="#64748B" />
+        </Pressable>
+      </View>
+
+      <View style={styles.weekSummary}>
+        <View style={styles.weekSummaryTop}>
+          <Text style={styles.weekSummaryTitle}>{ended ? 'Đã hết thời lượng lộ trình' : `Tuần ${currentWeek + 1} / ${durationWeeks}`}</Text>
+          {weekStart && weekEnd ? <Text style={styles.weekDate}>{formatDate(weekStart)} - {formatDate(weekEnd)}</Text> : null}
+        </View>
+        <Text style={styles.weekFocusLabel}>{ended ? 'Bạn có thể xem lại lộ trình hoặc tạo phương án mới.' : 'Trọng tâm tuần này'}</Text>
+        {!ended && weeks[currentWeek] ? <Text style={styles.weekFocus}>{weeks[currentWeek]}</Text> : null}
+      </View>
+
+      {weeks.length > 0 ? <View style={styles.weekList}>
+        {weeks.map((focus, index) => (
+          <View key={`${index}-${focus}`} style={[styles.weekRow, index === currentWeek && !ended && styles.weekRowCurrent]}>
+            <View style={[styles.weekNumber, index === currentWeek && !ended && styles.weekNumberCurrent]}>
+              <Text style={[styles.weekNumberText, index === currentWeek && !ended && styles.weekNumberTextCurrent]}>{index + 1}</Text>
+            </View>
+            <View style={styles.weekRowCopy}>
+              <Text style={styles.weekRowTitle}>Tuần {index + 1}</Text>
+              <Text style={styles.weekRowFocus}>{focus}</Text>
+            </View>
+            {index === currentWeek && !ended ? <Text style={styles.currentWeekTag}>Hiện tại</Text> : null}
+          </View>
+        ))}
+      </View> : <Text style={styles.scheduleWarning}>Lộ trình chưa có dữ liệu trọng tâm theo tuần.</Text>}
+
+      <Text style={styles.calendarNote}>Lịch này hiển thị trọng tâm kế hoạch; không tự đánh dấu buổi tập hoàn thành.</Text>
+      <Pressable onPress={onOpenDailyPlan} style={({ pressed }) => [styles.dailyPlanButton, pressed && styles.pressed]} accessibilityRole="button">
+        <Ionicons name="calendar-outline" size={17} color="#FFFFFF" />
+        <Text style={styles.dailyPlanButtonText}>Xem kế hoạch hôm nay</Text>
+        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
+      </Pressable>
+    </View>
+  );
+}
+
+function parseWeeklyPlan(value: string): string[] {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0) : [];
+  } catch {
+    return [];
+  }
+}
+
+function parseLocalDate(value: string): Date | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})/.exec(value || '');
+  if (!match) return null;
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}
+
+function dateOrdinal(date: Date) {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function addDays(date: Date, days: number) {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + days);
+}
+
+function formatDate(date: Date) {
+  return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
 }

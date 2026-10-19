@@ -5,6 +5,8 @@
     <resultMap id="userResultMap" type="health_assistant.module.users.entity.User">
         <id property="userId" column="user_id"/>
         <result property="username" column="username"/>
+        <result property="email" column="email"/>
+        <result property="displayName" column="display_name"/>
         <result property="password" column="password"/>
         <result property="enable" column="enable"/>
         <result property="isDeleted" column="is_deleted"/>
@@ -17,6 +19,8 @@
         SELECT 
             user_id,
             username,
+            email,
+            display_name,
             password,
             enable,
             is_deleted,
@@ -28,14 +32,22 @@
         AND is_deleted = false
     </select>
 
+    <select id="findByUserId" resultMap="userResultMap">
+        SELECT user_id, username, email, display_name, password, enable, is_deleted, role, created_at, updated_at
+        FROM tbl_users
+        WHERE user_id = #{userId} AND is_deleted = false
+    </select>
+
     <select id="countAdminUsers" resultType="int">
         SELECT COUNT(*)
         FROM tbl_users
         WHERE username = 'admin'
     </select>
 
-    <insert id="insertUser" parameterType="health_assistant.module.users.entity.User">
+    <insert id="insertUser" parameterType="health_assistant.module.users.entity.User" useGeneratedKeys="true" keyProperty="userId" keyColumn="user_id">
         INSERT INTO tbl_users (username,
+                               email,
+                               display_name,
                                password,
                                enable,
                                is_deleted,
@@ -45,6 +57,8 @@
                                updated_at,
                                updated_id)
         VALUES (#{username},
+                #{email},
+                #{displayName},
                 #{password},
                #{enable},
                 #{isDeleted},
@@ -55,4 +69,4 @@
                 #{username})
     </insert>
 
-</mapper> 
+</mapper>

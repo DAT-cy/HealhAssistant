@@ -1,4 +1,5 @@
 import { navigationService } from './index';
+import { useUserStore } from '@/stores/user';
 
 /**
  * AppRouter: Trung tâm điều khiển toàn bộ luồng đi của ứng dụng.
@@ -14,8 +15,8 @@ export const AppRouter = {
     navigationService.replace('Login');
   },
   onLoginSuccess: () => {
-    // Logic: Nếu đăng nhập thành công thì chuyển hướng về Home
-    navigationService.replace('Home');
+    const destination = useUserStore.getState().role === 'ROLE_ADMIN' ? 'AdminKnowledge' : 'Home';
+    navigationService.replace(destination);
   },
   onLogout: () => {
     navigationService.replace('Login');

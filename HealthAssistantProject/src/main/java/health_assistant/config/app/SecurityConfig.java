@@ -51,13 +51,9 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(WHITE_LIST).permitAll()
-                        .requestMatchers("/api/v1/admin/**").hasAnyRole(
-                                Role.ROLE_ADMIN.toString()
-                        )
-                        .requestMatchers("/api/v1/user/**").hasAnyRole(
-                                Role.ROLE_ADMIN.toString(),
-                                Role.ROLE_USER.toString()
-                        )
+                        .requestMatchers("/api/v1/admin/knowledge/**").hasRole(Role.ROLE_ADMIN.getName())
+                        .requestMatchers("/api/v1/admin/**").denyAll()
+                        .requestMatchers("/api/v1/**").hasRole(Role.ROLE_USER.getName())
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session
@@ -86,4 +82,4 @@ public class SecurityConfig {
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
-} 
+}

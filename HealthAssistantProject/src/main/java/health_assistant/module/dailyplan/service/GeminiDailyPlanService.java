@@ -9,6 +9,7 @@ import health_assistant.module.ai.service.GeminiClient;
 import health_assistant.module.ai.service.GeminiException;
 import health_assistant.module.profile.entity.UserProfile;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -19,6 +20,7 @@ import java.util.regex.Pattern;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class GeminiDailyPlanService {
     private static final String PROMPT_VERSION = "DAILY_PLAN_V1";
     private static final Pattern DURATION_PATTERN = Pattern.compile("^(\\d{1,2})\\s*phút$", Pattern.CASE_INSENSITIVE);
@@ -51,6 +53,7 @@ public class GeminiDailyPlanService {
             }
             return Optional.of(new GeneratedDailyPlan(title, duration, activities, safetyNotes));
         } catch (GeminiException | IllegalArgumentException | com.fasterxml.jackson.core.JsonProcessingException exception) {
+            log.warn("Daily plan is using fallback ({})", exception.getClass().getSimpleName());
             return Optional.empty();
         }
     }

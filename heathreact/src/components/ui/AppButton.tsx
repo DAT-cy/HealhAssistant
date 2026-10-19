@@ -14,7 +14,7 @@ interface Props {
 }
 
 const bg: Record<Variant, string> = { primary: palette.primary, secondary: palette.surfaceRaised, danger: palette.danger, ghost: 'transparent' };
-const fg: Record<Variant, string> = { primary: palette.textInverse, secondary: palette.text, danger: palette.text, ghost: palette.textMuted };
+const fg: Record<Variant, string> = { primary: palette.textInverse, secondary: palette.text, danger: palette.textInverse, ghost: palette.textMuted };
 
 export default function AppButton({ label, onPress, variant = 'primary', loading = false, disabled = false, accessibilityLabel }: Props) {
   const isDisabled = disabled || loading;

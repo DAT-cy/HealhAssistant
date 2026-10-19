@@ -8,6 +8,6 @@ import health_assistant.module.users.dto.response.ProfileUser;
 public interface UserService {
     LoginResponse login(LoginRequest request);
     void initAdminUser();
-    Boolean signUp(SignUpRequest request);
+    LoginResponse signUp(SignUpRequest request);
     ProfileUser getProfile();
 }

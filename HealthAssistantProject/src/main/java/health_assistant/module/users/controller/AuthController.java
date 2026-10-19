@@ -4,10 +4,12 @@ import health_assistant.config.response.DefaultRes;
 import health_assistant.config.response.ResponseMessage;
 import health_assistant.config.response.StatusCode;
 import health_assistant.module.users.dto.request.LoginRequest;
+import health_assistant.module.users.dto.request.GoogleLoginRequest;
 import health_assistant.module.users.dto.request.SignUpRequest;
 import health_assistant.module.users.dto.response.LoginResponse;
 import health_assistant.module.users.dto.response.ProfileUser;
 import health_assistant.module.users.service.UserService;
+import health_assistant.module.users.service.GoogleAuthService;
 import health_assistant.utils.ClientUtils;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -24,6 +26,7 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
+    private final GoogleAuthService googleAuthService;
 
     @PostMapping("/login")
     @Operation(summary = "Login to get JWT token")
@@ -31,13 +34,19 @@ public class AuthController {
         return new ResponseEntity<>(DefaultRes.res(StatusCode.OK, ResponseMessage.SUCCESS, userService.login(request)), HttpStatus.OK);
 
     }
+
+    @PostMapping("/google")
+    @Operation(summary = "Verify Google ID token and issue the app JWT")
+    public ResponseEntity<DefaultRes<LoginResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.SUCCESS, googleAuthService.login(request)));
+    }
     @PostMapping("/signup")
-    public ResponseEntity<DefaultRes<Boolean>> signUp(@Valid @RequestBody SignUpRequest signUpRequest) {
-        return new ResponseEntity<>(DefaultRes.res(StatusCode.OK, ResponseMessage.SUCCESS, userService.signUp(signUpRequest)), HttpStatus.OK);
+    public ResponseEntity<DefaultRes<LoginResponse>> signUp(@Valid @RequestBody SignUpRequest signUpRequest) {
+        return new ResponseEntity<>(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED, userService.signUp(signUpRequest)), HttpStatus.CREATED);
     }
 
     @GetMapping("/profile")
     public ResponseEntity<DefaultRes<ProfileUser>> getProfile() {
         return new ResponseEntity<>(DefaultRes.res(StatusCode.OK, ResponseMessage.SUCCESS, userService.getProfile()), HttpStatus.OK);
     }
-} 
+}

@@ -15,18 +15,25 @@ import java.util.List;
 @Getter
 @Setter
 @Entity
-@Table(name = "tbl_users")
+@Table(name = "tbl_users", uniqueConstraints =
+        @UniqueConstraint(name = "uk_tbl_users_email", columnNames = "email"))
 public class User extends BaseEntity implements UserDetails {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "user_id")
     private Long userId;
 
-    @Column(name = "username", nullable = false, unique = true, length = 50)
+    @Column(name = "username", nullable = false, unique = true, length = 254)
     private String username;
 
-    @Column(name = "password", nullable = false)
+    @Column(name = "password")
     private String password;
+
+    @Column(name = "email", length = 254)
+    private String email;
+
+    @Column(name = "display_name", length = 120)
+    private String displayName;
 
     @Column(name = "enable")
     private Boolean enable;
@@ -60,6 +67,6 @@ public class User extends BaseEntity implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return enable;
+        return Boolean.TRUE.equals(enable);
     }
 }

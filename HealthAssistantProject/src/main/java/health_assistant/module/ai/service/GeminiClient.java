@@ -4,21 +4,27 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import health_assistant.module.coach.config.GeminiProperties;
-import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GeminiClient {
     private final GeminiProperties properties;
     private final ObjectMapper objectMapper;
-    private final WebClient webClient = WebClient.builder()
-            .baseUrl("https://generativelanguage.googleapis.com/v1beta/models")
-            .build();
+    private final WebClient webClient;
+
+    public GeminiClient(GeminiProperties properties, ObjectMapper objectMapper) {
+        this.properties = properties;
+        this.objectMapper = objectMapper;
+        String configuredBaseUrl = properties.getBaseUrl();
+        String baseUrl = configuredBaseUrl == null || configuredBaseUrl.isBlank()
+                ? "https://generativelanguage.googleapis.com/v1beta"
+                : configuredBaseUrl.replaceAll("/+$", "");
+        this.webClient = WebClient.builder().baseUrl(baseUrl + "/models").build();
+    }
 
     public boolean isConfigured() {
         return properties.getApiKey() != null && !properties.getApiKey().isBlank();

@@ -13,6 +13,6 @@ export default function SafetyBanner({ text }: { text: string }) {
 }
 
 const styles = StyleSheet.create({
-  banner: { flexDirection: 'row', gap: spacing.sm, backgroundColor: '#22C55E12', borderWidth: 1, borderColor: '#22C55E33', borderRadius: radius.md, padding: spacing.md },
-  text: { flex: 1, color: '#A7DDB8', fontSize: 11, lineHeight: 17 },
+  banner: { flexDirection: 'row', gap: spacing.sm, backgroundColor: '#EAF8FF', borderWidth: 1, borderColor: '#CDEFFF', borderRadius: radius.md, padding: spacing.md },
+  text: { flex: 1, color: '#315C7A', fontSize: 11, lineHeight: 17 },
 });

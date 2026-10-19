@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
 
 spring:
   datasource:
@@ -24,3 +24,8 @@ mybatis:
 jwt:
   secret: ${JWT_SECRET:your-secret-key-here-must-be-at-least-32-characters-long}
   expiration: ${JWT_EXPIRATION:86400000}
+
+gemini:
+  api-key: AIzaSyACEdChYoUwlA3HSVUyLFPMLgSYyKZCoW0
+  model: gemini-2.5-flash
+  base-url: https://generativelanguage.googleapis.com/v1beta
