@@ -11,8 +11,11 @@ import { profileService } from '@/api/services/profile.service';
 import { ApiError } from '@/api/client';
 import { healthTrackingService, HealthGoal, HealthGoalType, AvailabilitySlot } from '@/api/services/health-tracking.service';
 import Avatar, { ProfileGender } from '@/components/ui/Avatar';
+import { useUserStore } from '@/stores/user';
+import { isProfileComplete } from '@/utils/profileCompletion';
 
 export default function ProfilePage() {
+  const setProfileComplete = useUserStore((state) => state.setProfileComplete);
   const [goal, setGoal] = useState('');
   const [activityLevel, setActivityLevel] = useState('');
   const [age, setAge] = useState('');
@@ -97,6 +100,7 @@ export default function ProfilePage() {
 
   const save = async () => {
     if (!goal.trim() || !activityLevel.trim()) { setStatus('error'); setMessage('Vui lòng nhập mục tiêu và mức độ tập luyện.'); return; }
+    if (!age.trim() || !heightCm.trim() || !weightKg.trim() || !restrictions.trim() || !painAreas.trim()) { setStatus('error'); setMessage('Hãy nhập đầy đủ tuổi, chiều cao, cân nặng và chọn nội dung cho các mục hạn chế, vùng đau.'); return; }
     if (!consent) { setStatus('error'); setMessage('Bạn cần đồng ý trước khi lưu dữ liệu hồ sơ tập luyện.'); return; }
     const optionalNumbers = [age, heightCm, weightKg].filter(Boolean).map(Number);
     if (optionalNumbers.some((value) => !Number.isFinite(value) || value <= 0)) {
@@ -106,6 +110,7 @@ export default function ProfilePage() {
     try {
       const profile = await profileService.save({ goal, activityLevel, gender, age: age ? Number(age) : undefined, heightCm: heightCm ? Number(heightCm) : undefined, weightKg: weightKg ? Number(weightKg) : undefined, restrictions, painAreas, consent });
       setAvatarUrl(profile.avatarUrl ?? null);
+      setProfileComplete(isProfileComplete(profile, availability.length > 0));
       setHasProfile(true); setStatus('success'); setMessage('Đã lưu hồ sơ.');
     } catch (error) { setStatus('error'); setMessage(error instanceof ApiError ? error.message : 'Không thể lưu hồ sơ.'); }
   };
@@ -177,6 +182,7 @@ export default function ProfilePage() {
         equipmentNotes: equipmentNotes || null,
       });
       setAvailability((current) => [...current, created].sort((a, b) => a.dayOfWeek - b.dayOfWeek || a.startTime.localeCompare(b.startTime)));
+      setProfileComplete(true);
       setTrackingMessage('Đã thêm khung giờ rảnh.');
     } catch (error) {
       setTrackingMessage(error instanceof ApiError ? error.message : 'Không thể thêm khung giờ.');
@@ -188,7 +194,9 @@ export default function ProfilePage() {
   const removeAvailability = async (id: number) => {
     try {
       await healthTrackingService.deleteAvailability(id);
-      setAvailability((current) => current.filter((slot) => slot.id !== id));
+      const remaining = availability.filter((slot) => slot.id !== id);
+      setAvailability(remaining);
+      if (remaining.length === 0) setProfileComplete(false);
     } catch (error) {
       setTrackingMessage(error instanceof ApiError ? error.message : 'Không thể xóa khung giờ.');
     }
@@ -198,8 +206,8 @@ export default function ProfilePage() {
   const input = (value: string, setter: (value: string) => void, placeholder: string, keyboardType: 'default' | 'numeric' = 'default') => <TextInput value={value} onChangeText={setter} placeholder={placeholder} placeholderTextColor={palette.textMuted} keyboardType={keyboardType} style={{ color: palette.text, backgroundColor: palette.surfaceRaised, borderRadius: 10, padding: 14, marginBottom: 14 }} />;
   return <Screen title="Hồ sơ của bạn" subtitle="Dữ liệu này giúp cá nhân hóa kế hoạch tập luyện." activeTab="Profile">
     {loadingProfile ? <LoadingState label="Đang tải hồ sơ..." /> : loadError ? <ErrorState message={message} onRetry={retryLoad} /> : <>
-      {hasProfile === false ? <Card style={{ borderColor: palette.warning }}><Text style={{ color: palette.text, fontWeight: '700' }}>Bạn chưa có hồ sơ tập luyện</Text><Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 6 }}>Nhập mục tiêu, mức độ vận động, chiều cao và cân nặng để tạo lộ trình. Tuổi và giới hạn tập luyện có thể bổ sung nếu phù hợp.</Text></Card> : null}
-      <Card><Text style={{ color: palette.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Thông tin để cá nhân hóa</Text><Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Mục tiêu tập luyện *</Text>{input(goal, setGoal, 'Ví dụ: cải thiện thể lực')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Mức độ vận động hiện tại *</Text>{input(activityLevel, setActivityLevel, 'Mới bắt đầu')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Tuổi (không bắt buộc)</Text>{input(age, setAge, 'Ví dụ: 25', 'numeric')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Chiều cao (cm) — cần để tạo lộ trình *</Text>{input(heightCm, setHeightCm, 'Ví dụ: 170', 'numeric')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Cân nặng (kg) — cần để tạo lộ trình *</Text>{input(weightKg, setWeightKg, 'Ví dụ: 65', 'numeric')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Hạn chế vận động hoặc dụng cụ</Text>{input(restrictions, setRestrictions, 'Ví dụ: không có dụng cụ')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Vùng đau/khó chịu (nếu có)</Text>{input(painAreas, setPainAreas, 'Mô tả ngắn; nếu đau nhiều hãy hỏi chuyên gia')}</Card>
+      {hasProfile === false ? <Card style={{ borderColor: palette.warning }}><Text style={{ color: palette.text, fontWeight: '700' }}>Bạn chưa có hồ sơ tập luyện</Text><Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 6 }}>Hoàn thiện các thông tin được đánh dấu bắt buộc để tiếp tục sử dụng kế hoạch cá nhân hóa.</Text></Card> : null}
+      <Card><Text style={{ color: palette.text, fontSize: 16, fontWeight: '700', marginBottom: 12 }}>Thông tin để cá nhân hóa</Text><Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Mục tiêu tập luyện *</Text>{input(goal, setGoal, 'Ví dụ: cải thiện thể lực')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Mức độ vận động hiện tại *</Text>{input(activityLevel, setActivityLevel, 'Mới bắt đầu')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Tuổi *</Text>{input(age, setAge, 'Ví dụ: 25', 'numeric')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Chiều cao (cm) *</Text>{input(heightCm, setHeightCm, 'Ví dụ: 170', 'numeric')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Cân nặng (kg) *</Text>{input(weightKg, setWeightKg, 'Ví dụ: 65', 'numeric')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Hạn chế vận động hoặc dụng cụ * · ghi “Không có” nếu không áp dụng</Text>{input(restrictions, setRestrictions, 'Ví dụ: Không có')}<Text style={{ color: palette.textMuted, fontSize: 12, marginBottom: 6 }}>Vùng đau hoặc khó chịu * · ghi “Không có” nếu không áp dụng</Text>{input(painAreas, setPainAreas, 'Ví dụ: Không có')}</Card>
       <Card>
         <Text style={{ color: palette.text, fontSize: 16, fontWeight: '700' }}>Mục tiêu thể chất</Text>
         <Text style={{ color: palette.textMuted, fontSize: 12, marginTop: 5 }}>Chỉ tiêu theo dõi, không phải đánh giá y khoa.</Text>

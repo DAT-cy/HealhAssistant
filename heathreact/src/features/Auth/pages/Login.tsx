@@ -7,6 +7,7 @@ import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { appStorage } from '@/utils/storage';
 import React, { useEffect, useMemo, useState } from 'react';
+import { router } from 'expo-router';
 import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -146,6 +147,7 @@ export default function LoginPage() {
         console.warn('Lỗi lưu credentials:', e);
       }
 
+      router.replace(useUserStore.getState().role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
       triggerHaptic('success');
     } catch (err: unknown) {
       triggerHaptic('error');
@@ -175,6 +177,7 @@ export default function LoginPage() {
       const idToken = await signInWithGoogle();
       if (!idToken) return;
       await completeLogin(await authService.googleLogin(idToken));
+      router.replace(useUserStore.getState().role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
       triggerHaptic('success');
     } catch (err: unknown) {
       triggerHaptic('error');

@@ -1,5 +1,5 @@
 import React, { useCallback, useRef } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import {
   Image,
   Pressable,
@@ -20,6 +20,8 @@ import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
 import { coachService, type ActiveRoadmap } from '@/api/services/coach.service';
 import { profileService } from '@/api/services/profile.service';
+import { dailyPlanService, type DailyPlanResponse } from '@/api/services/daily-plan.service';
+import { healthTrackingService, type AvailabilitySlot } from '@/api/services/health-tracking.service';
 import type { ProfileGender } from '@/components/ui/Avatar';
 
 import HomeHeader from '../components/HomeHeader';
@@ -67,16 +69,24 @@ export default function HomePage() {
       }
     },
   });
+  const { data: availability, isRefetching: availabilityRefetching, refetch: refetchAvailability } = useQuery({
+    queryKey: ['availability', 'me'],
+    queryFn: healthTrackingService.availability,
+  });
+  const { data: todayPlan, isRefetching: planRefetching, refetch: refetchTodayPlan } = useQuery<DailyPlanResponse>({
+    queryKey: ['daily-plan', 'today'],
+    queryFn: dailyPlanService.today,
+  });
   const avatarUrl = profile?.avatarUrl ?? null;
   const gender: ProfileGender | null = profile?.gender ?? null;
-  const refreshing = profileRefetching || roadmapRefetching;
+  const refreshing = profileRefetching || roadmapRefetching || availabilityRefetching || planRefetching;
   const errorMessage = profileFailed
     ? 'Không thể tải hồ sơ của bạn.'
     : roadmapFailed ? 'Không thể tải lộ trình.' : null;
 
   const loadData = useCallback(async () => {
-    await Promise.all([refetchProfile(), refetchRoadmap()]);
-  }, [refetchProfile, refetchRoadmap]);
+    await Promise.all([refetchProfile(), refetchRoadmap(), refetchAvailability(), refetchTodayPlan()]);
+  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchTodayPlan]);
 
   useFocusEffect(useCallback(() => {
     if (!focusedBefore.current) {
@@ -88,8 +98,8 @@ export default function HomePage() {
 
   const onRefresh = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    void Promise.all([refetchProfile(), refetchRoadmap()]);
-  }, [refetchProfile, refetchRoadmap]);
+    void Promise.all([refetchProfile(), refetchRoadmap(), refetchAvailability(), refetchTodayPlan()]);
+  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchTodayPlan]);
 
   const navigate = (route: HomeRoute) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
@@ -113,6 +123,13 @@ export default function HomePage() {
             gender={gender}
             onLogout={logout}
             topInset={insets.top}
+          />
+
+          <WeeklyCalendarPreview
+            availability={availability ?? []}
+            plan={todayPlan}
+            onOpen={() => navigate('DailyPlan')}
+            onOpenDate={(date) => router.push({ pathname: '/(user)/daily-plan', params: { date } })}
           />
 
           <View style={styles.hero}>
@@ -247,6 +264,26 @@ const styles = StyleSheet.create({
   calendarNote: { marginTop: 10, color: '#7A8099', fontSize: 10, lineHeight: 15 },
   dailyPlanButton: { minHeight: 42, marginTop: 12, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 12, backgroundColor: '#635BFF' },
   dailyPlanButtonText: { color: '#FFFFFF', fontSize: 12, fontWeight: '700' },
+  calendarPreview: { marginTop: 16, padding: 14, borderWidth: 1, borderColor: '#DDECF5', borderRadius: 14, backgroundColor: '#FFFFFF' },
+  calendarPreviewHeading: { minHeight: 50, flexDirection: 'row', alignItems: 'center', gap: 10 },
+  calendarPreviewTitle: { color: '#20213A', fontSize: 14, fontWeight: '800' },
+  calendarPreviewDate: { color: '#7A8099', fontSize: 10, marginTop: 3 },
+  calendarDays: { flexDirection: 'row', justifyContent: 'space-between', gap: 4, marginTop: 12 },
+  calendarDay: { flex: 1, minWidth: 0, minHeight: 72, alignItems: 'center', justifyContent: 'center', gap: 3, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 8, backgroundColor: '#FFFFFF' },
+  calendarDayToday: { borderColor: '#635BFF', backgroundColor: '#EFEEFF' },
+  calendarDayLabel: { color: '#7A8099', fontSize: 9, fontWeight: '700' },
+  calendarDayNumber: { color: '#20213A', fontSize: 14, fontWeight: '800' },
+  calendarDayTime: { color: '#268FCB', fontSize: 8, fontWeight: '700' },
+  calendarDayTextToday: { color: '#4438CA' },
+  todaySchedule: { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 12, padding: 11, borderRadius: 10, backgroundColor: '#F5F7FC' },
+  todayScheduleCopy: { flex: 1, gap: 3 },
+  todayScheduleLabel: { color: '#635BFF', fontSize: 9, fontWeight: '800' },
+  todayScheduleTitle: { color: '#20213A', fontSize: 12, fontWeight: '800' },
+  todayScheduleDetail: { color: '#7A8099', fontSize: 10, lineHeight: 14 },
+  todayTime: { alignItems: 'center', gap: 3 },
+  todayTimeText: { color: '#315C7A', fontSize: 10, fontWeight: '800' },
+  calendarOpenButton: { minHeight: 38, marginTop: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 8, backgroundColor: '#268FCB' },
+  calendarOpenText: { color: '#FFFFFF', fontSize: 11, fontWeight: '800' },
 });
 
 function ActiveRoadmapSection({
@@ -290,29 +327,50 @@ function ActiveRoadmapSection({
         {!ended && weeks[currentWeek] ? <Text style={styles.weekFocus}>{weeks[currentWeek]}</Text> : null}
       </View>
 
-      {weeks.length > 0 ? <View style={styles.weekList}>
-        {weeks.map((focus, index) => (
-          <View key={`${index}-${focus}`} style={[styles.weekRow, index === currentWeek && !ended && styles.weekRowCurrent]}>
-            <View style={[styles.weekNumber, index === currentWeek && !ended && styles.weekNumberCurrent]}>
-              <Text style={[styles.weekNumberText, index === currentWeek && !ended && styles.weekNumberTextCurrent]}>{index + 1}</Text>
-            </View>
-            <View style={styles.weekRowCopy}>
-              <Text style={styles.weekRowTitle}>Tuần {index + 1}</Text>
-              <Text style={styles.weekRowFocus}>{focus}</Text>
-            </View>
-            {index === currentWeek && !ended ? <Text style={styles.currentWeekTag}>Hiện tại</Text> : null}
-          </View>
-        ))}
-      </View> : <Text style={styles.scheduleWarning}>Lộ trình chưa có dữ liệu trọng tâm theo tuần.</Text>}
-
-      <Text style={styles.calendarNote}>Lịch này hiển thị trọng tâm kế hoạch; không tự đánh dấu buổi tập hoàn thành.</Text>
       <Pressable onPress={onOpenDailyPlan} style={({ pressed }) => [styles.dailyPlanButton, pressed && styles.pressed]} accessibilityRole="button">
         <Ionicons name="calendar-outline" size={17} color="#FFFFFF" />
-        <Text style={styles.dailyPlanButtonText}>Xem kế hoạch hôm nay</Text>
+        <Text style={styles.dailyPlanButtonText}>Mở lịch tập theo ngày</Text>
         <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
       </Pressable>
     </View>
   );
+}
+
+function WeeklyCalendarPreview({ availability, plan, onOpen, onOpenDate }: { availability: AvailabilitySlot[]; plan?: DailyPlanResponse; onOpen: () => void; onOpenDate: (date: string) => void }) {
+  const today = new Date();
+  const monday = addDays(today, -((today.getDay() + 6) % 7));
+  const dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+  const todayDay = today.getDay() || 7;
+  const todaySlot = availability.filter((slot) => slot.dayOfWeek === todayDay).sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+  return <View style={styles.calendarPreview}>
+    <View style={styles.calendarPreviewHeading}>
+      <View style={styles.bannerIcon}><Ionicons name="calendar" size={21} color="#268FCB" /></View>
+      <View style={styles.bannerCopy}><Text style={styles.calendarPreviewTitle}>Lịch tuần này</Text><Text style={styles.calendarPreviewDate}>{formatDate(monday)} - {formatDate(addDays(monday, 6))}</Text></View>
+      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel="Mở lịch tuần"><Ionicons name="chevron-forward" size={20} color="#64748B" /></Pressable>
+    </View>
+    <View style={styles.calendarDays}>
+      {Array.from({ length: 7 }, (_, index) => {
+        const date = addDays(monday, index);
+        const dayOfWeek = date.getDay() || 7;
+        const slot = availability.filter((item) => item.dayOfWeek === dayOfWeek).sort((a, b) => a.startTime.localeCompare(b.startTime))[0];
+        const isToday = date.toDateString() === today.toDateString();
+        return <Pressable key={dayOfWeek} onPress={() => onOpenDate(dateKey(date))} style={[styles.calendarDay, isToday && styles.calendarDayToday]} accessibilityRole="button" accessibilityLabel={`${dayLabels[index]} ${date.getDate()}${slot ? `, ${slot.startTime}` : ''}`}>
+          <Text style={[styles.calendarDayLabel, isToday && styles.calendarDayTextToday]}>{dayLabels[index]}</Text>
+          <Text style={[styles.calendarDayNumber, isToday && styles.calendarDayTextToday]}>{date.getDate()}</Text>
+          <Text style={[styles.calendarDayTime, isToday && styles.calendarDayTextToday]}>{slot ? shortTime(slot.startTime) : '·'}</Text>
+        </Pressable>;
+      })}
+    </View>
+    <View style={styles.todaySchedule}>
+      <View style={styles.todayScheduleCopy}>
+        <Text style={styles.todayScheduleLabel}>HÔM NAY</Text>
+        <Text style={styles.todayScheduleTitle}>{plan?.title ?? 'Đang tải lịch hôm nay...'}</Text>
+        <Text style={styles.todayScheduleDetail} numberOfLines={2}>{plan?.activities[0] ?? (todaySlot ? 'Buổi tập đang được chuẩn bị.' : 'Chưa đặt khung giờ cho hôm nay.')}</Text>
+      </View>
+      <View style={styles.todayTime}><Ionicons name="time-outline" size={15} color="#315C7A" /><Text style={styles.todayTimeText}>{plan?.source === 'safety-rule' || plan?.source === 'rest-day' ? 'Nghỉ' : plan?.scheduledStart && plan.scheduledEnd ? `${plan.scheduledStart} - ${plan.scheduledEnd}` : todaySlot ? `${shortTime(todaySlot.startTime)} - ${shortTime(todaySlot.endTime)}` : 'Nghỉ'}</Text></View>
+    </View>
+    <Pressable onPress={onOpen} style={styles.calendarOpenButton} accessibilityRole="button"><Text style={styles.calendarOpenText}>Xem lịch chi tiết</Text><Ionicons name="arrow-forward" size={16} color="#FFFFFF" /></Pressable>
+  </View>;
 }
 
 function parseWeeklyPlan(value: string): string[] {
@@ -340,4 +398,12 @@ function addDays(date: Date, days: number) {
 
 function formatDate(date: Date) {
   return date.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' });
+}
+
+function dateKey(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+}
+
+function shortTime(value: string) {
+  return value.slice(0, 5);
 }
