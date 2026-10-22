@@ -12,6 +12,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.format.annotation.DateTimeFormat;
+import java.time.LocalDate;
 
 @RestController
 @RequestMapping(ClientUtils.VERSION + "/daily-plans")
@@ -27,5 +30,18 @@ public class DailyPlanController {
     @PostMapping("/today/generate")
     public ResponseEntity<DefaultRes<DailyPlanResponse>> generateToday() {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED, dailyPlanService.generateToday()));
+    }
+
+    @GetMapping("/date/{date}")
+    public ResponseEntity<DefaultRes<DailyPlanResponse>> forDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE, dailyPlanService.forDate(date)));
+    }
+
+    @PostMapping("/date/{date}/generate")
+    public ResponseEntity<DefaultRes<DailyPlanResponse>> generateForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED,
+                dailyPlanService.generateForDate(date)));
     }
 }

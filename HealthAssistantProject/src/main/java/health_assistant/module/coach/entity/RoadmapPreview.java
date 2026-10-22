@@ -26,7 +26,7 @@ public class RoadmapPreview {
     private Instant profileUpdatedAt;
 
     @Lob
-    @Column(nullable = false)
+    @Column(name = "options_json", nullable = false, columnDefinition = "LONGTEXT")
     private String optionsJson;
 
     @Column(name = "expires_at", nullable = false)

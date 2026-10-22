@@ -8,6 +8,7 @@ import jakarta.persistence.EntityNotFoundException;
 import org.junit.jupiter.api.Test;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -19,6 +20,23 @@ class RoadmapPreviewServiceTest {
     private final RoadmapPreviewRepository repository = mock(RoadmapPreviewRepository.class);
     private final RoadmapPreviewService service = new RoadmapPreviewService(repository, new ObjectMapper());
     private final Instant profileUpdatedAt = Instant.parse("2026-10-01T10:00:00Z");
+
+    @Test
+    void storesThreeVerboseRoadmapOptionsWithoutApplicationTruncation() {
+        String longDescription = "Recovery and gradual progression. ".repeat(30);
+        List<GeminiRoadmapResponse> options = new ArrayList<>();
+        for (int index = 1; index <= 3; index++) {
+            options.add(new GeminiRoadmapResponse("Plan " + index, longDescription,
+                    List.of(longDescription, longDescription), List.of(longDescription), "gemini"));
+        }
+
+        service.create(41L, profileUpdatedAt, options);
+
+        var captor = org.mockito.ArgumentCaptor.forClass(RoadmapPreview.class);
+        verify(repository).save(captor.capture());
+        assertThat(captor.getValue().getOptionsJson()).hasSizeGreaterThan(255);
+        assertThat(captor.getValue().getOptionsJson()).contains(longDescription);
+    }
 
     @Test
     void onlyReturnsAnOptionFromTheOwnedUnchangedPreview() {

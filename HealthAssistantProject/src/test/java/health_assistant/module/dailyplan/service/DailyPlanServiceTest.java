@@ -4,12 +4,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import health_assistant.module.dailyplan.dto.DailyPlanResponse;
 import health_assistant.module.dailyplan.entity.DailyPlan;
 import health_assistant.module.dailyplan.repository.DailyPlanRepository;
+import health_assistant.module.availability.entity.AvailabilitySlot;
+import health_assistant.module.availability.repository.AvailabilitySlotRepository;
+import health_assistant.module.coach.repository.RoadmapRecordRepository;
 import health_assistant.module.profile.entity.UserProfile;
 import health_assistant.module.profile.repository.UserProfileRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -20,14 +24,16 @@ import static org.mockito.Mockito.*;
 class DailyPlanServiceTest {
     private final UserProfileRepository profileRepository = mock(UserProfileRepository.class);
     private final DailyPlanRepository dailyPlanRepository = mock(DailyPlanRepository.class);
+    private final AvailabilitySlotRepository availabilityRepository = mock(AvailabilitySlotRepository.class);
+    private final RoadmapRecordRepository roadmapRepository = mock(RoadmapRecordRepository.class);
     private final GeminiDailyPlanService geminiDailyPlanService = mock(GeminiDailyPlanService.class);
-    private final DailyPlanService service = new DailyPlanService(profileRepository, dailyPlanRepository, new ObjectMapper(), geminiDailyPlanService);
+    private final DailyPlanService service = new DailyPlanService(profileRepository, dailyPlanRepository, availabilityRepository, roadmapRepository, new ObjectMapper(), geminiDailyPlanService);
     private final Long userId = 42L;
     private final LocalDate date = LocalDate.of(2026, 10, 12);
 
     @BeforeEach
     void resetRepositories() {
-        reset(profileRepository, dailyPlanRepository, geminiDailyPlanService);
+        reset(profileRepository, dailyPlanRepository, availabilityRepository, roadmapRepository, geminiDailyPlanService);
     }
 
     @Test
@@ -88,10 +94,12 @@ class DailyPlanServiceTest {
         profile.setActivityLevel("Mới bắt đầu");
         profile.setConsent(true);
         when(profileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+        AvailabilitySlot slot = slot();
+        when(availabilityRepository.findAllByUserIdAndDayOfWeekAndActiveTrueOrderByStartTimeAsc(userId, 1)).thenReturn(List.of(slot));
         when(dailyPlanRepository.findByUserIdAndPlanDate(userId, date)).thenReturn(Optional.empty());
         when(dailyPlanRepository.save(any(DailyPlan.class))).thenAnswer(invocation -> invocation.getArgument(0));
         when(geminiDailyPlanService.isConfigured()).thenReturn(true);
-        when(geminiDailyPlanService.generate(profile)).thenReturn(Optional.of(
+        when(geminiDailyPlanService.generate(profile, slot, null)).thenReturn(Optional.of(
                 new GeminiDailyPlanService.GeneratedDailyPlan("Buổi vận động nhẹ", "20 phút",
                         List.of("Khởi động", "Đi bộ tại chỗ"), List.of("Dừng nếu khó chịu."))));
 
@@ -100,5 +108,53 @@ class DailyPlanServiceTest {
         assertThat(response.source()).isEqualTo("gemini");
         assertThat(response.title()).isEqualTo("Buổi vận động nhẹ");
         assertThat(response.activities()).containsExactly("Khởi động", "Đi bộ tại chỗ");
+        assertThat(response.scheduledStart()).isEqualTo("18:00");
+        assertThat(response.scheduledEnd()).isEqualTo("18:20");
+    }
+
+    @Test
+    void returnsRestDayWhenNoAvailabilityWasSetForTheSelectedDate() {
+        UserProfile profile = new UserProfile();
+        profile.setConsent(true);
+        when(profileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(availabilityRepository.findAllByUserIdAndDayOfWeekAndActiveTrueOrderByStartTimeAsc(userId, 1)).thenReturn(List.of());
+        when(dailyPlanRepository.findByUserIdAndPlanDate(userId, date)).thenReturn(Optional.empty());
+        when(dailyPlanRepository.save(any(DailyPlan.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        DailyPlanResponse response = service.today(userId, date);
+
+        assertThat(response.source()).isEqualTo("rest-day");
+        assertThat(response.scheduledStart()).isNull();
+        verifyNoInteractions(geminiDailyPlanService);
+    }
+
+    @Test
+    void treatsExplicitNoPainValueAsSafeToSchedule() {
+        UserProfile profile = new UserProfile();
+        profile.setGoal("Mục tiêu");
+        profile.setActivityLevel("Mới bắt đầu");
+        profile.setPainAreas("Không có");
+        profile.setConsent(true);
+        AvailabilitySlot slot = slot();
+        when(profileRepository.findByUserId(userId)).thenReturn(Optional.of(profile));
+        when(availabilityRepository.findAllByUserIdAndDayOfWeekAndActiveTrueOrderByStartTimeAsc(userId, 1)).thenReturn(List.of(slot));
+        when(dailyPlanRepository.findByUserIdAndPlanDate(userId, date)).thenReturn(Optional.empty());
+        when(dailyPlanRepository.save(any(DailyPlan.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(geminiDailyPlanService.isConfigured()).thenReturn(false);
+
+        DailyPlanResponse response = service.today(userId, date);
+
+        assertThat(response.source()).isEqualTo("saved-template");
+        assertThat(response.scheduledStart()).isEqualTo("18:00");
+    }
+
+    private AvailabilitySlot slot() {
+        AvailabilitySlot slot = new AvailabilitySlot();
+        slot.setDayOfWeek(1);
+        slot.setStartTime(LocalTime.of(18, 0));
+        slot.setEndTime(LocalTime.of(18, 45));
+        slot.setActivityType("WORKOUT");
+        slot.setLocationType("HOME");
+        return slot;
     }
 }

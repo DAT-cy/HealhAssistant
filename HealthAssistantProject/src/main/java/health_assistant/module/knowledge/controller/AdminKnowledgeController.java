@@ -72,6 +72,13 @@ public class AdminKnowledgeController {
                 .body(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED, document));
     }
 
+    @PostMapping("/import/who-physical-activity")
+    public ResponseEntity<DefaultRes<KnowledgeDocumentResponse>> importWhoGuideline() {
+        KnowledgeDocumentResponse document = knowledgeBaseService.importWhoGuideline();
+        return ResponseEntity.status(StatusCode.CREATED)
+                .body(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED, document));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<DefaultRes<KnowledgeDocumentResponse>> get(@PathVariable Long id) {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE, knowledgeBaseService.get(id)));

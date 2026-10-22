@@ -48,6 +48,7 @@ dependencies {
     // Parse approved knowledge-base uploads (PDF, DOCX, TXT and Markdown).
     implementation 'org.apache.tika:tika-core:3.2.3'
     implementation 'org.apache.tika:tika-parsers-standard-package:3.2.3'
+    implementation 'org.apache.commons:commons-lang3:3.18.0'
     
     // Lombok
     compileOnly 'org.projectlombok:lombok'

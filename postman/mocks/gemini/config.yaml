@@ -1,0 +1,10 @@
+version: 1
+id: 611523e9-6913-4aae-a7a9-11a891e5cec9
+name: Gemini Generate Content API (test contract)
+slug: gemini-generate-content-api-test
+protocol: http
+port: 4910
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

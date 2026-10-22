@@ -10,7 +10,7 @@ docker compose -f HealthAssistantProject/docker-compose.yml up -d --build mysql 
 
 The backend API is at `http://localhost:8084/api/v1`; Swagger UI is at `http://localhost:8084/swagger-ui/index.html`. MySQL is available to the backend as `mysql:3306` on the Compose network. Its persistent volume is retained when stopping the services.
 
-The backend uses JPA entities with `ddl-auto: update` in local development. Missing tables and columns represented by entities are created or updated when Spring Boot starts. Keep the `mysql-data` volume when rebuilding or restarting the backend.
+The backend uses JPA entities with `ddl-auto: update` in local development. Missing tables and columns represented by entities are created when Spring Boot starts, but existing column types are not reliably widened. For an existing database, apply SQL files in `db/migrations/` once before restarting the backend. Keep the `mysql-data` volume when rebuilding or restarting the backend.
 
 Run the React Native app from `heathreact`:
 
