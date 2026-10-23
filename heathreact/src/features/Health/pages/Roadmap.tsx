@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocalSearchParams } from 'expo-router';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Screen from '@/components/ui/Screen';
@@ -7,18 +8,21 @@ import AppButton from '@/components/ui/AppButton';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { palette } from '@/theme/tokens';
 import { useRoadmap } from '@/hooks/useRoadmap';
-import { profileService } from '@/api/services/profile.service';
 import { coachService } from '@/api/services/coach.service';
+import { healthTrackingService } from '@/api/services/health-tracking.service';
 import { navigationService } from '@/routes';
 import { ApiError } from '@/api/client';
 
 const variants = ['Vận động nhẹ', 'Linh hoạt và phục hồi', 'Sức mạnh toàn thân'];
 
 export default function RoadmapPage() {
+  const { create, goal: initialGoal, weeks: initialWeeks, days: initialDays, start: initialStart, end: initialEnd, context: initialContext } = useLocalSearchParams<{ create?: string; goal?: string; weeks?: string; days?: string; start?: string; end?: string; context?: string }>();
   const roadmap = useRoadmap();
   const queryClient = useQueryClient();
-  const [weeks, setWeeks] = useState(4);
+  const [weeks, setWeeks] = useState(() => initialWeeks === '2' || initialWeeks === '8' ? Number(initialWeeks) : 4);
   const [roadmapName, setRoadmapName] = useState('');
+  const [roadmapGoal, setRoadmapGoal] = useState(initialGoal ?? '');
+  const [creating, setCreating] = useState(create === '1');
   const [selected, setSelected] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
@@ -26,7 +30,8 @@ export default function RoadmapPage() {
   const [adjustmentBusy, setAdjustmentBusy] = useState(false);
   const [adjustmentMessage, setAdjustmentMessage] = useState('');
 
-  const profileQuery = useQuery({ queryKey: ['profile', 'me'], queryFn: profileService.getMine });
+  const isCreating = creating || create === '1';
+
   const activeQuery = useQuery({
     queryKey: ['roadmap', 'active'],
     queryFn: async () => {
@@ -43,20 +48,17 @@ export default function RoadmapPage() {
     queryFn: coachService.adjustmentHistory,
   });
 
-  const profileReady = profileQuery.data
-    ? Boolean(profileQuery.data.consent && profileQuery.data.heightCm && profileQuery.data.weightKg)
-    : profileQuery.isPending ? null : false;
-  const profileMissing = profileQuery.isError && profileQuery.error instanceof ApiError && profileQuery.error.status === 404;
-  const profileError = profileQuery.isError && !profileMissing
-    ? profileQuery.error instanceof ApiError ? profileQuery.error.message : 'Không thể tải hồ sơ.'
-    : '';
-  const goal = profileQuery.data?.goal ?? '';
-  const generate = () => { setSelected(null); void roadmap.generate(goal, weeks); };
+  const generate = () => {
+    if (!roadmapGoal.trim()) return;
+    setSelected(null);
+    void roadmap.generate(roadmapGoal.trim(), weeks, initialContext);
+  };
   const selectedPlan = selected === null ? null : roadmap.options[selected];
   const previousVersion = activeQuery.data?.previousRoadmapId
     ? historyQuery.data?.find((item) => item.id === activeQuery.data?.previousRoadmapId)
     : undefined;
   const pendingAdjustment = adjustmentQuery.data?.find((item) => item.status === 'PROPOSED');
+  const scheduledDays = (initialDays ?? '').split(',').map(Number).filter((day) => Number.isInteger(day) && day >= 1 && day <= 7);
 
   const evaluateAdjustment = async () => {
     setAdjustmentBusy(true);
@@ -151,18 +153,22 @@ export default function RoadmapPage() {
         {expandedHistoryId === item.id ? <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 19, paddingBottom: 12 }}>{item.overview}{item.changeReason ? `\nLý do: ${item.changeReason}` : ''}</Text> : null}
       </View>)}
     </Card> : null}
-    {profileReady === null ? <LoadingState label="Đang kiểm tra hồ sơ..." /> : null}
-    {profileError ? <ErrorState message={profileError} onRetry={() => void profileQuery.refetch()} /> : null}
-    {profileReady === false && (profileMissing || profileQuery.data) ? <Card><Text style={{ color: palette.text, fontSize: 17, fontWeight: '800' }}>{profileMissing ? 'Tạo hồ sơ trước' : 'Hoàn thiện hồ sơ trước'}</Text><Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Nhập mục tiêu, mức vận động, chiều cao, cân nặng và đồng ý lưu dữ liệu để tạo bản xem trước cá nhân hóa.</Text><View style={{ marginTop: 14 }}><AppButton label="Mở hồ sơ" onPress={() => navigationService.navigate('Profile')} /></View></Card> : null}
     {historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}
-    {profileReady && !confirmed && roadmap.options.length === 0 && roadmap.status !== 'loading' ? <Card>
+    {!isCreating && !confirmed && roadmap.options.length === 0 && roadmap.status !== 'loading' ? <Card>
+      <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Tạo lộ trình cá nhân</Text>
+      <Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Tạo một lộ trình mới, sau đó nhập mục tiêu và thời lượng phù hợp với bạn.</Text>
+      <View style={{ marginTop: 16 }}><AppButton label="Tạo lộ trình" onPress={() => setCreating(true)} /></View>
+    </Card> : null}
+    {isCreating && !confirmed && roadmap.options.length === 0 && roadmap.status !== 'loading' ? <Card>
       <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Tạo bản xem trước</Text>
-      <Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Mục tiêu từ hồ sơ: {goal}. AI sẽ đề xuất ba hướng để bạn so sánh. Chưa có kế hoạch nào được kích hoạt.</Text>
+      <Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Nhập mục tiêu để AI đề xuất ba hướng lộ trình cho bạn so sánh.</Text>
+      <Text style={{ color: palette.text, fontWeight: '700', marginTop: 18, marginBottom: 8 }}>Mục tiêu</Text>
+      <TextInput value={roadmapGoal} onChangeText={setRoadmapGoal} placeholder="Ví dụ: tăng sức bền, giảm cân" placeholderTextColor={palette.textMuted} maxLength={300} style={{ minHeight: 46, paddingHorizontal: 12, color: palette.text, fontSize: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: palette.surface }} />
       <Text style={{ color: palette.text, fontWeight: '700', marginTop: 18, marginBottom: 8 }}>Tên lộ trình</Text>
       <TextInput value={roadmapName} onChangeText={setRoadmapName} placeholder="Ví dụ: Khỏe hơn trong 4 tuần" placeholderTextColor={palette.textMuted} maxLength={120} style={{ minHeight: 46, paddingHorizontal: 12, color: palette.text, fontSize: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: palette.surface }} />
       <Text style={{ color: palette.text, fontWeight: '700', marginTop: 18, marginBottom: 10 }}>Thời lượng</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>{[2, 4, 8].map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: weeks === value }} onPress={() => setWeeks(value)} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: weeks === value ? palette.primary : palette.border, backgroundColor: weeks === value ? palette.primary : 'transparent' }}><Text style={{ color: weeks === value ? palette.textInverse : palette.text, fontWeight: '700' }}>{value} tuần</Text></Pressable>)}</View>
-      <View style={{ marginTop: 16 }}><AppButton label="Tạo 3 phương án" onPress={generate} /></View>
+      <View style={{ marginTop: 16 }}><AppButton label="Tạo 3 phương án" disabled={!roadmapGoal.trim()} onPress={generate} /></View>
     </Card> : null}
     {roadmap.status === 'loading' ? <LoadingState label={roadmap.data ? 'Đang kích hoạt lộ trình...' : 'Đang tạo các phương án xem trước...'} /> : null}
     {roadmap.status === 'error' ? <ErrorState message={roadmap.message} onRetry={generate} /> : null}
@@ -178,10 +184,14 @@ export default function RoadmapPage() {
         </Card>
       </Pressable>)}
       <AppButton label="Xác nhận và bắt đầu" disabled={!selectedPlan} onPress={() => {
-        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected, roadmapName).then((ok) => {
+        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected, roadmapName).then(async (ok) => {
           if (ok) {
+            if (scheduledDays.length > 0 && initialStart && initialEnd) {
+              await healthTrackingService.createAvailabilityBatch(scheduledDays.map((dayOfWeek) => ({ dayOfWeek, startTime: initialStart, endTime: initialEnd, activityType: 'WORKOUT', locationType: 'ANYWHERE', equipmentNotes: null })));
+            }
             setConfirmed(true);
             void queryClient.invalidateQueries({ queryKey: ['roadmap'] });
+            void queryClient.invalidateQueries({ queryKey: ['availability'] });
           }
         });
       }} />

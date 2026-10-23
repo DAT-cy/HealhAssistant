@@ -1,13 +1,15 @@
-import React, { useCallback, useRef } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Image,
+  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,16 +20,14 @@ import { useQuery } from '@tanstack/react-query';
 import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
 import { coachService, type ActiveRoadmap, type RoadmapRecord } from '@/api/services/coach.service';
-import { profileService } from '@/api/services/profile.service';
 import { dailyPlanService, type DailyPlanResponse } from '@/api/services/daily-plan.service';
 import { healthTrackingService, type AvailabilitySlot } from '@/api/services/health-tracking.service';
-import type { ProfileGender } from '@/components/ui/Avatar';
 
 import HomeHeader from '../components/HomeHeader';
 import HomeTabBar from '../components/HomeTabBar';
 import { navigationService } from '@/routes';
 
-type HomeRoute = 'Roadmap' | 'Progress' | 'Profile' | 'DailyPlan' | 'Workout' | 'Coach' | 'Nutrition';
+type HomeRoute = 'Roadmap' | 'Progress' | 'DailyPlan' | 'Workout' | 'Coach' | 'Nutrition';
 
 const actions: {
   title: string;
@@ -39,7 +39,6 @@ const actions: {
 }[] = [
   { title: 'Tạo lộ trình cá nhân', detail: 'Kế hoạch tập luyện và dinh dưỡng riêng cho bạn.', icon: 'locate-outline', color: '#635BFF', background: '#EFEEFF', route: 'Roadmap' },
   { title: 'Theo dõi tiến độ', detail: 'Ghi nhận và xem lại kết quả mỗi ngày.', icon: 'barbell-outline', color: '#268FCB', background: '#E8F7FF', route: 'Progress' },
-  { title: 'Thống kê sức khỏe', detail: 'Theo dõi cân nặng và hành trình của bạn.', icon: 'stats-chart-outline', color: '#8C72EA', background: '#F2EEFF', route: 'Profile' },
   { title: 'Dinh dưỡng khoa học', detail: 'Theo dõi bữa ăn và thông tin dinh dưỡng.', icon: 'restaurant-outline', color: '#D88732', background: '#FFF4E8', route: 'Nutrition' },
   { title: 'Tập luyện cá nhân hóa', detail: 'Xem bài tập theo thể trạng và mục tiêu.', icon: 'walk-outline', color: '#E56F91', background: '#FFF0F3', route: 'Workout' },
   { title: 'Kiến thức sức khỏe', detail: 'Hỏi trợ lý về vận động và thói quen khỏe.', icon: 'book-outline', color: '#239FC8', background: '#E8F9FF', route: 'Coach' },
@@ -50,11 +49,28 @@ export default function HomePage() {
   const username = useUserStore((state) => state.username);
   const logout = useUserStore((state) => state.logout);
   const focusedBefore = useRef(false);
+  const [showRoadmapSetup, setShowRoadmapSetup] = useState(false);
+  const [setupGoal, setSetupGoal] = useState('');
+  const [setupActivityLevel, setSetupActivityLevel] = useState('Mới bắt đầu');
+  const [setupAge, setSetupAge] = useState('');
+  const [setupHeight, setSetupHeight] = useState('');
+  const [setupWeight, setSetupWeight] = useState('');
+  const [setupRestrictions, setSetupRestrictions] = useState('Không có');
+  const [setupPainAreas, setSetupPainAreas] = useState('Không có');
+  const [setupGender, setSetupGender] = useState('Không muốn nêu');
+  const [setupExperience, setSetupExperience] = useState('Mới bắt đầu');
+  const [setupEquipment, setSetupEquipment] = useState('Không có dụng cụ');
+  const [setupLocation, setSetupLocation] = useState('Tại nhà');
+  const [setupSessionMinutes, setSetupSessionMinutes] = useState('45');
+  const [setupIntensity, setSetupIntensity] = useState('Nhẹ đến vừa');
+  const [setupActivities, setSetupActivities] = useState('');
+  const [setupSleep, setSetupSleep] = useState('');
+  const [setupMedicalNotes, setSetupMedicalNotes] = useState('Không có');
+  const [setupWeeks, setSetupWeeks] = useState(4);
+  const [setupDays, setSetupDays] = useState<number[]>([]);
+  const [setupStartTime, setSetupStartTime] = useState('18:00');
+  const [setupEndTime, setSetupEndTime] = useState('19:00');
 
-  const { data: profile, isError: profileFailed, isRefetching: profileRefetching, refetch: refetchProfile } = useQuery({
-    queryKey: ['profile', 'me'],
-    queryFn: profileService.getMine,
-  });
   const { data: activeRoadmap, isError: roadmapFailed, isRefetching: roadmapRefetching, refetch: refetchRoadmap } = useQuery<ActiveRoadmap | null>({
     queryKey: ['roadmap', 'active'],
     queryFn: async () => {
@@ -77,17 +93,16 @@ export default function HomePage() {
   const { data: todayPlan, isRefetching: planRefetching, refetch: refetchTodayPlan } = useQuery<DailyPlanResponse>({
     queryKey: ['daily-plan', 'today'],
     queryFn: dailyPlanService.today,
+    enabled: Boolean(activeRoadmap),
   });
-  const avatarUrl = profile?.avatarUrl ?? null;
-  const gender: ProfileGender | null = profile?.gender ?? null;
-  const refreshing = profileRefetching || roadmapRefetching || historyRefetching || availabilityRefetching || planRefetching;
-  const errorMessage = profileFailed
-    ? 'Không thể tải hồ sơ của bạn.'
-    : roadmapFailed ? 'Không thể tải lộ trình.' : null;
+  const refreshing = roadmapRefetching || historyRefetching || availabilityRefetching || planRefetching;
+  const errorMessage = roadmapFailed ? 'Không thể tải lộ trình.' : null;
 
   const loadData = useCallback(async () => {
-    await Promise.all([refetchProfile(), refetchRoadmap(), refetchRoadmapHistory(), refetchAvailability(), refetchTodayPlan()]);
-  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchRoadmapHistory, refetchTodayPlan]);
+    const results: Promise<unknown>[] = [refetchRoadmap(), refetchRoadmapHistory(), refetchAvailability()];
+    if (activeRoadmap) results.push(refetchTodayPlan());
+    await Promise.all(results);
+  }, [activeRoadmap, refetchAvailability, refetchRoadmap, refetchRoadmapHistory, refetchTodayPlan]);
 
   useFocusEffect(useCallback(() => {
     if (!focusedBefore.current) {
@@ -99,12 +114,40 @@ export default function HomePage() {
 
   const onRefresh = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    void Promise.all([refetchProfile(), refetchRoadmap(), refetchRoadmapHistory(), refetchAvailability(), refetchTodayPlan()]);
-  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchRoadmapHistory, refetchTodayPlan]);
+    const results: Promise<unknown>[] = [refetchRoadmap(), refetchRoadmapHistory(), refetchAvailability()];
+    if (activeRoadmap) results.push(refetchTodayPlan());
+    void Promise.all(results);
+  }, [activeRoadmap, refetchAvailability, refetchRoadmap, refetchRoadmapHistory, refetchTodayPlan]);
 
   const navigate = (route: HomeRoute) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     navigationService.navigate(route);
+  };
+
+  const startRoadmapCreation = () => {
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+    setShowRoadmapSetup(true);
+  };
+
+  const continueRoadmapCreation = () => {
+    if (!setupGoal.trim() || setupDays.length === 0) return;
+    const dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+    const context = [
+      `Mức vận động: ${setupActivityLevel || 'chưa cung cấp'}`,
+      `Giới tính: ${setupGender || 'chưa cung cấp'}`,
+      `Tuổi: ${setupAge || 'chưa cung cấp'}; chiều cao: ${setupHeight || 'chưa cung cấp'} cm; cân nặng: ${setupWeight || 'chưa cung cấp'} kg`,
+      `Kinh nghiệm tập: ${setupExperience || 'chưa cung cấp'}`,
+      `Nơi tập: ${setupLocation || 'chưa cung cấp'}; thiết bị: ${setupEquipment || 'chưa cung cấp'}`,
+      `Thời lượng mỗi buổi: ${setupSessionMinutes || 'chưa cung cấp'} phút; cường độ mong muốn: ${setupIntensity || 'chưa cung cấp'}`,
+      `Lịch rảnh: ${setupDays.sort((a, b) => a - b).map((day) => dayLabels[day - 1]).join(', ')}, ${setupStartTime}-${setupEndTime}`,
+      `Hoạt động yêu thích/không thích: ${setupActivities || 'chưa cung cấp'}`,
+      `Giấc ngủ/phục hồi: ${setupSleep || 'chưa cung cấp'}`,
+      `Hạn chế vận động: ${setupRestrictions || 'không có'}`,
+      `Vùng đau: ${setupPainAreas || 'không có'}`,
+      `Lưu ý sức khỏe khác: ${setupMedicalNotes || 'không có'}`,
+    ].join('\n');
+    setShowRoadmapSetup(false);
+    router.push({ pathname: '/(user)/roadmap', params: { create: '1', goal: setupGoal.trim(), weeks: String(setupWeeks), days: setupDays.join(','), start: setupStartTime, end: setupEndTime, context } });
   };
 
   return (
@@ -118,18 +161,18 @@ export default function HomePage() {
         <View style={styles.mainWrapper}>
           <HomeHeader
             username={username}
-            avatarUrl={avatarUrl}
-            gender={gender}
+            avatarUrl={null}
+            gender={null}
             onLogout={logout}
             topInset={insets.top}
           />
 
-          <WeeklyCalendarPreview
+          {activeRoadmap ? <WeeklyCalendarPreview
             availability={availability ?? []}
             plan={todayPlan}
             onOpen={() => navigate('DailyPlan')}
             onOpenDate={(date) => router.push({ pathname: '/(user)/daily-plan', params: { date } })}
-          />
+          /> : null}
 
           <View style={styles.hero}>
             <View style={styles.heroCopy}>
@@ -139,7 +182,7 @@ export default function HomePage() {
               </View>
               <Text style={styles.heroTitle}>Khỏe hơn hôm nay, tốt hơn ngày mai!</Text>
               <Text style={styles.heroDescription}>AI đồng hành cùng bạn xây dựng lộ trình tập luyện và dinh dưỡng cá nhân, phù hợp với thể trạng và mục tiêu.</Text>
-              <Pressable onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]} accessibilityRole="button">
+              <Pressable onPress={startRoadmapCreation} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]} accessibilityRole="button">
                 <Text style={styles.heroButtonText}>Tạo lộ trình ngay</Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </Pressable>
@@ -156,7 +199,7 @@ export default function HomePage() {
             {actions.map((action) => (
               <Pressable
                 key={action.title}
-                onPress={() => navigate(action.route)}
+                onPress={action.route === 'Roadmap' ? startRoadmapCreation : () => navigate(action.route)}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
               >
@@ -209,10 +252,62 @@ export default function HomePage() {
       <HomeTabBar bottomInset={insets.bottom} activeTab="Home" onSelectTab={(tab) => {
         if (tab === 'Workout') navigate('Workout');
         else if (tab === 'Progress') navigate('Progress');
-        else if (tab === 'Profile') navigate('Profile');
       }} />
+
+      <Modal visible={showRoadmapSetup} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowRoadmapSetup(false)}>
+        <View style={{ flex: 1, backgroundColor: '#F7F8FC' }}>
+          <View style={{ minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: '#E8EAF4', backgroundColor: '#FFFFFF' }}>
+            <View><Text style={{ color: '#20213A', fontSize: 18, fontWeight: '800' }}>Thiết lập lộ trình</Text><Text style={{ color: '#7A8099', fontSize: 11, marginTop: 2 }}>Thông tin dùng để tạo phương án phù hợp</Text></View>
+            <Pressable onPress={() => setShowRoadmapSetup(false)} accessibilityRole="button" accessibilityLabel="Đóng"><Ionicons name="close" size={24} color="#20213A" /></Pressable>
+          </View>
+          <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }} keyboardShouldPersistTaps="handled">
+            <SetupField label="Mục tiêu" value={setupGoal} onChangeText={setSetupGoal} placeholder="Ví dụ: giảm cân, tăng sức bền" />
+            <SetupField label="Mức vận động hiện tại" value={setupActivityLevel} onChangeText={setSetupActivityLevel} placeholder="Ví dụ: Mới bắt đầu" />
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}><SetupField label="Tuổi" value={setupAge} onChangeText={setSetupAge} placeholder="25" keyboardType="number-pad" /></View>
+              <View style={{ flex: 1 }}><SetupField label="Chiều cao (cm)" value={setupHeight} onChangeText={setSetupHeight} placeholder="170" keyboardType="decimal-pad" /></View>
+            </View>
+            <SetupField label="Cân nặng (kg)" value={setupWeight} onChangeText={setSetupWeight} placeholder="60" keyboardType="decimal-pad" />
+            <SetupField label="Hạn chế vận động" value={setupRestrictions} onChangeText={setSetupRestrictions} placeholder="Không có" />
+            <SetupField label="Vùng đau cần lưu ý" value={setupPainAreas} onChangeText={setSetupPainAreas} placeholder="Không có" />
+            <SetupField label="Giới tính (tùy chọn)" value={setupGender} onChangeText={setSetupGender} placeholder="Không muốn nêu" />
+            <SetupField label="Kinh nghiệm tập luyện" value={setupExperience} onChangeText={setSetupExperience} placeholder="Ví dụ: mới bắt đầu, đã tập 1 năm" />
+            <SetupField label="Nơi tập" value={setupLocation} onChangeText={setSetupLocation} placeholder="Ví dụ: tại nhà, phòng gym" />
+            <SetupField label="Dụng cụ sẵn có" value={setupEquipment} onChangeText={setSetupEquipment} placeholder="Ví dụ: tạ đơn 5kg, thảm tập" />
+            <View style={{ gap: 8 }}>
+              <Text style={{ color: '#20213A', fontSize: 13, fontWeight: '700' }}>Ngày bạn rảnh để tập</Text>
+              <View style={{ flexDirection: 'row', gap: 6 }}>
+                {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map((label, index) => {
+                  const day = index + 1;
+                  const selected = setupDays.includes(day);
+                  return <Pressable key={day} onPress={() => setSetupDays((days) => selected ? days.filter((item) => item !== day) : [...days, day])} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} style={{ flex: 1, minHeight: 42, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: selected ? '#635BFF' : '#DDE1EE', backgroundColor: selected ? '#EFEEFF' : '#FFFFFF' }}><Text style={{ color: selected ? '#4438CA' : '#4A5069', fontSize: 11, fontWeight: '700' }}>{label}</Text></Pressable>;
+                })}
+              </View>
+              {setupDays.length === 0 ? <Text style={{ color: '#D95070', fontSize: 11 }}>Chọn ít nhất một ngày rảnh.</Text> : null}
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}><SetupField label="Bắt đầu" value={setupStartTime} onChangeText={setSetupStartTime} placeholder="18:00" /></View>
+              <View style={{ flex: 1 }}><SetupField label="Kết thúc" value={setupEndTime} onChangeText={setSetupEndTime} placeholder="19:00" /></View>
+            </View>
+            <View style={{ flexDirection: 'row', gap: 10 }}>
+              <View style={{ flex: 1 }}><SetupField label="Phút mỗi buổi" value={setupSessionMinutes} onChangeText={setSetupSessionMinutes} placeholder="45" keyboardType="number-pad" /></View>
+              <View style={{ flex: 1 }}><SetupField label="Cường độ mong muốn" value={setupIntensity} onChangeText={setSetupIntensity} placeholder="Nhẹ đến vừa" /></View>
+            </View>
+            <SetupField label="Bài tập bạn thích hoặc không muốn tập" value={setupActivities} onChangeText={setSetupActivities} placeholder="Ví dụ: thích đi bộ, không muốn nhảy" />
+            <SetupField label="Giấc ngủ và khả năng phục hồi" value={setupSleep} onChangeText={setSetupSleep} placeholder="Ví dụ: ngủ 6 giờ, thường mệt buổi tối" />
+            <SetupField label="Lưu ý sức khỏe khác" value={setupMedicalNotes} onChangeText={setSetupMedicalNotes} placeholder="Ví dụ: huyết áp, bệnh nền, thuốc đang dùng" />
+            <Text style={{ color: '#20213A', fontSize: 13, fontWeight: '700', marginTop: 4 }}>Thời lượng lộ trình</Text>
+            <View style={{ flexDirection: 'row', gap: 8 }}>{[2, 4, 8].map((value) => <Pressable key={value} onPress={() => setSetupWeeks(value)} accessibilityRole="radio" accessibilityState={{ selected: setupWeeks === value }} style={{ flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: setupWeeks === value ? '#635BFF' : '#DDE1EE', backgroundColor: setupWeeks === value ? '#EFEEFF' : '#FFFFFF' }}><Text style={{ color: setupWeeks === value ? '#4438CA' : '#4A5069', fontWeight: '700' }}>{value} tuần</Text></Pressable>)}</View>
+            <Pressable onPress={continueRoadmapCreation} disabled={!setupGoal.trim() || setupDays.length === 0} accessibilityRole="button" style={{ minHeight: 50, marginTop: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#635BFF', opacity: setupGoal.trim() && setupDays.length > 0 ? 1 : 0.45 }}><Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800' }}>Tạo lộ trình cá nhân</Text></Pressable>
+          </ScrollView>
+        </View>
+      </Modal>
     </View>
   );
+}
+
+function SetupField({ label, value, onChangeText, placeholder, keyboardType = 'default' }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; keyboardType?: 'default' | 'number-pad' | 'decimal-pad' }) {
+  return <View style={{ gap: 6 }}><Text style={{ color: '#20213A', fontSize: 13, fontWeight: '700' }}>{label}</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor="#9AA1B8" keyboardType={keyboardType} style={{ minHeight: 46, paddingHorizontal: 12, borderWidth: 1, borderColor: '#DDE1EE', borderRadius: 8, backgroundColor: '#FFFFFF', color: '#20213A' }} /></View>;
 }
 
 const styles = StyleSheet.create({

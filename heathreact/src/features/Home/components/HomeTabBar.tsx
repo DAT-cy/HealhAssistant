@@ -12,7 +12,7 @@ import { palette } from '@/theme/tokens';
 interface Props {
   bottomInset: number;
   activeTab: 'Home' | 'Workout' | 'Progress' | 'Profile' | null;
-  onSelectTab: (tab: 'Home' | 'Workout' | 'Progress' | 'Profile') => void;
+  onSelectTab: (tab: 'Home' | 'Workout' | 'Progress') => void;
 }
 
 export default function HomeTabBar({ bottomInset, activeTab, onSelectTab }: Props) {
@@ -25,7 +25,7 @@ export default function HomeTabBar({ bottomInset, activeTab, onSelectTab }: Prop
   };
 
   const tabs: {
-    key: 'Home' | 'Workout' | 'Progress' | 'Profile';
+    key: 'Home' | 'Workout' | 'Progress';
     label: string;
     iconActive: keyof typeof Ionicons.glyphMap;
     iconInactive: keyof typeof Ionicons.glyphMap;
@@ -33,7 +33,6 @@ export default function HomeTabBar({ bottomInset, activeTab, onSelectTab }: Prop
     { key: 'Home', label: 'Trang chủ', iconActive: 'home', iconInactive: 'home-outline' },
     { key: 'Workout', label: 'Tập luyện', iconActive: 'barbell', iconInactive: 'barbell-outline' },
     { key: 'Progress', label: 'Tiến độ', iconActive: 'stats-chart', iconInactive: 'stats-chart-outline' },
-    { key: 'Profile', label: 'Hồ sơ', iconActive: 'person', iconInactive: 'person-outline' },
   ];
 
   return (

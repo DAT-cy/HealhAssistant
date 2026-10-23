@@ -34,14 +34,9 @@ public class RoadmapLifecycleService {
     @Transactional
     public RoadmapResponse activate(String previewId, int optionIndex, String requestedTitle) {
         Long userId = SecurityUtils.getCurrentUserId();
-        UserProfile profile = profileRepository.findByUserIdForUpdate(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Hãy lưu hồ sơ trước khi kích hoạt lộ trình."));
-        if (!profile.isConsent()) throw new IllegalArgumentException("Cần đồng ý sử dụng dữ liệu hồ sơ trước.");
-        if (profile.getHeightCm() == null || profile.getWeightKg() == null) {
-            throw new IllegalArgumentException("Hãy nhập chiều cao và cân nặng trước khi kích hoạt lộ trình.");
-        }
-
-        GeminiRoadmapResponse selected = previewService.select(previewId, userId, profile.getUpdatedAt(), optionIndex);
+        UserProfile profile = profileRepository.findByUserIdForUpdate(userId).orElse(null);
+        Instant profileVersion = profile == null ? Instant.EPOCH : profile.getUpdatedAt();
+        GeminiRoadmapResponse selected = previewService.select(previewId, userId, profileVersion, optionIndex);
         RoadmapRecord previous = roadmapRepository.findFirstByUserIdOrderByCreatedAtDesc(userId).orElse(null);
         String title = requestedTitle == null || requestedTitle.isBlank() ? selected.title() : requestedTitle.trim();
         return toResponse(createVersion(userId, previous, title, selected.overview(),

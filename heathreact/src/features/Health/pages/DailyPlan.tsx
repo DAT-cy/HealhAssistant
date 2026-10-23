@@ -9,6 +9,7 @@ import Badge from '@/components/ui/Badge';
 import AppButton from '@/components/ui/AppButton';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { dailyPlanService } from '@/api/services/daily-plan.service';
+import { coachService } from '@/api/services/coach.service';
 import { healthTrackingService } from '@/api/services/health-tracking.service';
 import { ApiError } from '@/api/client';
 import { palette } from '@/theme/tokens';
@@ -30,13 +31,22 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
   const [completing, setCompleting] = useState(false);
   const [generateError, setGenerateError] = useState('');
   const queryClient = useQueryClient();
+  const roadmapQuery = useQuery({
+    queryKey: ['roadmap', 'active'],
+    queryFn: async () => {
+      try { return await coachService.active(); }
+      catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
+    },
+  });
   const planQuery = useQuery({
     queryKey: ['daily-plan', selectedDate],
     queryFn: () => dailyPlanService.forDate(selectedDate),
+    enabled: Boolean(roadmapQuery.data),
   });
   const availabilityQuery = useQuery({
     queryKey: ['availability', 'me'],
     queryFn: healthTrackingService.availability,
+    enabled: Boolean(roadmapQuery.data),
   });
   const plan = planQuery.data;
   const selected = fromDateKey(selectedDate);
@@ -79,6 +89,20 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
       setCompleting(false);
     }
   };
+
+  if (roadmapQuery.isLoading) {
+    return <Screen title="Lịch tập luyện" showBack><LoadingState label="Đang kiểm tra lộ trình..." /></Screen>;
+  }
+
+  if (roadmapQuery.isError || !roadmapQuery.data) {
+    return <Screen title="Lịch tập luyện" showBack>
+      <Card>
+        <Text style={{ color: palette.text, fontSize: 17, fontWeight: '800' }}>Chưa có lộ trình cá nhân</Text>
+        <Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Tạo và xác nhận lộ trình cá nhân trước để hệ thống lập lịch tập cho bạn.</Text>
+        <View style={{ marginTop: 14 }}><AppButton label="Tạo lộ trình" onPress={() => router.replace('/(user)/roadmap')} /></View>
+      </Card>
+    </Screen>;
+  }
 
   return <Screen title="Lịch tập luyện" subtitle="Chọn ngày để xem buổi tập và giờ đã xếp" showBack>
     <View style={styles.weekHeading}>

@@ -24,6 +24,7 @@ import org.springframework.web.bind.annotation.RestController;
 import health_assistant.module.coach.service.RoadmapPreviewService;
 import health_assistant.module.coach.service.RoadmapLifecycleService;
 import health_assistant.utils.SecurityUtils;
+import java.time.Instant;
 import java.util.List;
 import org.springframework.web.bind.annotation.PathVariable;
 import jakarta.validation.constraints.NotBlank;
@@ -50,21 +51,20 @@ public class GeminiCoachController {
 
     @PostMapping("/roadmap/preview")
     public ResponseEntity<DefaultRes<RoadmapPreviewResponse>> preview(@Valid @RequestBody GeminiRoadmapRequest request) {
-        var profile = profileRepository.findByUserId(SecurityUtils.getCurrentUserId())
-                .orElseThrow(() -> new IllegalArgumentException("Hãy lưu hồ sơ trước khi tạo lộ trình."));
-        if (!profile.isConsent()) throw new IllegalArgumentException("Cần đồng ý sử dụng dữ liệu hồ sơ trước.");
-        if (profile.getHeightCm() == null || profile.getWeightKg() == null)
-            throw new IllegalArgumentException("Hãy nhập chiều cao và cân nặng trước khi xem phác thảo.");
-        String measurements = "Tuổi: " + profile.getAge() + ", chiều cao cm: " + profile.getHeightCm()
+        Long userId = SecurityUtils.getCurrentUserId();
+        var profile = profileRepository.findByUserId(userId).orElse(null);
+        String measurements = profile == null ? request.postureSummary() : "Tuổi: " + profile.getAge() + ", chiều cao cm: " + profile.getHeightCm()
                 + ", cân nặng kg: " + profile.getWeightKg();
-        var serverRequest = new GeminiRoadmapRequest(profile.getGoal(), request.weeks(), measurements,
-                String.join("; ", List.of(profile.getRestrictions() == null ? "" : profile.getRestrictions(),
-                        profile.getPainAreas() == null ? "" : profile.getPainAreas())));
+        String restrictions = profile == null ? request.restrictions() : String.join("; ", List.of(
+                profile.getRestrictions() == null ? "" : profile.getRestrictions(),
+                profile.getPainAreas() == null ? "" : profile.getPainAreas()));
+        String goal = request.goal();
+        var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions);
         var options = List.of(
-                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. " + profile.getGoal())),
-                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên linh hoạt, tư thế và phục hồi. " + profile.getGoal())),
-                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. " + profile.getGoal())));
-        var preview = roadmapPreviewService.create(profile.getUserId(), profile.getUpdatedAt(), options);
+                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. " + goal)),
+                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên linh hoạt, tư thế và phục hồi. " + goal)),
+                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. " + goal)));
+        var preview = roadmapPreviewService.create(userId, profile == null ? Instant.EPOCH : profile.getUpdatedAt(), options);
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE, preview));
     }
 
