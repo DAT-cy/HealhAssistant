@@ -44,4 +44,11 @@ public class DailyPlanController {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED,
                 dailyPlanService.generateForDate(date)));
     }
+
+    @PostMapping("/date/{date}/complete")
+    public ResponseEntity<DefaultRes<DailyPlanResponse>> completeForDate(
+            @PathVariable @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.SUCCESS,
+                dailyPlanService.completeForDate(date)));
+    }
 }

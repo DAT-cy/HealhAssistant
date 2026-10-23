@@ -71,7 +71,7 @@ public class GeminiCoachController {
     @PostMapping("/roadmap/activate")
     public ResponseEntity<DefaultRes<RoadmapResponse>> activate(@Valid @RequestBody ActivateRoadmapRequest request) {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED,
-                roadmapLifecycleService.activate(request.previewId(), request.optionIndex())));
+                roadmapLifecycleService.activate(request.previewId(), request.optionIndex(), request.title())));
     }
 
     @GetMapping("/roadmaps/active")
@@ -83,7 +83,8 @@ public class GeminiCoachController {
         return new GeminiRoadmapRequest(goal, request.weeks(), request.postureSummary(), request.restrictions());
     }
 
-    public record ActivateRoadmapRequest(@NotBlank @Size(max = 36) String previewId, @Min(0) @Max(2) int optionIndex) { }
+    public record ActivateRoadmapRequest(@NotBlank @Size(max = 36) String previewId, @Min(0) @Max(2) int optionIndex,
+                                         @Size(max = 120) String title) { }
 
     @GetMapping("/roadmaps/me")
     public ResponseEntity<DefaultRes<List<RoadmapResponse>>> history() {

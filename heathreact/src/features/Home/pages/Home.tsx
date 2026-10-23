@@ -8,7 +8,6 @@ import {
   StatusBar,
   StyleSheet,
   Text,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -18,7 +17,7 @@ import { useQuery } from '@tanstack/react-query';
 
 import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
-import { coachService, type ActiveRoadmap } from '@/api/services/coach.service';
+import { coachService, type ActiveRoadmap, type RoadmapRecord } from '@/api/services/coach.service';
 import { profileService } from '@/api/services/profile.service';
 import { dailyPlanService, type DailyPlanResponse } from '@/api/services/daily-plan.service';
 import { healthTrackingService, type AvailabilitySlot } from '@/api/services/health-tracking.service';
@@ -48,8 +47,6 @@ const actions: {
 
 export default function HomePage() {
   const insets = useSafeAreaInsets();
-  const { width } = useWindowDimensions();
-  const isWide = width >= 768;
   const username = useUserStore((state) => state.username);
   const logout = useUserStore((state) => state.logout);
   const focusedBefore = useRef(false);
@@ -69,6 +66,10 @@ export default function HomePage() {
       }
     },
   });
+  const { data: roadmapHistory, isRefetching: historyRefetching, refetch: refetchRoadmapHistory } = useQuery<RoadmapRecord[]>({
+    queryKey: ['roadmap', 'history'],
+    queryFn: coachService.history,
+  });
   const { data: availability, isRefetching: availabilityRefetching, refetch: refetchAvailability } = useQuery({
     queryKey: ['availability', 'me'],
     queryFn: healthTrackingService.availability,
@@ -79,14 +80,14 @@ export default function HomePage() {
   });
   const avatarUrl = profile?.avatarUrl ?? null;
   const gender: ProfileGender | null = profile?.gender ?? null;
-  const refreshing = profileRefetching || roadmapRefetching || availabilityRefetching || planRefetching;
+  const refreshing = profileRefetching || roadmapRefetching || historyRefetching || availabilityRefetching || planRefetching;
   const errorMessage = profileFailed
     ? 'Không thể tải hồ sơ của bạn.'
     : roadmapFailed ? 'Không thể tải lộ trình.' : null;
 
   const loadData = useCallback(async () => {
-    await Promise.all([refetchProfile(), refetchRoadmap(), refetchAvailability(), refetchTodayPlan()]);
-  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchTodayPlan]);
+    await Promise.all([refetchProfile(), refetchRoadmap(), refetchRoadmapHistory(), refetchAvailability(), refetchTodayPlan()]);
+  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchRoadmapHistory, refetchTodayPlan]);
 
   useFocusEffect(useCallback(() => {
     if (!focusedBefore.current) {
@@ -98,15 +99,13 @@ export default function HomePage() {
 
   const onRefresh = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    void Promise.all([refetchProfile(), refetchRoadmap(), refetchAvailability(), refetchTodayPlan()]);
-  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchTodayPlan]);
+    void Promise.all([refetchProfile(), refetchRoadmap(), refetchRoadmapHistory(), refetchAvailability(), refetchTodayPlan()]);
+  }, [refetchAvailability, refetchProfile, refetchRoadmap, refetchRoadmapHistory, refetchTodayPlan]);
 
   const navigate = (route: HomeRoute) => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
     navigationService.navigate(route);
   };
-
-  const cardWidth = isWide ? '31.8%' : width < 360 ? '48.5%' : '31.4%';
 
   return (
     <View style={styles.screen}>
@@ -116,7 +115,7 @@ export default function HomePage() {
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor="#635BFF" colors={['#635BFF']} />}
         contentContainerStyle={[styles.scrollContainer, { paddingTop: insets.top + 12, paddingBottom: insets.bottom + 92 }]}
       >
-        <View style={[styles.mainWrapper, isWide && styles.wideWrapper]}>
+        <View style={styles.mainWrapper}>
           <HomeHeader
             username={username}
             avatarUrl={avatarUrl}
@@ -159,17 +158,27 @@ export default function HomePage() {
                 key={action.title}
                 onPress={() => navigate(action.route)}
                 accessibilityRole="button"
-                style={({ pressed }) => [styles.actionCard, { width: cardWidth }, pressed && styles.pressed]}
+                style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
               >
                 <View style={[styles.actionIcon, { backgroundColor: action.background }]}>
                   <Ionicons name={action.icon} size={22} color={action.color} />
                 </View>
-                <Text style={styles.actionTitle}>{action.title}</Text>
-                <Text style={styles.actionDetail}>{action.detail}</Text>
-                <Ionicons name="arrow-forward" size={16} color="#64748B" style={styles.actionArrow} />
+                <View style={styles.actionCopy}>
+                  <Text style={styles.actionTitle} numberOfLines={1}>{action.title}</Text>
+                  <Text style={styles.actionDetail} numberOfLines={2}>{action.detail}</Text>
+                </View>
               </Pressable>
             ))}
           </View>
+
+          {roadmapHistory?.length ? <View style={styles.recentSection}>
+            <View style={styles.recentHeading}><Text style={styles.sectionTitle}>Lộ trình gần đây</Text><Pressable onPress={() => navigate('Roadmap')} accessibilityRole="button"><Text style={styles.recentAll}>Xem tất cả</Text></Pressable></View>
+            {roadmapHistory.slice(0, 3).map((roadmap) => <Pressable key={roadmap.id} onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.recentRoadmap, pressed && styles.pressed]} accessibilityRole="button">
+              <View style={[styles.recentRoadmapIcon, roadmap.status === 'ACTIVE' && styles.recentRoadmapIconActive]}><Ionicons name={roadmap.status === 'ACTIVE' ? 'sparkles' : 'archive-outline'} size={18} color={roadmap.status === 'ACTIVE' ? '#FFFFFF' : '#635BFF'} /></View>
+              <View style={{ flex: 1, minWidth: 0 }}><Text style={styles.recentRoadmapTitle} numberOfLines={1}>{roadmap.title}</Text><Text style={styles.recentRoadmapMeta}>{roadmap.status === 'ACTIVE' ? 'Đang theo dõi' : 'Đã lưu'} · {roadmap.durationWeeks ?? 0} tuần</Text></View>
+              <Ionicons name="chevron-forward" size={19} color="#7A8099" />
+            </Pressable>)}
+          </View> : null}
 
           {activeRoadmap ? (
             <ActiveRoadmapSection roadmap={activeRoadmap} onOpenRoadmap={() => navigate('Roadmap')} onOpenDailyPlan={() => navigate('DailyPlan')} />
@@ -210,25 +219,32 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F7F8FC' },
   scrollContainer: { paddingHorizontal: 16 },
   mainWrapper: { width: '100%' },
-  wideWrapper: { maxWidth: 720, alignSelf: 'center' },
-  hero: { flexDirection: 'row', alignItems: 'center', minHeight: 238, backgroundColor: '#F0F0FF', borderRadius: 20, borderWidth: 1, borderColor: '#E5E3FF', padding: 18, overflow: 'hidden' },
-  heroCopy: { flex: 1.1, alignItems: 'flex-start', paddingRight: 4 },
+  hero: { backgroundColor: '#F0F0FF', borderRadius: 20, borderWidth: 1, borderColor: '#E5E3FF', padding: 16, overflow: 'hidden' },
+  heroCopy: { alignItems: 'flex-start' },
   brandBadge: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: '#E4E1FF', borderRadius: 18, marginBottom: 12 },
   brandBadgeText: { color: '#4438CA', fontSize: 12, fontWeight: '700' },
   heroTitle: { color: '#20213A', fontSize: 21, lineHeight: 27, fontWeight: '800' },
   heroDescription: { color: '#656B87', fontSize: 12, lineHeight: 18, marginTop: 8 },
-  heroButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 44, paddingHorizontal: 16, backgroundColor: '#635BFF', borderRadius: 24, marginTop: 14 },
+  heroButton: { width: '100%', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, minHeight: 48, paddingHorizontal: 16, backgroundColor: '#635BFF', borderRadius: 14, marginTop: 16 },
   heroButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' },
-  heroArt: { flex: 0.9, height: 190, justifyContent: 'center', alignItems: 'center', marginRight: -8, borderRadius: 16, overflow: 'hidden' },
+  heroArt: { width: '100%', height: 156, marginTop: 16, borderRadius: 14, overflow: 'hidden' },
   heroImage: { width: '100%', height: '100%' },
   sectionHeading: { marginTop: 22, marginBottom: 11 },
   sectionTitle: { color: '#20213A', fontSize: 18, fontWeight: '800' },
-  actionGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 10 },
-  actionCard: { minHeight: 157, padding: 11, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 16, backgroundColor: '#FFFFFF' },
-  actionIcon: { width: 38, height: 38, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginBottom: 10 },
-  actionTitle: { color: '#20213A', fontSize: 12, lineHeight: 16, fontWeight: '800' },
-  actionDetail: { color: '#7A8099', fontSize: 10, lineHeight: 14, marginTop: 5, paddingBottom: 16 },
-  actionArrow: { position: 'absolute', right: 11, bottom: 9 },
+  actionGrid: { gap: 10 },
+  actionCard: { width: '100%', minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 14, backgroundColor: '#FFFFFF' },
+  actionIcon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  actionCopy: { flex: 1, minWidth: 0 },
+  actionTitle: { color: '#20213A', fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  actionDetail: { color: '#7A8099', fontSize: 12, lineHeight: 17, marginTop: 3 },
+  recentSection: { marginTop: 22 },
+  recentHeading: { minHeight: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  recentAll: { color: '#268FCB', fontSize: 12, fontWeight: '800' },
+  recentRoadmap: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 13, backgroundColor: '#FFFFFF' },
+  recentRoadmapIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFEEFF' },
+  recentRoadmapIconActive: { backgroundColor: '#635BFF' },
+  recentRoadmapTitle: { color: '#20213A', fontSize: 13, fontWeight: '800' },
+  recentRoadmapMeta: { color: '#7A8099', fontSize: 11, marginTop: 3 },
   roadmapBanner: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginTop: 18, backgroundColor: '#EFEEFF', borderRadius: 16 },
   bannerIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#E4E1FF', alignItems: 'center', justifyContent: 'center' },
   bannerCopy: { flex: 1 },

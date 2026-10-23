@@ -1,6 +1,5 @@
 import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
-import { Platform } from 'react-native';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import type { ProfileGender } from '@/components/ui/Avatar';
 
@@ -27,16 +26,11 @@ export const profileService = {
   save: (body: ProfileRequest) => apiClient.request<ProfileResponse>(`${apiVersion}/profiles`, { method: 'POST', body: JSON.stringify(body) }),
   uploadAvatar: async (asset: ImagePickerAsset) => {
     const form = new FormData();
-    if (Platform.OS === 'web') {
-      const image = asset.file ?? await (await fetch(asset.uri)).blob();
-      form.append('file', image, asset.fileName ?? 'avatar.jpg');
-    } else {
-      form.append('file', {
-        uri: asset.uri,
-        name: asset.fileName ?? 'avatar.jpg',
-        type: asset.mimeType ?? 'image/jpeg',
-      } as unknown as Blob);
-    }
+    form.append('file', {
+      uri: asset.uri,
+      name: asset.fileName ?? 'avatar.jpg',
+      type: asset.mimeType ?? 'image/jpeg',
+    } as unknown as Blob);
     return apiClient.request<ProfileResponse>(`${apiVersion}/profiles/me/avatar`, { method: 'POST', body: form });
   },
 };

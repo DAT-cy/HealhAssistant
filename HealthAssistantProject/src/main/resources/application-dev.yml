@@ -26,6 +26,10 @@ jwt:
   expiration: ${JWT_EXPIRATION:86400000}
 
 gemini:
-  api-key: AIzaSyACEdChYoUwlA3HSVUyLFPMLgSYyKZCoW0
+  api-key: ${GEMINI_API_KEY:}
   model: gemini-2.5-flash
   base-url: https://generativelanguage.googleapis.com/v1beta
+
+google:
+  oauth:
+    client-ids: ${GOOGLE_OAUTH_CLIENT_IDS:}

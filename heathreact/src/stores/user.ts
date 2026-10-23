@@ -71,7 +71,7 @@ export const useUserStore = create<UserState>((set) => ({
 
   logout: async () => {
     try {
-      // 1. Xóa token khỏi bộ nhớ cục bộ (hỗ trợ cả Web localStorage & Mobile SecureStore)
+      // Xóa token khỏi SecureStore trên thiết bị.
       await appStorage.removeItem(TOKEN_KEY);
     } catch (err) {
       console.warn('Lỗi khi xóa token khỏi storage:', err);

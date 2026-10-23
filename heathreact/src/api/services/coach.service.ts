@@ -57,7 +57,7 @@ export interface PlanAdjustmentDecision {
 export const coachService = {
   roadmap: (body: RoadmapRequest) => apiClient.request<GeminiRoadmapResponse>(`${apiVersion}/coach/roadmap`, { method: 'POST', body: JSON.stringify(body), ai: true }),
   preview: (body: RoadmapRequest) => apiClient.request<RoadmapPreview>(`${apiVersion}/coach/roadmap/preview`, { method: 'POST', body: JSON.stringify(body), ai: true }),
-  activate: (previewId: string, optionIndex: number) => apiClient.request<ActiveRoadmap>(`${apiVersion}/coach/roadmap/activate`, { method: 'POST', body: JSON.stringify({ previewId, optionIndex }) }),
+  activate: (previewId: string, optionIndex: number, title?: string) => apiClient.request<ActiveRoadmap>(`${apiVersion}/coach/roadmap/activate`, { method: 'POST', body: JSON.stringify({ previewId, optionIndex, title }) }),
   active: () => apiClient.request<ActiveRoadmap>(`${apiVersion}/coach/roadmaps/active`),
   history: () => apiClient.request<RoadmapRecord[]>(`${apiVersion}/coach/roadmaps/me`),
   getRoadmap: (id: number) => apiClient.request<RoadmapRecord>(`${apiVersion}/coach/roadmaps/${id}`),

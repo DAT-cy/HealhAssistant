@@ -1,6 +1,11 @@
+import Constants from 'expo-constants';
 import { Platform } from 'react-native';
 
 export async function signInWithGoogle(): Promise<string | null> {
+  if (Constants.appOwnership === 'expo') {
+    throw new Error('Google Sign-In cần iOS development build. Expo Go không có native module này.');
+  }
+
   const webClientId = process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID;
   const iosClientId = process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID;
   const iosUrlScheme = process.env.EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME;

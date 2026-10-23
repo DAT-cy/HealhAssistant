@@ -7,5 +7,5 @@ export default function Card({ children, style }: { children: React.ReactNode; s
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: palette.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.lg, shadowColor: '#34335A', shadowOffset: { width: 0, height: 5 }, shadowOpacity: 0.05, shadowRadius: 14, elevation: 2 },
+  card: { backgroundColor: palette.surface, borderRadius: radius.lg, borderWidth: 1, borderColor: palette.border, padding: spacing.lg, boxShadow: '0px 5px 14px rgba(52, 51, 90, 0.05)' },
 });

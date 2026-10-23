@@ -1,7 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -19,9 +18,7 @@ interface Props {
 export default function HomeTabBar({ bottomInset, activeTab, onSelectTab }: Props) {
   const triggerHaptic = () => {
     try {
-      if (Platform.OS !== 'web') {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     } catch {
       // Haptics fallback
     }

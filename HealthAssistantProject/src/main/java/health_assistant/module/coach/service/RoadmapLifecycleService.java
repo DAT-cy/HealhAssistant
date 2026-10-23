@@ -28,6 +28,11 @@ public class RoadmapLifecycleService {
 
     @Transactional
     public RoadmapResponse activate(String previewId, int optionIndex) {
+        return activate(previewId, optionIndex, null);
+    }
+
+    @Transactional
+    public RoadmapResponse activate(String previewId, int optionIndex, String requestedTitle) {
         Long userId = SecurityUtils.getCurrentUserId();
         UserProfile profile = profileRepository.findByUserIdForUpdate(userId)
                 .orElseThrow(() -> new IllegalArgumentException("Hãy lưu hồ sơ trước khi kích hoạt lộ trình."));
@@ -38,7 +43,8 @@ public class RoadmapLifecycleService {
 
         GeminiRoadmapResponse selected = previewService.select(previewId, userId, profile.getUpdatedAt(), optionIndex);
         RoadmapRecord previous = roadmapRepository.findFirstByUserIdOrderByCreatedAtDesc(userId).orElse(null);
-        return toResponse(createVersion(userId, previous, selected.title(), selected.overview(),
+        String title = requestedTitle == null || requestedTitle.isBlank() ? selected.title() : requestedTitle.trim();
+        return toResponse(createVersion(userId, previous, title, selected.overview(),
                 selected.weeklyPlan(), selected.safetyNotes(), selected.source(),
                 previous == null ? "INITIAL_PLAN" : "USER_CONFIRMED_NEW_PLAN",
                 GeminiCoachService.PROMPT_VERSION, GeminiCoachService.SCHEMA_VERSION));

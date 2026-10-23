@@ -65,6 +65,17 @@ public class DailyPlanService {
         return generateForDate(SecurityUtils.getCurrentUserId(), date == null ? LocalDate.now() : date);
     }
 
+    public DailyPlanResponse completeForDate(LocalDate date) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        LocalDate effectiveDate = date == null ? LocalDate.now() : date;
+        today(userId, effectiveDate);
+        DailyPlan plan = dailyPlanRepository.findByUserIdAndPlanDate(userId, effectiveDate)
+                .orElseThrow(() -> new IllegalStateException("Khong tim thay ke hoach trong ngay."));
+        plan.setCompleted(true);
+        plan.setCompletedAt(Instant.now());
+        return toResponse(dailyPlanRepository.save(plan), userId);
+    }
+
     private DailyPlanResponse generateForDate(Long userId, LocalDate date) {
         UserProfile profile = profileRepository.findByUserId(userId).orElse(null);
         if (hasReportedPain(profile)) return saveSafetyPlan(userId, date);
@@ -183,7 +194,15 @@ public class DailyPlanService {
         return new DailyPlanResponse(plan.getPlanDate().toString(), plan.getTitle(), plan.getDuration(),
                 readJson(plan.getActivities()), readJson(plan.getSafetyNotes()), plan.getSource(),
                 slot == null ? null : slot.getStartTime().toString(), scheduledEnd == null ? null : scheduledEnd.toString(),
-                slot == null ? null : slot.getActivityType(), slot == null ? null : slot.getLocationType());
+                slot == null ? null : slot.getActivityType(), slot == null ? null : slot.getLocationType(),
+                mealGuidance(), plan.isCompleted(), plan.getCompletedAt() == null ? null : plan.getCompletedAt().toString());
+    }
+
+    private List<String> mealGuidance() {
+        return List.of(
+                "Buoi sang: an nhe, uong nuoc va them trai cay neu tap som.",
+                "Bua chinh: ket hop rau, dam nac va tinh bot de giu nang luong on dinh.",
+                "Sau van dong: bo sung nuoc; dung lai neu cam thay met hoac kho chiu.");
     }
 
     private AvailabilitySlot scheduledSlot(Long userId, LocalDate date) {
@@ -225,6 +244,7 @@ public class DailyPlanService {
     }
 
     private List<String> readJson(String value) {
+        if (value == null || value.isBlank()) return List.of();
         try {
             return objectMapper.readValue(value, new TypeReference<>() {});
         } catch (JsonProcessingException exception) {

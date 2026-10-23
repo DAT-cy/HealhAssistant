@@ -72,6 +72,16 @@ npm start
 
 Chọn Android emulator, iOS simulator, hoặc scan QR bằng Expo Go. Trên WSL/Linux, cài dependencies bằng `npm ci` trong Linux trước khi chạy Expo; `node_modules` chứa native binaries của hệ điều hành và không dùng chung được giữa Windows và Linux.
 
+### Cập nhật khi thử trên điện thoại
+
+Để điện thoại nhận ngay các thay đổi mã nguồn, chạy server development qua LAN và quét QR mới trong Expo Go hoặc development build:
+
+```bash
+npm run start:mobile
+```
+
+Lệnh này xóa Metro cache trước khi chạy. Nút Reload trong app chỉ tải lại bundle từ server development đang được kết nối. Nếu đang dùng APK preview/production đã cài đặt, Reload chỉ mở lại bundle đã đóng gói trong APK; cần tạo và cài bản build mới vì project hiện chưa cấu hình cập nhật OTA.
+
 ## Cấu trúc thư mục
 
 ```text

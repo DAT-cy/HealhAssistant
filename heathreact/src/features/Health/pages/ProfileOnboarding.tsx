@@ -7,7 +7,7 @@ import Card from '@/components/ui/Card';
 import AppButton from '@/components/ui/AppButton';
 import { ApiError } from '@/api/client';
 import { profileService } from '@/api/services/profile.service';
-import { healthTrackingService, type AvailabilitySlot } from '@/api/services/health-tracking.service';
+import { healthTrackingService, type AvailabilitySlot, type AvailabilitySlotInput } from '@/api/services/health-tracking.service';
 import type { ProfileGender } from '@/components/ui/Avatar';
 import { useUserStore } from '@/stores/user';
 import { palette } from '@/theme/tokens';
@@ -28,6 +28,17 @@ const ACTIVITY_LEVELS = [
   ['Năng động', 'Tập thường xuyên'],
 ] as const;
 const WEEK_DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
+const TIME_PERIODS = [
+  { id: 'MORNING', label: 'Sáng', startTime: '06:00', endTime: '08:00' },
+  { id: 'AFTERNOON', label: 'Chiều', startTime: '12:00', endTime: '14:00' },
+  { id: 'EVENING', label: 'Tối', startTime: '18:00', endTime: '20:00' },
+] as const;
+type TimePeriodId = (typeof TIME_PERIODS)[number]['id'];
+type TimeRange = { startTime: string; endTime: string };
+
+const emptyDayPeriods = (): Record<number, TimePeriodId[]> => Object.fromEntries(WEEK_DAYS.map((_, index) => [index + 1, []])) as Record<number, TimePeriodId[]>;
+const defaultPeriodTimes = (): Record<TimePeriodId, TimeRange> => Object.fromEntries(TIME_PERIODS.map((period) => [period.id, { startTime: period.startTime, endTime: period.endTime }])) as Record<TimePeriodId, TimeRange>;
+const emptyDayTimes = (): Record<number, Partial<Record<TimePeriodId, TimeRange>>> => Object.fromEntries(WEEK_DAYS.map((_, index) => [index + 1, {}])) as Record<number, Partial<Record<TimePeriodId, TimeRange>>>;
 
 export default function ProfileOnboardingPage() {
   const setProfileComplete = useUserStore((state) => state.setProfileComplete);
@@ -46,9 +57,12 @@ export default function ProfileOnboardingPage() {
   const [painAreas, setPainAreas] = useState('');
   const [consent, setConsent] = useState(false);
   const [availability, setAvailability] = useState<AvailabilitySlot[]>([]);
-  const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [slotStart, setSlotStart] = useState('18:00');
-  const [slotEnd, setSlotEnd] = useState('18:45');
+  const [scheduleMode, setScheduleMode] = useState<'WEEK' | 'DAY'>('WEEK');
+  const [selectedDay, setSelectedDay] = useState(1);
+  const [weekPeriods, setWeekPeriods] = useState<TimePeriodId[]>(['EVENING']);
+  const [weekTimes, setWeekTimes] = useState<Record<TimePeriodId, TimeRange>>(defaultPeriodTimes);
+  const [dayPeriods, setDayPeriods] = useState<Record<number, TimePeriodId[]>>(emptyDayPeriods);
+  const [dayTimes, setDayTimes] = useState<Record<number, Partial<Record<TimePeriodId, TimeRange>>>>(emptyDayTimes);
   const [activityType, setActivityType] = useState<AvailabilitySlot['activityType']>('WORKOUT');
   const [locationType, setLocationType] = useState<AvailabilitySlot['locationType']>('HOME');
 
@@ -63,8 +77,19 @@ export default function ProfileOnboardingPage() {
     ]).then(([profile, slots]) => {
       if (!active) return;
       setAvailability(slots);
-      setSelectedDays([...new Set(slots.map((slot) => slot.dayOfWeek))]);
-      if (slots[0]) { setSlotStart(slots[0].startTime); setSlotEnd(slots[0].endTime); setActivityType(slots[0].activityType); setLocationType(slots[0].locationType); }
+      const savedDayPeriods = emptyDayPeriods();
+      const savedDayTimes = emptyDayTimes();
+      slots.forEach((slot) => {
+        const period = TIME_PERIODS.find((item) => slot.startTime >= item.startTime && slot.startTime < item.endTime);
+        if (period) {
+          savedDayPeriods[slot.dayOfWeek].push(period.id);
+          savedDayTimes[slot.dayOfWeek][period.id] = { startTime: slot.startTime, endTime: slot.endTime };
+        }
+      });
+      setDayPeriods(savedDayPeriods);
+      setDayTimes(savedDayTimes);
+      if (slots.length > 0) setScheduleMode('DAY');
+      if (slots[0]) { setActivityType(slots[0].activityType); setLocationType(slots[0].locationType); }
       if (!profile) return;
       setGoal(profile.goal || '');
       setActivityLevel(profile.activityLevel || '');
@@ -113,15 +138,22 @@ export default function ProfileOnboardingPage() {
       setError('Bạn cần đồng ý sử dụng dữ liệu hồ sơ để tạo kế hoạch tập luyện.');
       return;
     }
-    const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
-    if (selectedDays.length === 0 || !validTime(slotStart) || !validTime(slotEnd) || slotEnd <= slotStart) {
-      setError('Chọn ít nhất một ngày và khung giờ hợp lệ để xếp lịch tập.');
+    const scheduledPeriods = scheduleMode === 'WEEK'
+      ? WEEK_DAYS.flatMap((_, index) => weekPeriods.map((periodId) => ({ dayOfWeek: index + 1, periodId, ...weekTimes[periodId] })))
+      : Object.entries(dayPeriods).flatMap(([day, periods]) => periods.map((periodId) => ({ dayOfWeek: Number(day), periodId, ...(dayTimes[Number(day)][periodId] ?? defaultPeriodTimes()[periodId]) })));
+    if (scheduledPeriods.length === 0 && availability.length === 0) {
+      setError('Chọn ít nhất một khung Sáng, Chiều hoặc Tối để xếp lịch tập.');
       return;
     }
-    const [startHour, startMinute] = slotStart.split(':').map(Number);
-    const [endHour, endMinute] = slotEnd.split(':').map(Number);
-    if (endHour * 60 + endMinute - (startHour * 60 + startMinute) < 15) {
-      setError('Khung giờ tập cần có ít nhất 15 phút.');
+    const validTime = (value: string) => /^([01]\d|2[0-3]):[0-5]\d$/.test(value);
+    const invalidPeriod = scheduledPeriods.find(({ startTime, endTime }) => {
+      if (!validTime(startTime) || !validTime(endTime)) return true;
+      const [startHour, startMinute] = startTime.split(':').map(Number);
+      const [endHour, endMinute] = endTime.split(':').map(Number);
+      return endHour * 60 + endMinute - (startHour * 60 + startMinute) < 15;
+    });
+    if (invalidPeriod) {
+      setError('Mỗi ca cần có giờ theo dạng HH:MM và kéo dài ít nhất 15 phút.');
       return;
     }
 
@@ -139,20 +171,13 @@ export default function ProfileOnboardingPage() {
         painAreas: painChoice === 'no' ? 'Không có' : painAreas.trim(),
         consent: true,
       });
-      let savedSlots = availability;
-      for (const dayOfWeek of selectedDays) {
-        if (savedSlots.some((slot) => slot.dayOfWeek === dayOfWeek)) continue;
-        const created = await healthTrackingService.createAvailability({
-          dayOfWeek,
-          startTime: slotStart,
-          endTime: slotEnd,
-          activityType,
-          locationType,
-          equipmentNotes: null,
-        });
-        savedSlots = [...savedSlots, created];
-        setAvailability(savedSlots);
-      }
+      const requestedSlots: AvailabilitySlotInput[] = scheduledPeriods.map(({ dayOfWeek, startTime, endTime }) =>
+        ({ dayOfWeek, startTime, endTime, activityType, locationType, equipmentNotes: null }));
+      const slotsToCreate = requestedSlots.filter((request) => !availability.some((slot) =>
+        slot.dayOfWeek === request.dayOfWeek && request.startTime < slot.endTime && request.endTime > slot.startTime));
+      const created = slotsToCreate.length > 0 ? await healthTrackingService.createAvailabilityBatch(slotsToCreate) : [];
+      const savedSlots = [...availability, ...created];
+      setAvailability(savedSlots);
       const complete = isProfileComplete(profile, savedSlots.length > 0);
       setProfileComplete(complete);
       if (complete) router.replace('/(user)');
@@ -166,6 +191,21 @@ export default function ProfileOnboardingPage() {
 
   if (loading) return <Screen title="Hoàn thiện hồ sơ"><ActivityIndicator color={palette.primary} /></Screen>;
 
+  const activePeriods = scheduleMode === 'WEEK' ? weekPeriods : dayPeriods[selectedDay];
+  const updateActivePeriodTime = (periodId: TimePeriodId, field: keyof TimeRange, value: string) => {
+    if (scheduleMode === 'WEEK') {
+      setWeekTimes((current) => ({ ...current, [periodId]: { ...current[periodId], [field]: value } }));
+      return;
+    }
+    setDayTimes((current) => ({
+      ...current,
+      [selectedDay]: {
+        ...current[selectedDay],
+        [periodId]: { ...(current[selectedDay][periodId] ?? defaultPeriodTimes()[periodId]), [field]: value },
+      },
+    }));
+  };
+
   return <Screen title="Hoàn thiện hồ sơ" subtitle="Thông tin này giúp cá nhân hóa kế hoạch vận động">
     <Card>
       <View style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
@@ -178,18 +218,47 @@ export default function ProfileOnboardingPage() {
 
     <Card>
       <Text style={styles.sectionTitle}>Lịch sinh hoạt hằng tuần</Text>
-      <Text style={styles.note}>Chọn những ngày và giờ bạn thường có thể tập. Lịch này giúp hệ thống xếp buổi tập vào thời gian phù hợp.</Text>
+      <Text style={styles.note}>Chọn khung giờ bạn thường có thể tập. Bạn có thể áp dụng giống nhau cả tuần hoặc tùy chỉnh từng ngày.</Text>
       <View style={styles.options}>
-        {WEEK_DAYS.map((label, index) => {
-          const day = index + 1;
-          const selected = selectedDays.includes(day);
-          return <Choice key={day} label={label} selected={selected} onPress={() => setSelectedDays((current) => selected ? current.filter((item) => item !== day) : [...current, day].sort())} />;
+        <Choice label="Cả tuần" selected={scheduleMode === 'WEEK'} onPress={() => setScheduleMode('WEEK')} />
+        <Choice label="Theo từng ngày" selected={scheduleMode === 'DAY'} onPress={() => setScheduleMode('DAY')} />
+      </View>
+      {scheduleMode === 'DAY' ? <>
+        <Text style={styles.label}>Chọn ngày</Text>
+        <View style={styles.dayOptions}>
+          {WEEK_DAYS.map((label, index) => {
+            const day = index + 1;
+            const count = dayPeriods[day].length;
+            return <Pressable key={day} onPress={() => setSelectedDay(day)} accessibilityRole="radio" accessibilityState={{ selected: selectedDay === day }} style={[styles.dayChoice, selectedDay === day && styles.choiceSelected]}>
+              <Text style={[styles.choiceText, selectedDay === day && styles.choiceTextSelected]}>{label}</Text>
+              {count > 0 ? <Text style={[styles.dayCount, selectedDay === day && styles.choiceTextSelected]}>{count}</Text> : null}
+            </Pressable>;
+          })}
+        </View>
+      </> : null}
+      <Text style={styles.label}>{scheduleMode === 'WEEK' ? 'Khung giờ áp dụng cho T2 - CN' : `Khung giờ cho ${WEEK_DAYS[selectedDay - 1]}`}</Text>
+      <View style={styles.periodOptions}>
+        {TIME_PERIODS.map((period) => {
+          const selected = activePeriods.includes(period.id);
+          const toggle = () => {
+            const update = (periods: TimePeriodId[]) => selected ? periods.filter((id) => id !== period.id) : [...periods, period.id];
+            if (scheduleMode === 'WEEK') setWeekPeriods(update);
+            else setDayPeriods((current) => ({ ...current, [selectedDay]: update(current[selectedDay]) }));
+          };
+          return <Pressable key={period.id} onPress={toggle} accessibilityRole="checkbox" accessibilityState={{ checked: selected }} style={[styles.periodChoice, selected && styles.choiceSelected]}>
+            <Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{period.label}</Text>
+          </Pressable>;
         })}
       </View>
-      <View style={styles.timeRow}>
-        <View style={styles.timeField}><Text style={styles.label}>Bắt đầu *</Text><Field value={slotStart} onChangeText={setSlotStart} placeholder="18:00" keyboardType="numbers-and-punctuation" /></View>
-        <View style={styles.timeField}><Text style={styles.label}>Kết thúc *</Text><Field value={slotEnd} onChangeText={setSlotEnd} placeholder="18:45" keyboardType="numbers-and-punctuation" /></View>
-      </View>
+      {activePeriods.map((periodId) => {
+        const period = TIME_PERIODS.find((item) => item.id === periodId)!;
+        const range = scheduleMode === 'WEEK' ? weekTimes[periodId] : dayTimes[selectedDay][periodId] ?? defaultPeriodTimes()[periodId];
+        return <View key={periodId} style={styles.periodTimeRow}>
+          <Text style={styles.periodName}>{period.label}</Text>
+          <View style={styles.timeInput}><Text style={styles.timeLabel}>Bắt đầu</Text><Field value={range.startTime} onChangeText={(value) => updateActivePeriodTime(periodId, 'startTime', value)} placeholder="06:00" keyboardType="numbers-and-punctuation" /></View>
+          <View style={styles.timeInput}><Text style={styles.timeLabel}>Kết thúc</Text><Field value={range.endTime} onChangeText={(value) => updateActivePeriodTime(periodId, 'endTime', value)} placeholder="08:00" keyboardType="numbers-and-punctuation" /></View>
+        </View>;
+      })}
       <Text style={styles.label}>Hoạt động</Text>
       <View style={styles.options}>{([['WORKOUT', 'Tập luyện'], ['WALKING', 'Đi bộ'], ['MOBILITY', 'Giãn cơ']] as const).map(([value, label]) => <Choice key={value} label={label} selected={activityType === value} onPress={() => setActivityType(value)} />)}</View>
       <Text style={styles.label}>Địa điểm</Text>
@@ -260,9 +329,16 @@ const styles = {
   sectionTitle: { color: palette.text, fontSize: 16, fontWeight: '700' as const, marginBottom: 3 },
   label: { color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 12, marginBottom: 6 },
   options: { flexDirection: 'row' as const, flexWrap: 'wrap' as const, gap: 7 },
-  timeRow: { flexDirection: 'row' as const, gap: 10 },
-  timeField: { flex: 1 },
+  dayOptions: { flexDirection: 'row' as const, gap: 6 },
+  periodOptions: { flexDirection: 'row' as const, gap: 8 },
   choice: { minHeight: 38, paddingHorizontal: 11, borderRadius: 8, borderWidth: 1, borderColor: palette.border, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: palette.surface },
+  dayChoice: { flex: 1, minHeight: 42, borderRadius: 8, borderWidth: 1, borderColor: palette.border, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: palette.surface },
+  dayCount: { color: palette.textMuted, fontSize: 10, fontWeight: '700' as const, marginTop: 1 },
+  periodChoice: { flex: 1, minHeight: 48, paddingHorizontal: 6, borderRadius: 8, borderWidth: 1, borderColor: palette.border, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: palette.surface },
+  periodTimeRow: { flexDirection: 'row' as const, alignItems: 'flex-end' as const, gap: 8, marginTop: 10 },
+  periodName: { width: 48, color: palette.text, fontSize: 12, fontWeight: '700' as const, paddingBottom: 12 },
+  timeInput: { flex: 1 },
+  timeLabel: { color: palette.textMuted, fontSize: 11, marginBottom: 4 },
   choiceSelected: { borderColor: palette.primary, backgroundColor: palette.primarySoft },
   choiceText: { color: palette.textMuted, fontSize: 12, fontWeight: '600' as const },
   choiceTextSelected: { color: palette.primary, fontWeight: '700' as const },

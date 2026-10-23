@@ -12,10 +12,14 @@ export interface DailyPlanResponse {
   scheduledEnd: string | null;
   activityType: string | null;
   locationType: string | null;
+  mealGuidance: string[];
+  completed: boolean;
+  completedAt: string | null;
 }
 export const dailyPlanService = {
   today: () => apiClient.request<DailyPlanResponse>(`${apiVersion}/daily-plans/today`),
   generateToday: () => apiClient.request<DailyPlanResponse>(`${apiVersion}/daily-plans/today/generate`, { method: 'POST' }),
   forDate: (date: string) => apiClient.request<DailyPlanResponse>(`${apiVersion}/daily-plans/date/${encodeURIComponent(date)}`),
   generateDate: (date: string) => apiClient.request<DailyPlanResponse>(`${apiVersion}/daily-plans/date/${encodeURIComponent(date)}/generate`, { method: 'POST' }),
+  completeDate: (date: string) => apiClient.request<DailyPlanResponse>(`${apiVersion}/daily-plans/date/${encodeURIComponent(date)}/complete`, { method: 'POST' }),
 };

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
@@ -18,6 +18,7 @@ export default function RoadmapPage() {
   const roadmap = useRoadmap();
   const queryClient = useQueryClient();
   const [weeks, setWeeks] = useState(4);
+  const [roadmapName, setRoadmapName] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
   const [confirmed, setConfirmed] = useState(false);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
@@ -157,6 +158,8 @@ export default function RoadmapPage() {
     {profileReady && !confirmed && roadmap.options.length === 0 && roadmap.status !== 'loading' ? <Card>
       <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Tạo bản xem trước</Text>
       <Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Mục tiêu từ hồ sơ: {goal}. AI sẽ đề xuất ba hướng để bạn so sánh. Chưa có kế hoạch nào được kích hoạt.</Text>
+      <Text style={{ color: palette.text, fontWeight: '700', marginTop: 18, marginBottom: 8 }}>Tên lộ trình</Text>
+      <TextInput value={roadmapName} onChangeText={setRoadmapName} placeholder="Ví dụ: Khỏe hơn trong 4 tuần" placeholderTextColor={palette.textMuted} maxLength={120} style={{ minHeight: 46, paddingHorizontal: 12, color: palette.text, fontSize: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: palette.surface }} />
       <Text style={{ color: palette.text, fontWeight: '700', marginTop: 18, marginBottom: 10 }}>Thời lượng</Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>{[2, 4, 8].map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: weeks === value }} onPress={() => setWeeks(value)} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: weeks === value ? palette.primary : palette.border, backgroundColor: weeks === value ? palette.primary : 'transparent' }}><Text style={{ color: weeks === value ? palette.textInverse : palette.text, fontWeight: '700' }}>{value} tuần</Text></Pressable>)}</View>
       <View style={{ marginTop: 16 }}><AppButton label="Tạo 3 phương án" onPress={generate} /></View>
@@ -175,7 +178,7 @@ export default function RoadmapPage() {
         </Card>
       </Pressable>)}
       <AppButton label="Xác nhận và bắt đầu" disabled={!selectedPlan} onPress={() => {
-        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected).then((ok) => {
+        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected, roadmapName).then((ok) => {
           if (ok) {
             setConfirmed(true);
             void queryClient.invalidateQueries({ queryKey: ['roadmap'] });

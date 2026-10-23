@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Screen from '@/components/ui/Screen';
@@ -27,6 +27,7 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
   const [selectedDate, setSelectedDate] = useState(initialDate);
   const [weekStart, setWeekStart] = useState(() => mondayOf(initialDate));
   const [generating, setGenerating] = useState(false);
+  const [completing, setCompleting] = useState(false);
   const [generateError, setGenerateError] = useState('');
   const queryClient = useQueryClient();
   const planQuery = useQuery({
@@ -62,6 +63,20 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
       setGenerateError(error instanceof ApiError ? error.message : 'Không thể tạo kế hoạch cho ngày này.');
     } finally {
       setGenerating(false);
+    }
+  };
+
+  const completeDay = async () => {
+    setCompleting(true);
+    setGenerateError('');
+    try {
+      const updated = await dailyPlanService.completeDate(selectedDate);
+      queryClient.setQueryData(['daily-plan', selectedDate], updated);
+      queryClient.setQueryData(['daily-plan', 'today'], updated);
+    } catch (error) {
+      setGenerateError(error instanceof ApiError ? error.message : 'Không thể cập nhật trạng thái hoàn thành.');
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -108,6 +123,10 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
     </Card> : null}
 
     {plan ? <>
+      <View style={[styles.dayStatus, plan.completed && styles.dayStatusDone]}>
+        <View style={[styles.dayStatusIcon, plan.completed && styles.dayStatusIconDone]}><Ionicons name={plan.completed ? 'checkmark-circle' : 'sunny-outline'} size={23} color={plan.completed ? '#16845B' : palette.primary} /></View>
+        <View style={{ flex: 1 }}><Text style={styles.dayStatusTitle}>{plan.completed ? 'Bạn đã hoàn thành kế hoạch hôm nay' : 'Kế hoạch trong ngày'}</Text><Text style={styles.dayStatusDetail}>{plan.completed ? 'Tiến độ đã được lưu vào hành trình của bạn.' : 'Thực hiện theo thứ tự phù hợp với nhịp sinh hoạt của bạn.'}</Text></View>
+      </View>
       {plan.scheduledStart && plan.scheduledEnd ? <Card style={styles.timeCard}>
         <View style={styles.timeIcon}><Ionicons name="time-outline" size={21} color={palette.primary} /></View>
         <View style={{ flex: 1 }}>
@@ -124,8 +143,20 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
       <View style={styles.sectionTitleRow}><Text style={styles.sectionTitle}>{plan.title}</Text><Text style={styles.count}>{plan.activities.length} hoạt động</Text></View>
       {plan.activities.map((activity, index) => <Card key={`${plan.date}-${index}`} style={styles.activityCard}>
         <View style={styles.activityNumber}><Text style={styles.activityNumberText}>{String(index + 1).padStart(2, '0')}</Text></View>
-        <Text style={styles.activityText}>{activity}</Text>
+        <View style={{ flex: 1 }}><Text style={styles.activityKicker}>BƯỚC {index + 1}</Text><Text style={styles.activityText}>{activity}</Text></View>
+        <Ionicons name={plan.completed ? 'checkmark-circle' : 'ellipse-outline'} size={20} color={plan.completed ? palette.success : palette.border} />
       </Card>)}
+
+      {plan.mealGuidance.length ? <Card style={styles.mealCard}>
+        <View style={styles.mealHeading}><View style={styles.mealIcon}><Ionicons name="restaurant-outline" size={19} color="#C76B26" /></View><View><Text style={styles.mealTitle}>Gợi ý bữa ăn trong ngày</Text><Text style={styles.mealSubtitle}>Điều chỉnh khẩu phần theo mức đói và tình trạng cơ thể.</Text></View></View>
+        {plan.mealGuidance.map((meal, index) => <View key={meal} style={styles.mealRow}><View style={styles.mealDot}><Text style={styles.mealDotText}>{index + 1}</Text></View><Text style={styles.mealText}>{meal}</Text></View>)}
+      </Card> : null}
+
+      {plan.activityType === 'WORKOUT' ? <Pressable onPress={() => router.push('/(user)/scan')} style={({ pressed }) => [styles.poseButton, pressed && { opacity: 0.82 }]} accessibilityRole="button"><Ionicons name="scan-outline" size={20} color={palette.primary} /><View style={{ flex: 1 }}><Text style={styles.poseTitle}>Kiểm tra tư thế khi tập</Text><Text style={styles.poseDetail}>Mở camera để quét tư thế trước buổi tập.</Text></View><Ionicons name="chevron-forward" size={20} color={palette.primary} /></Pressable> : null}
+
+      <Pressable onPress={() => void completeDay()} disabled={plan.completed || completing} style={({ pressed }) => [styles.completeButton, plan.completed && styles.completeButtonDone, (pressed || completing) && { opacity: 0.82 }]} accessibilityRole="button">
+        <Ionicons name={plan.completed ? 'checkmark-circle' : 'checkmark-circle-outline'} size={21} color="#FFFFFF" /><Text style={styles.completeButtonText}>{plan.completed ? 'Đã hoàn thành hôm nay' : completing ? 'Đang lưu tiến độ...' : 'Đánh dấu hoàn thành hôm nay'}</Text>
+      </Pressable>
 
       {plan.safetyNotes.length ? <Card style={styles.safetyCard}>
         <View style={styles.safetyHeading}><Ionicons name="shield-checkmark-outline" size={18} color="#A66A21" /><Text style={styles.safetyTitle}>Lưu ý</Text></View>
@@ -192,6 +223,12 @@ const styles = {
   selectedHeading: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, marginTop: 5, marginBottom: 3 },
   selectedKicker: { color: palette.primary, fontSize: 9, fontWeight: '800' as const },
   selectedTitle: { color: palette.text, fontSize: 18, fontWeight: '800' as const, textTransform: 'capitalize' as const, marginTop: 2 },
+  dayStatus: { minHeight: 78, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 11, padding: 13, borderRadius: 14, backgroundColor: '#EFEEFF', marginBottom: 2 },
+  dayStatusDone: { backgroundColor: '#E9F8F1' },
+  dayStatusIcon: { width: 42, height: 42, borderRadius: 13, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: '#E4E1FF' },
+  dayStatusIconDone: { backgroundColor: '#D4F1E2' },
+  dayStatusTitle: { color: palette.text, fontSize: 13, fontWeight: '800' as const },
+  dayStatusDetail: { color: palette.textMuted, fontSize: 11, lineHeight: 16, marginTop: 3 },
   timeCard: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 11, backgroundColor: '#F3F2FF' },
   slotsCard: { gap: 8 },
   slotsTitle: { color: palette.text, fontSize: 12, fontWeight: '800' as const },
@@ -213,7 +250,23 @@ const styles = {
   activityCard: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 11, paddingVertical: 12 },
   activityNumber: { width: 31, height: 31, alignItems: 'center' as const, justifyContent: 'center' as const, borderRadius: 10, backgroundColor: palette.accentSoft },
   activityNumberText: { color: '#268FCB', fontSize: 10, fontWeight: '800' as const },
+  activityKicker: { color: palette.primary, fontSize: 9, fontWeight: '800' as const, marginBottom: 3 },
   activityText: { flex: 1, color: palette.text, fontSize: 13, lineHeight: 19 },
+  mealCard: { backgroundColor: '#FFF8EE', borderColor: '#F6E2C4' },
+  mealHeading: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, marginBottom: 10 },
+  mealIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: '#FDEBD5' },
+  mealTitle: { color: '#6E4723', fontSize: 13, fontWeight: '800' as const },
+  mealSubtitle: { color: '#9A7650', fontSize: 10, marginTop: 2 },
+  mealRow: { flexDirection: 'row' as const, gap: 9, alignItems: 'flex-start' as const, marginTop: 8 },
+  mealDot: { width: 19, height: 19, borderRadius: 10, alignItems: 'center' as const, justifyContent: 'center' as const, backgroundColor: '#F7D9B5' },
+  mealDotText: { color: '#A65F20', fontSize: 10, fontWeight: '800' as const },
+  mealText: { flex: 1, color: '#765A3B', fontSize: 11, lineHeight: 17 },
+  poseButton: { minHeight: 62, flexDirection: 'row' as const, alignItems: 'center' as const, gap: 10, padding: 12, borderRadius: 13, borderWidth: 1, borderColor: '#D8D4FF', backgroundColor: '#F7F6FF' },
+  poseTitle: { color: palette.primaryDark, fontSize: 12, fontWeight: '800' as const },
+  poseDetail: { color: palette.textMuted, fontSize: 10, marginTop: 3 },
+  completeButton: { minHeight: 50, marginTop: 12, flexDirection: 'row' as const, alignItems: 'center' as const, justifyContent: 'center' as const, gap: 8, borderRadius: 13, backgroundColor: palette.primary },
+  completeButtonDone: { backgroundColor: '#1E9B6B' },
+  completeButtonText: { color: '#FFFFFF', fontSize: 13, fontWeight: '800' as const },
   safetyCard: { backgroundColor: '#FFF9EC', borderColor: '#FFE9BF' },
   safetyHeading: { flexDirection: 'row' as const, alignItems: 'center' as const, gap: 7, marginBottom: 5 },
   safetyTitle: { color: '#9A641E', fontSize: 12, fontWeight: '800' as const },
