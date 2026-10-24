@@ -27,7 +27,7 @@ export default function Screen({ title, subtitle, children, scroll = true, showB
           <Text style={styles.title}>{title}</Text>
           {subtitle ? <Text style={styles.subtitle}>{subtitle}</Text> : null}
         </View>
-        {right}
+        {right ? <View style={styles.headerAction}>{right}</View> : null}
       </View>
     </View>
   );
@@ -53,7 +53,8 @@ const styles = StyleSheet.create({
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.md },
   headerCompact: { paddingTop: spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  titleWrap: { flex: 1 },
+  titleWrap: { flex: 1, minWidth: 0 },
+  headerAction: { width: 46, height: 46, flexShrink: 0, alignItems: 'center', justifyContent: 'center', overflow: 'visible' },
   back: { color: palette.primary, fontSize: 34, lineHeight: 36, marginTop: -4 },
   title: { color: palette.text, fontSize: 24, fontWeight: '800' },
   subtitle: { color: palette.textMuted, fontSize: 14, marginTop: 5 },

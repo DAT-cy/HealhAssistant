@@ -29,11 +29,11 @@ export function useRoadmap() {
     }
   }, []);
 
-  const activate = useCallback(async (plan: GeminiRoadmapResponse, optionIndex: number, title?: string) => {
+  const activate = useCallback(async (plan: GeminiRoadmapResponse, optionIndex: number, title?: string, draftId?: number | null) => {
     setState({ status: 'loading', data: plan, message: '' });
     try {
       if (!previewId) throw new Error('Hãy tạo lại bản xem trước trước khi kích hoạt.');
-      await coachService.activate(previewId, optionIndex, title);
+      await coachService.activate(previewId, optionIndex, title, draftId);
       setActivated(true);
       setState({ status: 'success', data: plan, message: '' });
       return true;

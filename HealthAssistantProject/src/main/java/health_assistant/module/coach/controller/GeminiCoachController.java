@@ -17,6 +17,8 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -71,7 +73,25 @@ public class GeminiCoachController {
     @PostMapping("/roadmap/activate")
     public ResponseEntity<DefaultRes<RoadmapResponse>> activate(@Valid @RequestBody ActivateRoadmapRequest request) {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED,
-                roadmapLifecycleService.activate(request.previewId(), request.optionIndex(), request.title())));
+                roadmapLifecycleService.activate(request.previewId(), request.optionIndex(), request.title(), request.draftId())));
+    }
+
+    @PostMapping("/roadmaps/draft")
+    public ResponseEntity<DefaultRes<RoadmapResponse>> createDraft(@Valid @RequestBody CreateDraftRequest request) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED,
+                roadmapLifecycleService.createDraft(request.title())));
+    }
+
+    @PatchMapping("/roadmaps/draft/{id}")
+    public ResponseEntity<DefaultRes<RoadmapResponse>> renameDraft(@PathVariable Long id, @Valid @RequestBody CreateDraftRequest request) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.UPDATED,
+                roadmapLifecycleService.renameDraft(id, request.title())));
+    }
+
+    @DeleteMapping("/roadmaps/draft/{id}")
+    public ResponseEntity<DefaultRes<Boolean>> deleteDraft(@PathVariable Long id) {
+        roadmapLifecycleService.deleteDraft(id);
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.DELETED, true));
     }
 
     @GetMapping("/roadmaps/active")
@@ -84,7 +104,9 @@ public class GeminiCoachController {
     }
 
     public record ActivateRoadmapRequest(@NotBlank @Size(max = 36) String previewId, @Min(0) @Max(2) int optionIndex,
-                                         @Size(max = 120) String title) { }
+                                         @Size(max = 120) String title, Long draftId) { }
+
+    public record CreateDraftRequest(@NotBlank @Size(max = 160) String title) { }
 
     @GetMapping("/roadmaps/me")
     public ResponseEntity<DefaultRes<List<RoadmapResponse>>> history() {

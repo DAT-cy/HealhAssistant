@@ -124,11 +124,6 @@ export default function HomePage() {
     navigationService.navigate(route);
   };
 
-  const startRoadmapCreation = () => {
-    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
-    setShowRoadmapSetup(true);
-  };
-
   const continueRoadmapCreation = () => {
     if (!setupGoal.trim() || setupDays.length === 0) return;
     const dayLabels = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
@@ -182,7 +177,7 @@ export default function HomePage() {
               </View>
               <Text style={styles.heroTitle}>Khỏe hơn hôm nay, tốt hơn ngày mai!</Text>
               <Text style={styles.heroDescription}>AI đồng hành cùng bạn xây dựng lộ trình tập luyện và dinh dưỡng cá nhân, phù hợp với thể trạng và mục tiêu.</Text>
-              <Pressable onPress={startRoadmapCreation} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]} accessibilityRole="button">
+              <Pressable onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]} accessibilityRole="button">
                 <Text style={styles.heroButtonText}>Tạo lộ trình ngay</Text>
                 <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </Pressable>
@@ -199,7 +194,7 @@ export default function HomePage() {
             {actions.map((action) => (
               <Pressable
                 key={action.title}
-                onPress={action.route === 'Roadmap' ? startRoadmapCreation : () => navigate(action.route)}
+                onPress={() => navigate(action.route)}
                 accessibilityRole="button"
                 style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
               >
