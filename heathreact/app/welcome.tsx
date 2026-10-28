@@ -20,11 +20,17 @@ export default function WelcomeRoute() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FC" />
+      <StatusBar barStyle="dark-content" />
       <ScrollView contentContainerStyle={[styles.content, { paddingTop: insets.top + 18, paddingBottom: Math.max(insets.bottom, 16) + 20 }]} showsVerticalScrollIndicator={false}>
         <View style={styles.brandRow}>
-          <View style={styles.brandIcon}><Ionicons name="heart" size={22} color="#FFFFFF" /></View>
-          <Text style={styles.brand}>Health Assistant</Text>
+          <View style={styles.brandIdentity}>
+            <View style={styles.brandIcon}><Ionicons name="heart" size={22} color="#FFFFFF" /></View>
+            <Text style={styles.brand}>Health Assistant</Text>
+          </View>
+          <Pressable onPress={() => navigationService.navigate('Login')} style={({ pressed }) => [styles.mobileLoginButton, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel="Đăng nhập">
+            <Ionicons name="log-in-outline" size={17} color="#635BFF" />
+            <Text style={styles.mobileLoginText}>Đăng nhập</Text>
+          </Pressable>
         </View>
 
         <Text style={styles.eyebrow}>SỨC KHỎE TỐT HƠN, MỖI NGÀY</Text>
@@ -47,9 +53,6 @@ export default function WelcomeRoute() {
         <Pressable onPress={() => navigationService.navigate('Login')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} accessibilityRole="button">
           <Text style={styles.primaryText}>Bắt đầu ngay</Text><Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
         </Pressable>
-        <Pressable onPress={() => navigationService.navigate('Login')} style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]} accessibilityRole="button">
-          <Text style={styles.secondaryText}>Tôi đã có tài khoản</Text>
-        </Pressable>
       </ScrollView>
     </View>
   );
@@ -66,9 +69,12 @@ const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: '#F7F8FC' },
   loading: { flex: 1, backgroundColor: '#F7F8FC' },
   content: { paddingHorizontal: 22, gap: 12, maxWidth: 520, width: '100%', alignSelf: 'center' },
-  brandRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 8 },
+  brandRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
+  brandIdentity: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   brandIcon: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 13, backgroundColor: '#635BFF' },
   brand: { color: '#20213A', fontSize: 17, fontWeight: '800' },
+  mobileLoginButton: { minHeight: 38, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderWidth: 1, borderColor: '#DAD7FF', borderRadius: 9, backgroundColor: '#FFFFFF' },
+  mobileLoginText: { color: '#635BFF', fontSize: 12, fontWeight: '800' },
   eyebrow: { color: '#635BFF', fontSize: 10, fontWeight: '800', marginTop: 4 },
   title: { color: '#20213A', fontSize: 29, lineHeight: 36, fontWeight: '800' },
   subtitle: { color: '#7A8099', fontSize: 14, lineHeight: 21 },
@@ -85,7 +91,5 @@ const styles = StyleSheet.create({
   valueDetail: { color: '#7A8099', fontSize: 11 },
   primaryButton: { minHeight: 52, marginTop: 8, paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 9, borderRadius: 16, backgroundColor: '#635BFF', shadowColor: '#635BFF', shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.2, shadowRadius: 12, elevation: 4 },
   primaryText: { color: '#FFFFFF', fontSize: 15, fontWeight: '800' },
-  secondaryButton: { minHeight: 42, alignItems: 'center', justifyContent: 'center' },
-  secondaryText: { color: '#635BFF', fontSize: 13, fontWeight: '700' },
   pressed: { opacity: 0.8 },
 });

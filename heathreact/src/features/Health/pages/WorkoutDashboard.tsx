@@ -1,4 +1,6 @@
 import { dailyPlanService, type DailyPlanResponse } from '@/api/services/daily-plan.service';
+import { coachService } from '@/api/services/coach.service';
+import { ApiError } from '@/api/client';
 import Badge from '@/components/ui/Badge';
 import Card from '@/components/ui/Card';
 import AppButton from '@/components/ui/AppButton';
@@ -19,11 +21,33 @@ function sourceLabel(source: string) {
 }
 
 export default function WorkoutDashboardPage() {
+  const roadmapQuery = useQuery({
+    queryKey: ['roadmap', 'active'],
+    queryFn: async () => {
+      try { return await coachService.active(); }
+      catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
+    },
+  });
   const planQuery = useQuery<DailyPlanResponse>({
     queryKey: ['daily-plan', 'today'],
     queryFn: dailyPlanService.today,
+    enabled: Boolean(roadmapQuery.data),
   });
   const plan = planQuery.data;
+
+  if (roadmapQuery.isLoading) {
+    return <Screen title="Tập luyện"><LoadingState label="Đang kiểm tra lộ trình..." /></Screen>;
+  }
+
+  if (roadmapQuery.isError || !roadmapQuery.data) {
+    return <Screen title="Tập luyện" subtitle="Hoạt động được tạo từ lộ trình cá nhân" activeTab="Workout">
+      <Card>
+        <Text style={styles.title}>Chưa có lộ trình cá nhân</Text>
+        <Text style={styles.emptyText}>Tạo và xác nhận lộ trình trước để nhận lịch tập phù hợp với mục tiêu của bạn.</Text>
+        <View style={{ marginTop: 14 }}><AppButton label="Tạo lộ trình" onPress={() => navigationService.navigate('Roadmap')} /></View>
+      </Card>
+    </Screen>;
+  }
 
   return (
     <Screen title="Tập luyện" subtitle="Hoạt động được đề xuất từ kế hoạch hôm nay" activeTab="Workout">

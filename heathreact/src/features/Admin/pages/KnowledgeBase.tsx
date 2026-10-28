@@ -172,6 +172,20 @@ export default function KnowledgeBasePage() {
 
   const uploadDocument = handleSubmit(submitUpload);
 
+  const importWhoGuideline = async () => {
+    setBusy(true);
+    try {
+      const document = await knowledgeAdminService.importWhoGuideline();
+      setStatus('ALL');
+      await load();
+      await openDetails(document);
+    } catch (e) {
+      Alert.alert('Không nhập được hướng dẫn WHO', e instanceof Error ? e.message : 'Thử lại sau.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const review = async (action: 'APPROVE' | 'REJECT') => {
     if (!selected) return;
     if (action === 'REJECT' && !reviewNote.trim()) {
@@ -214,7 +228,7 @@ export default function KnowledgeBasePage() {
 
   return (
     <View style={styles.screen}>
-      <StatusBar barStyle="dark-content" backgroundColor="#FFFFFF" translucent />
+      <StatusBar barStyle="dark-content" />
       <View style={[styles.adminHeader, { paddingTop: insets.top + 8 }]}>
         <View style={styles.adminBrandIcon}><Ionicons name="library" size={20} color={PRIMARY} /></View>
         <View style={styles.adminHeaderCopy}>
@@ -237,6 +251,10 @@ export default function KnowledgeBasePage() {
             <Text style={styles.title}>Dữ liệu kiến thức</Text>
             <Text style={styles.subtitle}>Quản lý tài liệu nhập, nguồn và kiểm duyệt</Text>
           </View>
+          <Pressable onPress={() => void importWhoGuideline()} disabled={busy} style={[styles.whoButton, busy && styles.disabled]} accessibilityRole="button" accessibilityLabel="Nhập hướng dẫn hoạt động thể chất WHO">
+            <Ionicons name="download-outline" size={18} color="#FFFFFF" />
+            <Text style={styles.addText}>WHO</Text>
+          </Pressable>
         <Pressable onPress={() => { setFile(null); setRightsConfirmed(false); reset(emptyForm); setUploadOpen(true); }} style={styles.addButton} accessibilityLabel="Nhập tài liệu">
             <Ionicons name="add" size={22} color="#FFFFFF" /><Text style={styles.addText}>Nhập</Text>
           </Pressable>
@@ -251,7 +269,7 @@ export default function KnowledgeBasePage() {
 
         <View style={styles.notice}>
           <Ionicons name="information-circle-outline" size={19} color="#0369A1" />
-          <Text style={styles.noticeText}>Duyệt tài liệu chỉ lưu trạng thái kiểm duyệt; RAG/vector search chưa được kết nối với AI.</Text>
+          <Text style={styles.noticeText}>AI Coach tìm trong các đoạn của tài liệu đã duyệt và dẫn nguồn. Khi không tìm thấy nội dung phù hợp, Gemini trả lời bằng kiến thức chung.</Text>
         </View>
 
         <View style={styles.searchBox}>
@@ -426,6 +444,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 2, fontSize: 12, color: '#7A8099' },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   addButton: { height: 38, paddingHorizontal: 12, borderRadius: 10, backgroundColor: PRIMARY, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  whoButton: { height: 38, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#0F766E', flexDirection: 'row', alignItems: 'center', gap: 5 },
   addText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   content: { paddingHorizontal: 16, paddingBottom: 38, gap: 14 },
   statsRow: { flexDirection: 'row', gap: 8 },

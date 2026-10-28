@@ -38,5 +38,14 @@ jwt:
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
-  model: ${GEMINI_MODEL:gemini-3.8-flash}
+  model: ${GEMINI_MODEL:gemini-2.5-flash}
   base-url: https://generativelanguage.googleapis.com/v1beta
+google:
+  oauth:
+    # Backend only verifies ID tokens whose aud claim matches this Web OAuth client.
+    # Set GOOGLE_OAUTH_CLIENT_IDS to a comma-separated list when supporting more clients.
+    client-ids: ${GOOGLE_OAUTH_CLIENT_IDS:}
+
+cloudinary:
+  api-key: 653961144944774
+  api-secet: x3_Zif3Vr_pqcZMW0WM69jR2x8I

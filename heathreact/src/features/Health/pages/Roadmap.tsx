@@ -110,6 +110,11 @@ export default function RoadmapPage() {
   const [gymSlot, setGymSlot] = useState<RoadmapPlanSlot | null>(null);
   const [dailyReviewBusy, setDailyReviewBusy] = useState(false);
   const [dailyReviewMessage, setDailyReviewMessage] = useState('');
+  const [draftTitle, setDraftTitle] = useState('');
+  const [draftEditId, setDraftEditId] = useState<number | null>(null);
+  const [draftMessage, setDraftMessage] = useState('');
+  const [draftBusy, setDraftBusy] = useState(false);
+  const [selectedDraft, setSelectedDraft] = useState<{ id: number; title: string } | null>(null);
 
   const profileQuery = useQuery({ queryKey: ['profile', 'me'], queryFn: profileService.getMine });
   const activeQuery = useQuery({
@@ -299,6 +304,41 @@ export default function RoadmapPage() {
     : undefined;
   const pendingAdjustment = adjustmentQuery.data?.find((item) => item.status === 'PROPOSED');
   const dailyReview = (dailyReviewHistoryQuery.data ?? []).find((item) => item.reviewDate === selectedDate) as DailyAiReview | undefined;
+
+  const createDraft = async () => {
+    if (!draftTitle.trim()) { setDraftMessage('Nhập tên bản nháp lộ trình.'); return; }
+    setDraftBusy(true); setDraftMessage('');
+    try {
+      const saved = await coachService.createDraft(draftTitle.trim());
+      setSelectedDraft({ id: saved.id, title: saved.title }); setDraftTitle('');
+      setDraftMessage('Đã tạo bản nháp. Lịch chỉ được kích hoạt sau khi xác nhận phương án.');
+      await historyQuery.refetch();
+    } catch (error) { setDraftMessage(error instanceof ApiError ? error.message : 'Không thể tạo bản nháp.'); }
+    finally { setDraftBusy(false); }
+  };
+
+  const renameDraft = async (id: number) => {
+    if (!draftTitle.trim()) { setDraftMessage('Nhập tên bản nháp lộ trình.'); return; }
+    setDraftBusy(true); setDraftMessage('');
+    try {
+      const saved = await coachService.renameDraft(id, draftTitle.trim());
+      if (selectedDraft?.id === id) setSelectedDraft({ id, title: saved.title });
+      setDraftTitle(''); setDraftEditId(null); setDraftMessage('Đã đổi tên bản nháp.');
+      await historyQuery.refetch();
+    } catch (error) { setDraftMessage(error instanceof ApiError ? error.message : 'Không thể đổi tên bản nháp.'); }
+    finally { setDraftBusy(false); }
+  };
+
+  const deleteDraft = async (id: number) => {
+    setDraftBusy(true); setDraftMessage('');
+    try {
+      await coachService.deleteDraft(id);
+      if (selectedDraft?.id === id) setSelectedDraft(null);
+      setDraftMessage('Đã xóa bản nháp.');
+      await historyQuery.refetch();
+    } catch (error) { setDraftMessage(error instanceof ApiError ? error.message : 'Không thể xóa bản nháp.'); }
+    finally { setDraftBusy(false); }
+  };
 
   const evaluateSelectedDay = async () => {
     setDailyReviewBusy(true);
@@ -562,6 +602,21 @@ export default function RoadmapPage() {
         <View style={{ flex: 1 }}><AppButton label="Chấp nhận điều chỉnh" disabled={adjustmentBusy} loading={adjustmentBusy} onPress={() => void decideAdjustment('accept')} /></View>
       </View>
     </Card> : null}
+    <Card style={{ gap: 9 }}>
+      <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>Bản nháp lộ trình</Text>
+      <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18 }}>Lưu tên lộ trình trước. Lịch chỉ được áp dụng sau khi bạn chọn phương án và xác nhận.</Text>
+      <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
+        <TextInput value={draftTitle} onChangeText={setDraftTitle} placeholder="Tên bản nháp" placeholderTextColor={palette.textMuted} style={{ flex: 1, minHeight: 42, paddingHorizontal: 10, borderRadius: 7, borderWidth: 1, borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }} />
+        <AppButton label={draftEditId ? 'Đổi tên' : 'Tạo nháp'} loading={draftBusy} disabled={draftBusy} onPress={() => void (draftEditId ? renameDraft(draftEditId) : createDraft())} />
+      </View>
+      {selectedDraft ? <Text style={{ color: palette.primary, fontSize: 12 }}>Đang dùng bản nháp: {selectedDraft.title}</Text> : null}
+      {historyQuery.data?.filter((item) => item.status === 'DRAFT').map((item) => <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, borderTopWidth: 1, borderColor: palette.border }}>
+        <Pressable onPress={() => setSelectedDraft({ id: item.id, title: item.title })} accessibilityRole="radio" accessibilityState={{ selected: selectedDraft?.id === item.id }} style={{ flex: 1, minHeight: 36, justifyContent: 'center' }}><Text numberOfLines={1} style={{ color: selectedDraft?.id === item.id ? palette.primary : palette.text, fontWeight: '700' }}>{item.title}</Text></Pressable>
+        <Pressable onPress={() => { setDraftEditId(item.id); setDraftTitle(item.title); }} accessibilityRole="button" accessibilityLabel="Đổi tên bản nháp" style={{ padding: 7 }}><Ionicons name="create-outline" size={18} color={palette.textMuted} /></Pressable>
+        <Pressable onPress={() => void deleteDraft(item.id)} disabled={draftBusy} accessibilityRole="button" accessibilityLabel="Xóa bản nháp" style={{ padding: 7 }}><Ionicons name="trash-outline" size={18} color={palette.danger} /></Pressable>
+      </View>)}
+      {draftMessage ? <Text accessibilityLiveRegion="polite" style={{ color: draftMessage.startsWith('Đã') ? palette.primary : palette.danger, fontSize: 12 }}>{draftMessage}</Text> : null}
+    </Card>
     {historyQuery.isError ? <ErrorState message="Không thể tải lịch sử lộ trình." onRetry={() => void historyQuery.refetch()} /> : null}
     {historyQuery.data && historyQuery.data.filter((item) => item.status !== 'ACTIVE').length > 0 ? <Card>
       <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>Lịch sử phiên bản</Text>
@@ -638,9 +693,10 @@ export default function RoadmapPage() {
         </Card>
       </Pressable>)}
       <AppButton label="Xác nhận và bắt đầu" disabled={!selectedPlan} onPress={() => {
-        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected).then((ok) => {
+        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected, selectedDraft?.title, selectedDraft?.id ?? null).then((ok) => {
           if (ok) {
             setConfirmed(true);
+            setSelectedDraft(null);
             void queryClient.invalidateQueries({ queryKey: ['roadmap'] });
           }
         });

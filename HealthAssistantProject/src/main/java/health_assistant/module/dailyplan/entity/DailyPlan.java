@@ -32,6 +32,9 @@ public class DailyPlan {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String activities;
 
+    @Column(name = "meal_guidance", columnDefinition = "TEXT")
+    private String mealGuidance;
+
     @Column(name = "safety_notes", nullable = false, columnDefinition = "TEXT")
     private String safetyNotes;
 
@@ -40,4 +43,10 @@ public class DailyPlan {
 
     @Column(nullable = false)
     private Instant createdAt;
+
+    @Column(nullable = false)
+    private boolean completed = false;
+
+    @Column(name = "completed_at")
+    private Instant completedAt;
 }

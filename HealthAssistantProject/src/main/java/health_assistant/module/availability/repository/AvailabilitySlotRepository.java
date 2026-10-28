@@ -9,5 +9,6 @@ import java.util.Optional;
 public interface AvailabilitySlotRepository extends JpaRepository<AvailabilitySlot, Long> {
     List<AvailabilitySlot> findAllByUserIdAndActiveTrueOrderByDayOfWeekAscStartTimeAsc(Long userId);
     List<AvailabilitySlot> findAllByUserIdAndDayOfWeekAndActiveTrue(Long userId, int dayOfWeek);
+    List<AvailabilitySlot> findAllByUserIdAndDayOfWeekAndActiveTrueOrderByStartTimeAsc(Long userId, int dayOfWeek);
     Optional<AvailabilitySlot> findByIdAndUserId(Long id, Long userId);
 }

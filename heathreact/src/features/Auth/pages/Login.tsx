@@ -283,7 +283,7 @@ export default function LoginPage() {
     const primaryAction = flow === 'FORGOT_EMAIL' ? startPasswordReset
       : flow === 'NEW_PASSWORD' ? submitNewPassword : verifyOtp;
     return <View style={{ flex: 1, backgroundColor: '#F7F8FC', paddingTop: insets.top + 20, paddingHorizontal: 22 }}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FC" translucent />
+      <StatusBar barStyle="dark-content" />
       <Pressable onPress={closeOtpFlow} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: palette.primary, fontSize: 16 }}>‹  Quay láº¡i</Text></Pressable>
       <View style={{ marginTop: 32, gap: 12 }}>
         <Text style={{ color: palette.text, fontSize: 25, fontWeight: '800' }}>{title}</Text>
@@ -309,7 +309,7 @@ export default function LoginPage() {
 
   return (
     <View nativeID="auth-screen" style={styles.container}>
-      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FC" translucent />
+      <StatusBar barStyle="dark-content" />
 
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}

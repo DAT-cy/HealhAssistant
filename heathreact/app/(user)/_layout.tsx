@@ -2,6 +2,7 @@ import { useUserStore } from '@/stores/user';
 import { Stack, router } from 'expo-router';
 import React from 'react';
 import { ActivityIndicator, View } from 'react-native';
+import { palette } from '@/theme/tokens';
 
 export default function UserLayout() {
   const token = useUserStore((state) => state.token);
@@ -15,7 +16,7 @@ export default function UserLayout() {
   }, [initialized, role, token]);
 
   if (!initialized || !token || role !== 'ROLE_USER') {
-    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#080C11' }}><ActivityIndicator color="#22C55E" /></View>;
+    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.bg }}><ActivityIndicator color={palette.primary} /></View>;
   }
 
   return <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />;

@@ -89,7 +89,8 @@ public class CoachChatConversationService {
         String answer = generated.message();
         if (proposal != null) answer += "\n\nĐã tạo bản xem trước thay đổi lịch. Hãy xem và xác nhận trước khi áp dụng.";
         else if (requestedReschedule) answer += "\n\nChưa tạo được bản xem trước; lịch của bạn chưa thay đổi. Hãy mở mục Điều chỉnh lịch để xem lý do và thử lại.";
-        return new CoachChatResponse(threadId, answer, generated.source(), generated.safetyEscalation(), retrieval.sources(), proposal, now);
+        return new CoachChatResponse(threadId, answer, generated.source(), generated.safetyEscalation(), retrieval.sources(), proposal, now,
+                generated.references());
     }
 
     @Transactional(readOnly = true)

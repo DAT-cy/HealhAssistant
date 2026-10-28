@@ -14,6 +14,17 @@ module.exports = ({ config }) => {
   return {
     ...config,
     ...appConfig,
+    ios: {
+      ...appConfig.ios,
+      ...config.ios,
+      infoPlist: {
+        ...appConfig.ios?.infoPlist,
+        ...config.ios?.infoPlist,
+        NSAppTransportSecurity: {
+          NSAllowsArbitraryLoads: true,
+        },
+      },
+    },
     plugins,
     extra: {
       ...config.extra,

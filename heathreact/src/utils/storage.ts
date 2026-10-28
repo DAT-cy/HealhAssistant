@@ -1,20 +1,13 @@
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
 
 const TOKEN_KEY = 'auth_token';
 
 /**
- * Bộ tiện ích lưu trữ an toàn, tự động tương thích cả Mobile (SecureStore) và Web (localStorage)
+ * Bộ tiện ích lưu trữ an toàn cho Android/iOS.
  */
 export const appStorage = {
   async getItem(key: string): Promise<string | null> {
     try {
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          return window.localStorage.getItem(key);
-        }
-        return null;
-      }
       return await SecureStore.getItemAsync(key);
     } catch (e) {
       console.warn(`[appStorage] getItem failed for key "${key}":`, e);
@@ -24,12 +17,6 @@ export const appStorage = {
 
   async setItem(key: string, value: string): Promise<void> {
     try {
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          window.localStorage.setItem(key, value);
-        }
-        return;
-      }
       await SecureStore.setItemAsync(key, value);
     } catch (e) {
       console.warn(`[appStorage] setItem failed for key "${key}":`, e);
@@ -38,12 +25,6 @@ export const appStorage = {
 
   async removeItem(key: string): Promise<void> {
     try {
-      if (Platform.OS === 'web') {
-        if (typeof window !== 'undefined' && window.localStorage) {
-          window.localStorage.removeItem(key);
-        }
-        return;
-      }
       await SecureStore.deleteItemAsync(key);
     } catch (e) {
       console.warn(`[appStorage] removeItem failed for key "${key}":`, e);

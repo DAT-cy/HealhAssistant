@@ -1,6 +1,5 @@
 import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
-import { Platform } from 'react-native';
 
 export type KnowledgeStatus = 'REVIEW' | 'APPROVED' | 'REJECTED';
 export interface KnowledgeCategory { id: number; code: string; name: string }
@@ -53,12 +52,7 @@ export const knowledgeAdminService = {
   upload: async (input: KnowledgeUpload) => {
     const form = new FormData();
     const mimeType = input.file.mimeType || 'application/octet-stream';
-    if (Platform.OS === 'web') {
-      const blob = input.file.file ?? await (await fetch(input.file.uri)).blob();
-      form.append('file', blob, input.file.name);
-    } else {
-      form.append('file', { uri: input.file.uri, name: input.file.name, type: mimeType } as unknown as Blob);
-    }
+    form.append('file', { uri: input.file.uri, name: input.file.name, type: mimeType } as unknown as Blob);
     form.append('title', input.title);
     form.append('categoryCode', input.categoryCode);
     form.append('description', input.description);
@@ -69,6 +63,7 @@ export const knowledgeAdminService = {
     form.append('rightsConfirmed', 'true');
     return apiClient.request<KnowledgeDocument>(path, { method: 'POST', body: form, timeoutMs: 120000 });
   },
+  importWhoGuideline: () => apiClient.request<KnowledgeDocument>(`${path}/import/who-physical-activity`, { method: 'POST', timeoutMs: 120000 }),
   review: (id: number, action: 'APPROVE' | 'REJECT', note: string) => {
     const form = new FormData();
     form.append('action', action);

@@ -27,6 +27,13 @@ public class AvailabilitySlotController {
                 .body(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED, service.create(request)));
     }
 
+    @PostMapping("/batch")
+    public ResponseEntity<DefaultRes<List<AvailabilitySlotResponse>>> createBatch(
+            @Valid @RequestBody List<@Valid AvailabilitySlotRequest> requests) {
+        return ResponseEntity.status(StatusCode.CREATED)
+                .body(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED, service.createBatch(requests)));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<DefaultRes<List<AvailabilitySlotResponse>>> listMine() {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_LIST, service.listMine()));

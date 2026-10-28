@@ -3,7 +3,6 @@ import React, { useState } from 'react';
 import {
   Alert,
   Modal,
-  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -32,12 +31,10 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
 
   const triggerHaptic = (type: 'light' | 'medium' | 'success' | 'error' = 'light') => {
     try {
-      if (Platform.OS !== 'web') {
-        if (type === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        else if (type === 'medium') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        else if (type === 'success') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-        else if (type === 'error') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      }
+      if (type === 'light') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      else if (type === 'medium') Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+      else if (type === 'success') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      else if (type === 'error') Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     } catch {
       // Haptics fallback
     }
@@ -73,7 +70,7 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
     );
   };
 
-  const handleNavigate = (route: 'Profile' | 'Roadmap' | 'Progress') => {
+  const handleNavigate = (route: 'Roadmap' | 'Progress') => {
     triggerHaptic('light');
     setShowDropdown(false);
     navigationService.navigate(route);
@@ -125,14 +122,6 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
           >
             <Ionicons name="notifications-outline" size={21} color="#334155" />
           </Pressable>
-          <Pressable
-            onPress={() => handleNavigate('Profile')}
-            style={({ pressed }) => [styles.headerAction, pressed && styles.notificationBtnPressed]}
-            accessibilityRole="button"
-            accessibilityLabel="Mở cài đặt hồ sơ"
-          >
-            <Ionicons name="settings-outline" size={21} color="#334155" />
-          </Pressable>
         </View>
       </View>
 
@@ -169,24 +158,6 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
             <View style={styles.dropdownDivider} />
 
             {/* Menu Items */}
-            <Pressable
-              onPress={() => handleNavigate('Profile')}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                pressed && styles.dropdownItemPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <View style={[styles.dropdownItemIcon, { backgroundColor: '#EFEEFF' }]}>
-                <Ionicons name="person-outline" size={17} color={fitnessTheme.primary} />
-              </View>
-              <View style={styles.dropdownItemMeta}>
-                <Text style={styles.dropdownItemTitle}>Hồ sơ cá nhân</Text>
-                <Text style={styles.dropdownItemSub}>Mục tiêu, thể trạng, chiều cao</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={15} color="#94A3B8" />
-            </Pressable>
-
             <Pressable
               onPress={() => handleNavigate('Roadmap')}
               style={({ pressed }) => [

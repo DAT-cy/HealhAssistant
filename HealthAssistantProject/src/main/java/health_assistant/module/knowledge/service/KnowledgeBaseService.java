@@ -27,6 +27,7 @@ import org.xml.sax.SAXException;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
+import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -138,7 +139,35 @@ public class KnowledgeBaseService {
         }
 
         String filename = safeFilename(file.getOriginalFilename());
+        return saveDocument(bytes, filename, title, category, description, documentType, sourceOrganization,
+                sourceUrl, licenseName, rightsConfirmed);
+    }
+
+    @Transactional
+    public KnowledgeDocumentResponse importWhoGuideline() {
+        try {
+            byte[] bytes = new ClassPathResource("who-guidelines-physical-activity.pdf").getInputStream().readAllBytes();
+            KnowledgeCategory category = categoryRepository.findByCodeAndActiveTrue("EXERCISE")
+                    .orElseThrow(() -> new IllegalStateException("Không tìm thấy danh mục bài tập."));
+            return saveDocument(bytes, "who-guidelines-physical-activity.pdf",
+                    "WHO Guidelines on Physical Activity and Sedentary Behaviour",
+                    category,
+                    "Khuyến nghị WHO về tần suất, cường độ, thời lượng vận động và hành vi ít vận động; áp dụng theo nhóm tuổi và một số nhóm dân số.",
+                    "GUIDELINE", "World Health Organization", "https://www.who.int/publications/i/item/9789240015128",
+                    "CC BY-NC-SA 3.0 IGO", true);
+        } catch (IOException exception) {
+            throw new IllegalStateException("Không đọc được tài liệu WHO được đóng gói cùng backend.");
+        }
+    }
+
+    private KnowledgeDocumentResponse saveDocument(byte[] bytes, String filename, String title,
+                                                    KnowledgeCategory category, String description,
+                                                    String documentType, String sourceOrganization,
+                                                    String sourceUrl, String licenseName, boolean rightsConfirmed) {
         String extension = extension(filename);
+        String checksum = sha256(bytes);
+        var existing = documentRepository.findByFileSha256AndDeletedAtIsNull(checksum);
+        if (existing.isPresent()) return toResponse(existing.get(), true);
         String detectedMime = tika.detect(bytes, filename);
         if ("application/x-empty".equals(detectedMime) || "application/octet-stream".equals(detectedMime)) {
             throw new IllegalArgumentException("Không nhận dạng được nội dung tệp.");
@@ -183,7 +212,7 @@ public class KnowledgeBaseService {
             document.setOriginalFilename(filename);
             document.setDetectedMime(detectedMime);
             document.setFileSizeBytes(bytes.length);
-            document.setFileSha256(sha256(bytes));
+            document.setFileSha256(checksum);
             document.setStorageKey(storageKey);
             document.setExtractedText(extracted);
             document.setCreatedBy(SecurityUtils.getCurrentUserId());

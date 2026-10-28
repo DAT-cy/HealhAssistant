@@ -16,6 +16,7 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.context.request.WebRequest;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
@@ -119,6 +120,12 @@ public class GlobalExceptionHandler {
     public ResponseEntity<DefaultRes<Object>> handleNoResourceFoundException(NoResourceFoundException ex) {
         DefaultRes<Object> response = new DefaultRes<>(ErrorCode.API_NOT_FOUND.getStatus(), ErrorCode.API_NOT_FOUND.getMessage());
         return new ResponseEntity<>(response, HttpStatus.NOT_FOUND);
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<DefaultRes<Object>> handleMethodNotSupported(HttpRequestMethodNotSupportedException ex) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(new DefaultRes<>(HttpStatus.METHOD_NOT_ALLOWED.value(), ex.getMessage()));
     }
 
     @ExceptionHandler(CommonException.class)

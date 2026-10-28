@@ -1,4 +1,4 @@
-import { apiClient } from '../client';
+import { ApiError, apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
 
 export type HealthGoalType = 'WEIGHT_LOSS' | 'WEIGHT_MAINTENANCE' | 'MUSCLE_GAIN';
@@ -29,6 +29,8 @@ export interface AvailabilitySlot {
   active: boolean;
   createdAt: string;
 }
+
+export type AvailabilitySlotInput = Omit<AvailabilitySlot, 'id' | 'active' | 'createdAt'>;
 
 export interface WeightLog {
   id: number;
@@ -70,6 +72,23 @@ export interface DailyCheckinSummary {
 
 export type DailyCheckinInput = Omit<DailyCheckin, 'id' | 'checkInDate' | 'createdAt' | 'updatedAt'>;
 
+const createAvailability = (body: AvailabilitySlotInput) =>
+  apiClient.request<AvailabilitySlot>(`${apiVersion}/availability-slots`, { method: 'POST', body: JSON.stringify(body) });
+
+const createAvailabilityBatch = async (body: AvailabilitySlotInput[]) => {
+  try {
+    return await apiClient.request<AvailabilitySlot[]>(`${apiVersion}/availability-slots/batch`, { method: 'POST', body: JSON.stringify(body) });
+  } catch (error) {
+    const batchEndpointUnavailable = error instanceof ApiError
+      && ([404, 405].includes(error.status) || (error.status === 500 && error.message.includes("Request method 'POST' is not supported")));
+    if (!batchEndpointUnavailable) throw error;
+
+    const created: AvailabilitySlot[] = [];
+    for (const slot of body) created.push(await createAvailability(slot));
+    return created;
+  }
+};
+
 export const healthTrackingService = {
   goals: () => apiClient.request<HealthGoal[]>(`${apiVersion}/health-goals/me`),
   createGoal: (body: { goalType: HealthGoalType; startWeightKg?: number; targetWeightKg?: number; startDate?: string; targetDate?: string; notes?: string }) =>
@@ -77,8 +96,8 @@ export const healthTrackingService = {
   updateGoalStatus: (id: number, status: HealthGoalStatus) =>
     apiClient.request<HealthGoal>(`${apiVersion}/health-goals/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status }) }),
   availability: () => apiClient.request<AvailabilitySlot[]>(`${apiVersion}/availability-slots/me`),
-  createAvailability: (body: Omit<AvailabilitySlot, 'id' | 'active' | 'createdAt'>) =>
-    apiClient.request<AvailabilitySlot>(`${apiVersion}/availability-slots`, { method: 'POST', body: JSON.stringify(body) }),
+  createAvailability,
+  createAvailabilityBatch,
   deleteAvailability: (id: number) => apiClient.request<boolean>(`${apiVersion}/availability-slots/${id}`, { method: 'DELETE' }),
   weights: (from?: string, to?: string) => {
     const query = from && to ? `?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}` : '';

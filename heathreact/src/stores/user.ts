@@ -15,11 +15,13 @@ interface UserState {
   username: string;
   role: Role | null;
   initialized: boolean;
+  profileComplete: boolean | null;
 
   init: () => Promise<void>;
   login: (username: string, password: string) => Promise<void>;
   completeLogin: (response: LoginResponse) => Promise<void>;
   logout: () => Promise<void>;
+  setProfileComplete: (complete: boolean | null) => void;
 }
 
 // ============================================================
@@ -30,6 +32,7 @@ export const useUserStore = create<UserState>((set) => ({
   username: '',
   role: null,
   initialized: false,
+  profileComplete: null,
 
   init: async () => {
     try {
@@ -38,20 +41,20 @@ export const useUserStore = create<UserState>((set) => ({
         apiClient.setToken(token);
         try {
           const profile = await authService.profile();
-          set({ token, username: profile.username || '', role: profile.role ?? null, initialized: true });
+          set({ token, username: profile.username || '', role: profile.role ?? null, initialized: true, profileComplete: null });
         } catch {
           // Token không còn hợp lệ trên backend -> dọn dẹp sạch sẽ
           await appStorage.removeItem(TOKEN_KEY);
           apiClient.setToken(null);
-          set({ token: null, username: '', role: null, initialized: true });
+          set({ token: null, username: '', role: null, initialized: true, profileComplete: null });
         }
       } else {
         apiClient.setToken(null);
-        set({ token: null, username: '', role: null, initialized: true });
+        set({ token: null, username: '', role: null, initialized: true, profileComplete: null });
       }
     } catch {
       apiClient.setToken(null);
-      set({ token: null, username: '', role: null, initialized: true });
+      set({ token: null, username: '', role: null, initialized: true, profileComplete: null });
     }
   },
 
@@ -63,12 +66,12 @@ export const useUserStore = create<UserState>((set) => ({
   completeLogin: async (response: LoginResponse) => {
     await appStorage.setItem(TOKEN_KEY, response.token);
     apiClient.setToken(response.token);
-    set({ token: response.token, username: response.username || '', role: response.role ?? null });
+    set({ token: response.token, username: response.username || '', role: response.role ?? null, profileComplete: null });
   },
 
   logout: async () => {
     try {
-      // 1. Xóa token khỏi bộ nhớ cục bộ (hỗ trợ cả Web localStorage & Mobile SecureStore)
+      // Xóa token khỏi SecureStore trên thiết bị.
       await appStorage.removeItem(TOKEN_KEY);
     } catch (err) {
       console.warn('Lỗi khi xóa token khỏi storage:', err);
@@ -76,10 +79,11 @@ export const useUserStore = create<UserState>((set) => ({
     // 2. Xóa header Authorization trong apiClient
     apiClient.setToken(null);
     // 3. Cập nhật state Zustand
-    set({ token: null, username: '', role: null });
+    set({ token: null, username: '', role: null, profileComplete: null });
     // 4. Replace with the unauthenticated route immediately.
     navigationService.replace('Login');
   },
+  setProfileComplete: (complete) => set({ profileComplete: complete }),
 }));
 
 // Xử lý 401 tự động đăng xuất (chỉ một lần).

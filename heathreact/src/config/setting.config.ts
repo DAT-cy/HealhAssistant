@@ -8,7 +8,7 @@ export const setting = {
   routesWhiteList: ['/login', '/register', '/404', '/'],
   tokenName: 'token',
   tokenTableName: 'token',
-  storage: 'localStorage',
+  storage: 'secureStore',
   recordRoute: true,
   i18n: 'vi',
   loginInterception: true,

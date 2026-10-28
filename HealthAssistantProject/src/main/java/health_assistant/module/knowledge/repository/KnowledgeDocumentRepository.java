@@ -8,6 +8,7 @@ import java.util.Optional;
 
 public interface KnowledgeDocumentRepository extends JpaRepository<KnowledgeDocument, Long>, JpaSpecificationExecutor<KnowledgeDocument> {
     Optional<KnowledgeDocument> findByIdAndDeletedAtIsNull(Long id);
+    Optional<KnowledgeDocument> findByFileSha256AndDeletedAtIsNull(String fileSha256);
     long countByDeletedAtIsNull();
     long countByStatusAndDeletedAtIsNull(String status);
 }

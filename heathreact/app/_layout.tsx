@@ -2,7 +2,6 @@ import '@/global.css';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import React, { useState } from 'react';
-import { Platform } from 'react-native';
 import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useUserStore } from '@/stores/user';
@@ -18,7 +17,7 @@ export default function RootLayout() {
 
   React.useEffect(() => {
     void init();
-    if (Platform.OS !== 'web') void SystemUI.setBackgroundColorAsync('#F7F8FC').catch(() => {});
+    void SystemUI.setBackgroundColorAsync('#F7F8FC').catch(() => {});
   }, [init]);
 
   return (

@@ -35,24 +35,69 @@ public class RoadmapLifecycleService {
 
     @Transactional
     public RoadmapResponse activate(String previewId, int optionIndex) {
-        Long userId = SecurityUtils.getCurrentUserId();
-        UserProfile profile = profileRepository.findByUserIdForUpdate(userId)
-                .orElseThrow(() -> new IllegalArgumentException("Hãy lưu hồ sơ trước khi kích hoạt lộ trình."));
-        if (!profile.isConsent()) throw new IllegalArgumentException("Cần đồng ý sử dụng dữ liệu hồ sơ trước.");
-        if (profile.getHeightCm() == null || profile.getWeightKg() == null) {
-            throw new IllegalArgumentException("Hãy nhập chiều cao và cân nặng trước khi kích hoạt lộ trình.");
-        }
+        return activate(previewId, optionIndex, null, null);
+    }
 
-        RoadmapPreviewService.Selection selection = previewService.selectWithSchedule(
-                previewId, userId, profile.getUpdatedAt(), optionIndex);
+    @Transactional
+    public RoadmapResponse activate(String previewId, int optionIndex, String requestedTitle) {
+        return activate(previewId, optionIndex, requestedTitle, null);
+    }
+
+    @Transactional
+    public RoadmapResponse activate(String previewId, int optionIndex, String requestedTitle, Long draftId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        UserProfile profile = profileRepository.findByUserIdForUpdate(userId).orElse(null);
+        Instant profileVersion = profile == null ? Instant.EPOCH : profile.getUpdatedAt();
+        RoadmapPreviewService.Selection selection = previewService.selectWithSchedule(previewId, userId, profileVersion, optionIndex);
         GeminiRoadmapResponse selected = selection.plan();
-        RoadmapRecord previous = roadmapRepository.findFirstByUserIdOrderByCreatedAtDesc(userId).orElse(null);
-        RoadmapRecord activated = createVersion(userId, previous, selected.title(), selected.overview(),
+        RoadmapRecord draft = draftId == null ? null : roadmapRepository.findByIdAndUserId(draftId, userId).orElse(null);
+        RoadmapRecord previous = roadmapRepository.findFirstByUserIdAndStatusOrderByCreatedAtDesc(userId, "ACTIVE").orElse(null);
+        String title = requestedTitle == null || requestedTitle.isBlank()
+                ? (draft == null ? selected.title() : draft.getTitle()) : requestedTitle.trim();
+        if (draft != null && "DRAFT".equals(draft.getStatus())) {
+            draft.setStatus("ARCHIVED");
+            roadmapRepository.save(draft);
+        }
+        RoadmapRecord activated = createVersion(userId, previous, title, selected.overview(),
                 selected.weeklyPlan(), selected.safetyNotes(), selected.source(),
                 previous == null ? "INITIAL_PLAN" : "USER_CONFIRMED_NEW_PLAN",
                 GeminiCoachService.PROMPT_VERSION, GeminiCoachService.SCHEMA_VERSION);
         saveSchedule(activated, selection.schedule());
         return toResponse(activated);
+    }
+
+    @Transactional
+    public RoadmapResponse createDraft(String title) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (title == null || title.isBlank()) throw new IllegalArgumentException("Tên lộ trình không được để trống.");
+        if (title.trim().length() > 160) throw new IllegalArgumentException("Tên lộ trình tối đa 160 ký tự.");
+        RoadmapRecord draft = new RoadmapRecord();
+        draft.setUserId(userId);
+        draft.setTitle(title.trim());
+        draft.setSource("user-draft");
+        draft.setStatus("DRAFT");
+        draft.setCreatedAt(Instant.now());
+        return toResponse(roadmapRepository.save(draft));
+    }
+
+    @Transactional
+    public RoadmapResponse renameDraft(Long id, String title) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        if (title == null || title.isBlank()) throw new IllegalArgumentException("Tên lộ trình không được để trống.");
+        RoadmapRecord draft = roadmapRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy bản nháp lộ trình."));
+        if (!"DRAFT".equals(draft.getStatus())) throw new IllegalArgumentException("Chỉ có thể sửa tên bản nháp.");
+        draft.setTitle(title.trim());
+        return toResponse(roadmapRepository.save(draft));
+    }
+
+    @Transactional
+    public void deleteDraft(Long id) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        RoadmapRecord draft = roadmapRepository.findByIdAndUserId(id, userId)
+                .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy bản nháp lộ trình."));
+        if (!"DRAFT".equals(draft.getStatus())) throw new IllegalArgumentException("Chỉ có thể xóa bản nháp.");
+        roadmapRepository.delete(draft);
     }
 
     @Transactional
@@ -155,6 +200,7 @@ public class RoadmapLifecycleService {
     public List<RoadmapResponse> history() {
         Long userId = SecurityUtils.getCurrentUserId();
         return roadmapRepository.findTop10ByUserIdOrderByCreatedAtDesc(userId).stream()
+                .filter(record -> !"ARCHIVED".equals(record.getStatus()))
                 .map(this::toResponse).toList();
     }
 
