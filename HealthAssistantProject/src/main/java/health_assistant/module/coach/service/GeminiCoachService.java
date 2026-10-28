@@ -21,7 +21,7 @@ import java.util.List;
 @RequiredArgsConstructor
 @Slf4j
 public class GeminiCoachService {
-    public static final String PROMPT_VERSION = "ROADMAP_V2";
+    public static final String PROMPT_VERSION = "ROADMAP_V3";
     public static final String SCHEMA_VERSION = "ROADMAP_SCHEMA_V1";
     private final GeminiClient geminiClient;
     private final ObjectMapper objectMapper;
@@ -56,6 +56,13 @@ public class GeminiCoachService {
     }
 
     private String prompt(GeminiRoadmapRequest request) {
+        String schedule = request.schedule() == null || request.schedule().isEmpty()
+                ? "Không có khung giờ cố định được cung cấp."
+                : request.schedule().stream()
+                        .map(slot -> "Thứ " + slot.dayOfWeek() + " " + slot.sessionPeriod() + " "
+                                + slot.startTime() + "-" + slot.endTime() + " " + slot.activityType()
+                                + " (" + AiPromptSanitizer.sanitize(slot.activity(), 100) + ")")
+                        .collect(java.util.stream.Collectors.joining("; "));
         return """
                 Bạn là trợ lý lập kế hoạch vận động phổ thông. Trả lời hoàn toàn bằng tiếng Việt.
                 Tạo lộ trình an toàn đúng %d tuần, mỗi tuần một mục tiêu thực tế và có thể theo dõi.
@@ -64,12 +71,15 @@ public class GeminiCoachService {
                 Mục tiêu: %s.
                 Tóm tắt tư thế đã được hệ thống tính: %s.
                 Hạn chế người dùng khai báo: %s.
+                Lịch duy nhất được phép dùng: %s.
+                Không tự thêm ngày, buổi hoặc giờ tập. Chỉ xây nội dung và cường độ cho các khung giờ đã liệt kê; ngày không có khung là ngày nghỉ/phục hồi.
                 Chỉ đề xuất bài tập phổ thông, nghỉ phục hồi và lưu ý dừng khi đau/khó chịu.
                 Prompt version: %s.
                 """.formatted(request.weeks(),
                 AiPromptSanitizer.sanitize(request.goal(), 120),
                 AiPromptSanitizer.sanitize(request.postureSummary(), 500),
                 AiPromptSanitizer.sanitize(request.restrictions(), 500),
+                AiPromptSanitizer.sanitize(schedule, 14000),
                 PROMPT_VERSION);
     }
 

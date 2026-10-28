@@ -1,6 +1,7 @@
 README.md
 .gradle
 build/
+storage/personal-assistant/
 .env
 .env.*
 !.env.example

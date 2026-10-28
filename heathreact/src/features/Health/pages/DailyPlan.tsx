@@ -1,6 +1,6 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
 import Badge from '@/components/ui/Badge';
@@ -9,6 +9,7 @@ import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { dailyPlanService, DailyPlanResponse } from '@/api/services/daily-plan.service';
 import { ApiError } from '@/api/client';
 import { palette } from '@/theme/tokens';
+import { navigationService } from '@/routes';
 
 export default function DailyPlanPage() {
   const [data, setData] = useState<DailyPlanResponse | null>(null);
@@ -87,6 +88,11 @@ export default function DailyPlanPage() {
             <Text style={{ flex: 1, color: palette.text }}>{activity}</Text>
           </View>
         </Card>)}
+        <Pressable onPress={() => navigationService.navigate('Roadmap')} accessibilityRole="button" style={{ minHeight: 64, padding: 12, borderRadius: 9, backgroundColor: palette.primarySoft, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Ionicons name="restaurant-outline" size={20} color={palette.primary} />
+          <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontWeight: '800' }}>Lịch ăn và phân tích món</Text><Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 3 }}>Mở lịch theo ngày để xem gợi ý hoặc chụp ảnh bữa ăn</Text></View>
+          <Ionicons name="chevron-forward" size={18} color={palette.primary} />
+        </Pressable>
         <Card>
           <Text style={{ color: palette.text, fontWeight: '700' }}>Lưu ý an toàn</Text>
           {data.safetyNotes.map((note) => <Text key={note} style={{ color: palette.textMuted, marginTop: 7 }}>• {note}</Text>)}

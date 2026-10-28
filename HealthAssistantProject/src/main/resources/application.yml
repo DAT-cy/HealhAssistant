@@ -9,6 +9,27 @@ spring:
       max-request-size: 6MB
   knowledge-base:
     storage-dir: ${KB_STORAGE_DIR:./data/knowledge-base}
+  personal-assistant:
+    storage-dir: ${PERSONAL_ASSISTANT_STORAGE_DIR:./storage/personal-assistant}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+app:
+  otp:
+    expiry-minutes: ${OTP_EXPIRY_MINUTES:5}
+    resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60}
+    max-attempts: ${OTP_MAX_ATTEMPTS:5}
+    rate-limit-secret: ${OTP_RATE_LIMIT_SECRET:${JWT_SECRET:}}
+    mail-from: ${MAIL_FROM:${MAIL_USERNAME:}}
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
@@ -24,3 +45,14 @@ cloudinary:
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}
   api-key: ${CLOUDINARY_API_KEY:}
   api-secret: ${CLOUDINARY_API_SECRET:}
+
+billing:
+  mode: ${BILLING_MODE:sandbox}
+  stripe-secret-key: ${STRIPE_SECRET_KEY:}
+  stripe-webhook-secret: ${STRIPE_WEBHOOK_SECRET:}
+  stripe-api-base: ${STRIPE_API_BASE:https://api.stripe.com}
+  paypal-client-id: ${PAYPAL_CLIENT_ID:}
+  paypal-client-secret: ${PAYPAL_CLIENT_SECRET:}
+  paypal-webhook-id: ${PAYPAL_WEBHOOK_ID:}
+  paypal-api-base: ${PAYPAL_API_BASE:https://api-m.sandbox.paypal.com}
+  return-url: ${BILLING_RETURN_URL:http://localhost:8084/api/v1/billing/return}

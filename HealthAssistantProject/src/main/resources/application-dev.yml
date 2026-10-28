@@ -2,6 +2,17 @@ server:
   port: 8081
 
 spring:
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME:}
+    password: ${MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: ${MAIL_SMTP_AUTH:true}
+          starttls:
+            enable: ${MAIL_SMTP_STARTTLS_ENABLE:true}
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/health_assistant?createDatabaseIfNotExist=true&useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true}
     username: ${DB_USERNAME:root}
@@ -26,6 +37,6 @@ jwt:
   expiration: ${JWT_EXPIRATION:86400000}
 
 gemini:
-  api-key: AIzaSyACEdChYoUwlA3HSVUyLFPMLgSYyKZCoW0
-  model: gemini-2.5-flash
+  api-key: ${GEMINI_API_KEY:}
+  model: ${GEMINI_MODEL:gemini-3.8-flash}
   base-url: https://generativelanguage.googleapis.com/v1beta

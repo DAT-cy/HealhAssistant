@@ -4,7 +4,6 @@ import health_assistant.config.response.CommonException;
 import health_assistant.config.response.ErrorCode;
 import health_assistant.config.app.JwtService;
 import health_assistant.module.users.dto.request.LoginRequest;
-import health_assistant.module.users.dto.request.SignUpRequest;
 import health_assistant.module.users.dto.response.LoginResponse;
 import health_assistant.module.users.dto.response.ProfileUser;
 import health_assistant.module.users.entity.Role;
@@ -71,18 +70,6 @@ public class UserServiceImpl implements UserService {
         }
     }
     @Override
-    public LoginResponse signUp(SignUpRequest request) {
-        String email = request.getEmail().trim().toLowerCase(java.util.Locale.ROOT);
-        User user = saveUser(email, request.getPassword());
-        userMapper.insertUser(user);
-        return LoginResponse.builder()
-                .username(user.getUsername())
-                .token(jwtService.generateToken(user))
-                .role(user.getRole())
-                .build();
-    }
-
-    @Override
     public ProfileUser getProfile() {
         User user = SecurityUtils.getCurrentUser();
         if (user == null) {
@@ -95,29 +82,6 @@ public class UserServiceImpl implements UserService {
 
     }
 
-    private User saveUser(String email, String password) {
-        User user = findUserByEmail(email);
-        if(user == null) {
-            user = new User();
-            user.setUsername(email);
-            user.setEmail(email);
-            user.setPassword(passwordEncoder.encode(password));
-            user.setRole(Role.ROLE_USER);
-            user.setEnable(true);
-            user.setIsDeleted(false);
-            return user;
-        }
-        else {
-            throw new CommonException(ErrorCode.USERNAME_ALREADY_EXISTS);
-        }
-    }
-
-    private User findUserByEmail(String email) {
-         return userMapper.findByUsername(email).orElse(null);
-    }
-
-
-
     @Override
     public void initAdminUser() {
         if (userMapper.countAdminUsers() == 0) {
@@ -126,6 +90,7 @@ public class UserServiceImpl implements UserService {
             admin.setPassword(passwordEncoder.encode("admin"));
             admin.setEnable(true);
             admin.setIsDeleted(false);
+            admin.setEmailVerified(true);
             admin.setRole(Role.ROLE_ADMIN);
             userMapper.insertUser(admin);
             User user = new User();
@@ -133,6 +98,7 @@ public class UserServiceImpl implements UserService {
             user.setPassword(passwordEncoder.encode("user"));
             user.setEnable(true);
             user.setIsDeleted(false);
+            user.setEmailVerified(true);
             user.setRole(Role.ROLE_USER);
             userMapper.insertUser(user);
         }

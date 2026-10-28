@@ -1,6 +1,6 @@
 import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
-import { authService } from '@/api/services/auth.service';
+import { authService, type OtpPurpose } from '@/api/services/auth.service';
 import { signInWithGoogle } from '@/services/googleSignIn';
 import { palette } from '@/theme/tokens';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,7 +12,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import {
   ActivityIndicator,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -59,6 +58,16 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [mode, setMode] = useState<'login' | 'signup'>('login');
+  const [flow, setFlow] = useState<'AUTH' | 'FORGOT_EMAIL' | 'REGISTER_OTP' | 'RESET_OTP' | 'NEW_PASSWORD'>('AUTH');
+  const [flowEmail, setFlowEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+  const [otpCountdown, setOtpCountdown] = useState(0);
+  const [otpExpiresIn, setOtpExpiresIn] = useState(0);
+  const [resetToken, setResetToken] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [flowMessage, setFlowMessage] = useState('');
+  const [flowError, setFlowError] = useState('');
   const formSchema = useMemo(() => authSchemaFor(mode), [mode]);
   const { control, setValue, handleSubmit, clearErrors } = useForm<AuthFormValues>({
     resolver: zodResolver(formSchema),
@@ -89,6 +98,15 @@ export default function LoginPage() {
     void loadSavedCredentials();
   }, [setValue]);
 
+  useEffect(() => {
+    if (flow !== 'REGISTER_OTP' && flow !== 'RESET_OTP') return;
+    const timer = setInterval(() => {
+      setOtpCountdown(current => Math.max(0, current - 1));
+      setOtpExpiresIn(current => Math.max(0, current - 1));
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [flow]);
+
   const triggerHaptic = (type: 'light' | 'medium' | 'success' | 'error' = 'light') => {
     try {
       if (Platform.OS !== 'web') {
@@ -111,11 +129,76 @@ export default function LoginPage() {
 
   const handleForgotPassword = () => {
     triggerHaptic('light');
-    Alert.alert(
+    setFlowEmail(username.trim());
+    setFlowError('');
+    setFlowMessage('');
+    setFlow('FORGOT_EMAIL');
+    /* Alert.alert(
       'Khôi phục mật khẩu',
       'Nếu bạn quên mật khẩu hoặc tài khoản chưa kích hoạt, vui lòng liên hệ quản trị viên hoặc sử dụng email Gmail đã đăng ký để được cấp lại mật khẩu.',
       [{ text: 'Đã hiểu', style: 'default' }]
-    );
+    ); */
+  };
+
+  const closeOtpFlow = () => {
+    setFlow('AUTH'); setOtpCode(''); setResetToken(''); setNewPassword(''); setConfirmNewPassword('');
+    setFlowError(''); setFlowMessage('');
+  };
+
+  const startPasswordReset = async () => {
+    if (!/^[^\s@]+@gmail\.com$/i.test(flowEmail.trim())) { setFlowError('Nháº­p Ä‘á»‹a chá»‰ Gmail há»£p lá»‡.'); return; }
+    setLoading(true); setFlowError(''); setFlowMessage('');
+    try {
+      const result = await authService.sendPasswordResetOtp(flowEmail.trim());
+      setOtpCountdown(result.resendAfterSeconds); setOtpExpiresIn(result.expiresInSeconds); setOtpCode(''); setFlow('RESET_OTP'); setFlowMessage(result.message);
+    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'KhÃ´ng thá»ƒ gá»­i yÃªu cáº§u lÃºc nÃ y.'); }
+    finally { setLoading(false); }
+  };
+
+  const resendOtp = async () => {
+    if (otpCountdown > 0 || loading) return;
+    const purpose: OtpPurpose = flow === 'REGISTER_OTP' ? 'REGISTER' : 'RESET_PASSWORD';
+    setLoading(true); setFlowError(''); setFlowMessage('');
+    try {
+      const result = await authService.resendOtp(flowEmail, purpose);
+      setOtpCountdown(result.resendAfterSeconds); setOtpExpiresIn(result.expiresInSeconds); setOtpCode(''); setFlowMessage(result.message);
+    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'KhÃ´ng thá»ƒ gá»­i láº¡i mÃ£ lÃºc nÃ y.'); }
+    finally { setLoading(false); }
+  };
+
+  const verifyOtp = async () => {
+    if (!/^\d{6}$/.test(otpCode)) { setFlowError('Nháº­p Ä‘á»§ 6 chá»¯ sá»‘.'); return; }
+    const purpose: OtpPurpose = flow === 'REGISTER_OTP' ? 'REGISTER' : 'RESET_PASSWORD';
+    setLoading(true); setFlowError(''); setFlowMessage('');
+    try {
+      const response = await authService.verifyOtp(flowEmail, purpose, otpCode);
+      if (!response.verified) throw new Error(response.message);
+      if (purpose === 'REGISTER') {
+        if (!response.login?.token) throw new Error('MÃ¡y chá»§ chÆ°a tráº£ vá» phiÃªn Ä‘Äƒng nháº­p.');
+        await completeLogin(response.login);
+        if (rememberMe) { await appStorage.setItem(REMEMBER_ME_KEY, 'true'); await appStorage.setItem(SAVED_USER_KEY, flowEmail); }
+        else { await appStorage.setItem(REMEMBER_ME_KEY, 'false'); await appStorage.removeItem(SAVED_USER_KEY); }
+        triggerHaptic('success');
+        return;
+      }
+      if (!response.resetToken) throw new Error('MÃ¡y chá»§ chÆ°a tráº£ vá» quyá»n Ä‘áº·t láº¡i máº­t kháº©u.');
+      setResetToken(response.resetToken); setNewPassword(''); setConfirmNewPassword(''); setFlow('NEW_PASSWORD');
+      setFlowMessage(response.message);
+    } catch (err) { triggerHaptic('error'); setFlowError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'KhÃ´ng thá»ƒ xÃ¡c minh mÃ£.'); }
+    finally { setLoading(false); }
+  };
+
+  const submitNewPassword = async () => {
+    if (newPassword.length < 8 || newPassword.length > 72) { setFlowError('Máº­t kháº©u pháº£i cÃ³ tá»« 8 Ä‘áº¿n 72 kÃ½ tá»±.'); return; }
+    if (newPassword !== confirmNewPassword) { setFlowError('Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p.'); return; }
+    setLoading(true); setFlowError(''); setFlowMessage('');
+    try {
+      await authService.resetPassword(flowEmail, resetToken, newPassword);
+      setFlowMessage('ÄÃ£ Ä‘áº·t máº­t kháº©u má»›i. HÃ£y Ä‘Äƒng nháº­p láº¡i.');
+      setMode('login'); setValue('username', flowEmail); setValue('pwd', ''); setValue('confirmPwd', '');
+      setFlow('AUTH'); setResetToken(''); setOtpCode('');
+    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'KhÃ´ng thá»ƒ Ä‘áº·t máº­t kháº©u má»›i.'); }
+    finally { setLoading(false); }
   };
 
   const handleLogin = async (values: AuthFormValues) => {
@@ -128,7 +211,11 @@ export default function LoginPage() {
 
     try {
       if (mode === 'signup') {
-        await completeLogin(await authService.signUp(trimmedUser, rawPassword));
+        const response = await authService.signUp(trimmedUser, rawPassword);
+        setFlowEmail(trimmedUser); setOtpCountdown(response.resendAfterSeconds); setOtpExpiresIn(response.expiresInSeconds); setOtpCode('');
+        setFlowMessage(response.message); setFlowError(''); setFlow('REGISTER_OTP');
+        triggerHaptic('success');
+        return;
       } else {
         await login(trimmedUser, rawPassword);
       }
@@ -185,6 +272,40 @@ export default function LoginPage() {
   };
 
   const isFieldActive = (field: string) => focusedField === field;
+
+  if (flow !== 'AUTH') {
+    const otpFlow = flow === 'REGISTER_OTP' || flow === 'RESET_OTP';
+    const title = flow === 'FORGOT_EMAIL' ? 'KhÃ´i phá»¥c máº­t kháº©u'
+      : flow === 'NEW_PASSWORD' ? 'Äáº·t máº­t kháº©u má»›i'
+        : flow === 'REGISTER_OTP' ? 'XÃ¡c minh email' : 'Nháº­p mÃ£ OTP';
+    const primaryLabel = flow === 'FORGOT_EMAIL' ? 'Gá»­i mÃ£ xÃ¡c minh'
+      : flow === 'NEW_PASSWORD' ? 'LÆ°u máº­t kháº©u má»›i' : 'XÃ¡c minh mÃ£';
+    const primaryAction = flow === 'FORGOT_EMAIL' ? startPasswordReset
+      : flow === 'NEW_PASSWORD' ? submitNewPassword : verifyOtp;
+    return <View style={{ flex: 1, backgroundColor: '#F7F8FC', paddingTop: insets.top + 20, paddingHorizontal: 22 }}>
+      <StatusBar barStyle="dark-content" backgroundColor="#F7F8FC" translucent />
+      <Pressable onPress={closeOtpFlow} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: palette.primary, fontSize: 16 }}>‹  Quay láº¡i</Text></Pressable>
+      <View style={{ marginTop: 32, gap: 12 }}>
+        <Text style={{ color: palette.text, fontSize: 25, fontWeight: '800' }}>{title}</Text>
+        <Text style={{ color: palette.textMuted, lineHeight: 21 }}>{otpFlow ? `Nháº­p mÃ£ 6 chá»¯ sá»‘ gá»­i Ä‘áº¿n ${flowEmail}. MÃ£ chá»‰ dÃ¹ng má»™t láº§n.` : flow === 'FORGOT_EMAIL' ? 'Nháº­p Gmail Ä‘Ã£ Ä‘Äƒng kÃ½. Náº¿u thÃ´ng tin phÃ¹ há»£p, chÃºng tÃ´i sáº½ gá»­i mÃ£ xÃ¡c minh.' : 'Máº­t kháº©u má»›i cáº§n cÃ³ tá»« 8 Ä‘áº¿n 72 kÃ½ tá»±.'}</Text>
+        {flow === 'FORGOT_EMAIL' ? <TextInput value={flowEmail} onChangeText={setFlowEmail} autoCapitalize="none" keyboardType="email-address" placeholder="email@gmail.com" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} /> : null}
+        {otpFlow ? <>
+          <TextInput value={otpCode} onChangeText={value => setOtpCode(value.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} autoComplete="one-time-code" textContentType="oneTimeCode" placeholder="000000" placeholderTextColor={palette.textMuted} style={{ minHeight: 58, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text, fontSize: 25, letterSpacing: 5, textAlign: 'center' }} />
+          <Text style={{ color: otpExpiresIn > 0 ? palette.textMuted : palette.danger, fontSize: 13 }}>MÃ£ háº¿t háº¡n sau {otpExpiresIn}s</Text>
+          <Pressable disabled={otpCountdown > 0 || loading} onPress={() => void resendOtp()} accessibilityRole="button" style={{ minHeight: 38, justifyContent: 'center', opacity: otpCountdown > 0 || loading ? 0.55 : 1 }}><Text style={{ color: palette.primary, fontWeight: '700' }}>{otpCountdown > 0 ? `Gá»­i láº¡i sau ${otpCountdown}s` : 'Gá»­i láº¡i mÃ£ OTP'}</Text></Pressable>
+        </> : null}
+        {flow === 'NEW_PASSWORD' ? <>
+          <TextInput value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Máº­t kháº©u má»›i" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} />
+          <TextInput value={confirmNewPassword} onChangeText={setConfirmNewPassword} secureTextEntry placeholder="XÃ¡c nháº­n máº­t kháº©u má»›i" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} />
+        </> : null}
+        {flowMessage ? <Text accessibilityLiveRegion="polite" style={{ color: palette.success, lineHeight: 20 }}>{flowMessage}</Text> : null}
+        {flowError ? <Text accessibilityLiveRegion="polite" style={{ color: palette.danger, lineHeight: 20 }}>{flowError}</Text> : null}
+        <Pressable onPress={() => void primaryAction()} disabled={loading} accessibilityRole="button" style={{ minHeight: 50, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: palette.primary, opacity: loading ? 0.6 : 1 }}>
+          {loading ? <ActivityIndicator color="#FFFFFF" /> : null}<Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{loading ? 'Äang xá»­ lÃ½...' : primaryLabel}</Text>
+        </Pressable>
+      </View>
+    </View>;
+  }
 
   return (
     <View nativeID="auth-screen" style={styles.container}>

@@ -16,6 +16,7 @@ public class SignUpRequest {
 
     @NotBlank
     @NotNull
+    @Size(max = 254)
     @Email(message = "Email must be valid")
     @Pattern(regexp = "^[a-zA-Z0-9._%+-]+@gmail\\.com$", message = "Email must be a valid Gmail address")
     private String email;

@@ -17,6 +17,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.Iterator;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
@@ -57,7 +58,46 @@ public class CloudinaryUploadService {
         }
     }
 
-    private void validateImage(MultipartFile file) {
+    public UploadedMealPhoto uploadMealPhoto(Long userId, MultipartFile file) {
+        validateImage(file);
+        Cloudinary cloudinary = cloudinaryProvider.getIfAvailable();
+        if (cloudinary == null) throw new CloudinaryUploadException("Cloudinary chưa được cấu hình ở backend.");
+        String folder = "health-assistant/meal-photos/user-" + userId;
+        try {
+            Map<?, ?> result = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                    "resource_type", "image",
+                    "public_id", folder + "/" + UUID.randomUUID(),
+                    "allowed_formats", new String[] { "jpg", "jpeg", "png" }));
+            String secureUrl = String.valueOf(result.get("secure_url"));
+            String publicId = String.valueOf(result.get("public_id"));
+            if (secureUrl.isBlank() || "null".equals(secureUrl) || !publicId.startsWith(folder + "/")) {
+                throw new CloudinaryUploadException("Cloudinary không trả về ảnh món ăn hợp lệ.");
+            }
+            return new UploadedMealPhoto(secureUrl, publicId);
+        } catch (CloudinaryUploadException exception) {
+            throw exception;
+        } catch (Exception exception) {
+            log.warn("Cloudinary meal photo upload failed ({})", exception.getClass().getSimpleName());
+            throw new CloudinaryUploadException("Không thể lưu ảnh món ăn.");
+        }
+    }
+
+    public void deleteMealPhoto(Long userId, String publicId) {
+        String expectedFolder = "health-assistant/meal-photos/user-" + userId + "/";
+        if (publicId == null || !publicId.startsWith(expectedFolder)) {
+            throw new IllegalArgumentException("Ảnh không thuộc tài khoản hiện tại.");
+        }
+        Cloudinary cloudinary = cloudinaryProvider.getIfAvailable();
+        if (cloudinary == null) throw new CloudinaryUploadException("Cloudinary chưa được cấu hình ở backend.");
+        try {
+            cloudinary.uploader().destroy(publicId, ObjectUtils.asMap("resource_type", "image", "invalidate", true));
+        } catch (Exception exception) {
+            log.warn("Cloudinary meal photo delete failed ({})", exception.getClass().getSimpleName());
+            throw new CloudinaryUploadException("Không thể xóa ảnh món ăn.");
+        }
+    }
+
+    public void validateImageFile(MultipartFile file) {
         if (file == null || file.isEmpty()) throw new IllegalArgumentException("Chưa chọn ảnh.");
         if (file.getSize() > MAX_BYTES) throw new IllegalArgumentException("Ảnh vượt quá giới hạn 5 MB.");
         String contentType = file.getContentType();
@@ -86,5 +126,8 @@ public class CloudinaryUploadService {
         }
     }
 
+    private void validateImage(MultipartFile file) { validateImageFile(file); }
+
     public record UploadedAvatar(String secureUrl, String publicId) {}
+    public record UploadedMealPhoto(String secureUrl, String publicId) {}
 }

@@ -29,6 +29,10 @@ public class RoadmapPreview {
     @Column(nullable = false)
     private String optionsJson;
 
+    @Lob
+    @Column(name = "schedule_json")
+    private String scheduleJson;
+
     @Column(name = "expires_at", nullable = false)
     private Instant expiresAt;
 

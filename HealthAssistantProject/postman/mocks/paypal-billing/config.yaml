@@ -1,0 +1,11 @@
+version: 1
+name: paypal-billing
+slug: paypal-billing
+protocol: http
+port: 4502
+origin: api-m.sandbox.paypal.com
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

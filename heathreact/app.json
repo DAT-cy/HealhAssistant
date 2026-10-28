@@ -39,6 +39,33 @@
         }
       ],
       "expo-font",
+      [
+        "expo-image-picker",
+        {
+          "cameraPermission": "Cho phép ứng dụng chụp ảnh bữa ăn để nhận góp ý.",
+          "photosPermission": "Cho phép ứng dụng chọn ảnh bữa ăn để nhận góp ý."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Cho phép Health Assistant mở camera khi bạn chủ động dùng hướng dẫn tập.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Cho phép Health Assistant dùng vị trí khi bạn chủ động theo dõi chạy bộ hoặc đi bộ để ước tính quãng đường."
+        }
+      ],
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "Cho phép Health Assistant đọc bộ đếm bước chân trong lúc bạn theo dõi hoạt động."
+        }
+      ],
       "expo-image",
       "expo-secure-store",
       "expo-status-bar",

@@ -6,6 +6,7 @@ import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.core.userdetails.UserDetails;
+import health_assistant.module.users.entity.User;
 import org.springframework.stereotype.Service;
 
 import java.security.Key;
@@ -31,7 +32,9 @@ public class JwtService {
     }
 
     public String generateToken(UserDetails userDetails) {
-        return generateToken(new HashMap<>(), userDetails);
+        Map<String, Object> claims = new HashMap<>();
+        if (userDetails instanceof User user) claims.put("auth_version", user.getAuthVersion());
+        return generateToken(claims, userDetails);
     }
 
 
@@ -49,7 +52,12 @@ public class JwtService {
 
     public boolean isTokenValid(String token, UserDetails userDetails) {
         final String username = extractUsername(token);
-        return (username.equals(userDetails.getUsername())) && !isTokenExpired(token);
+        if (!(username.equals(userDetails.getUsername())) || isTokenExpired(token)) return false;
+        if (userDetails instanceof User user) {
+            Integer tokenVersion = extractClaim(token, claims -> claims.get("auth_version", Integer.class));
+            return tokenVersion == null ? user.getAuthVersion() == 0 : tokenVersion == user.getAuthVersion();
+        }
+        return true;
     }
 
     public boolean isTokenExpired(String token) {

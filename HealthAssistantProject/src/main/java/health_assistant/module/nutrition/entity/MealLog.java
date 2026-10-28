@@ -5,6 +5,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 @Entity
@@ -22,6 +23,12 @@ public class MealLog {
     @Column(name = "logged_at", nullable = false)
     private LocalDateTime loggedAt;
 
+    @Column(name = "reviewed_at")
+    private LocalDateTime reviewedAt;
+
+    @Column(name = "meal_date")
+    private LocalDate mealDate;
+
     @Column(name = "meal_type", nullable = false, length = 20)
     private String mealType;
 
@@ -30,6 +37,36 @@ public class MealLog {
 
     @Column(length = 1000)
     private String notes;
+
+    @Column(name = "roadmap_id")
+    private Long roadmapId;
+
+    @Column(name = "plan_day_index")
+    private Integer planDayIndex;
+
+    @Column(name = "photo_url", length = 1000)
+    private String photoUrl;
+
+    @Column(name = "photo_public_id", length = 255)
+    private String photoPublicId;
+
+    @Column(name = "planned_meal", length = 240)
+    private String plannedMeal;
+
+    @Column(name = "dish_name", length = 180)
+    private String dishName;
+
+    @Column(name = "portion_notes", length = 500)
+    private String portionNotes;
+
+    @Column(length = 500)
+    private String ingredients;
+
+    @Column(name = "analysis_json", columnDefinition = "LONGTEXT")
+    private String analysisJson;
+
+    @Column(name = "recommendation_source", length = 30)
+    private String recommendationSource;
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private Instant createdAt;

@@ -11,4 +11,6 @@ public interface UserMapper {
     Optional<User> findByUserId(Long userId);
     int countAdminUsers();
     void insertUser(User user);
+    int updatePasswordByUsername(@org.apache.ibatis.annotations.Param("username") String username,
+                                 @org.apache.ibatis.annotations.Param("password") String password);
 }

@@ -41,6 +41,12 @@ public class User extends BaseEntity implements UserDetails {
     @Column(name = "is_deleted")
     private Boolean isDeleted;
 
+    @Column(name = "email_verified", nullable = false)
+    private boolean emailVerified = true;
+
+    @Column(name = "auth_version", nullable = false)
+    private int authVersion;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Role role;
@@ -67,6 +73,6 @@ public class User extends BaseEntity implements UserDetails {
 
     @Override
     public boolean isEnabled() {
-        return Boolean.TRUE.equals(enable);
+        return Boolean.TRUE.equals(enable) && emailVerified;
     }
 }

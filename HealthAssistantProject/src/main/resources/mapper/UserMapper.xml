@@ -10,6 +10,8 @@
         <result property="password" column="password"/>
         <result property="enable" column="enable"/>
         <result property="isDeleted" column="is_deleted"/>
+        <result property="emailVerified" column="email_verified"/>
+        <result property="authVersion" column="auth_version"/>
         <result property="role" column="role"/>
         <result property="createdAt" column="created_at"/>
         <result property="updatedAt" column="updated_at"/>
@@ -24,6 +26,8 @@
             password,
             enable,
             is_deleted,
+            email_verified,
+            auth_version,
             role,
             created_at,
             updated_at
@@ -33,7 +37,7 @@
     </select>
 
     <select id="findByUserId" resultMap="userResultMap">
-        SELECT user_id, username, email, display_name, password, enable, is_deleted, role, created_at, updated_at
+        SELECT user_id, username, email, display_name, password, enable, is_deleted, email_verified, auth_version, role, created_at, updated_at
         FROM tbl_users
         WHERE user_id = #{userId} AND is_deleted = false
     </select>
@@ -51,6 +55,8 @@
                                password,
                                enable,
                                is_deleted,
+                               email_verified,
+                               auth_version,
                                role,
                                created_at,
                                created_id,
@@ -62,11 +68,19 @@
                 #{password},
                #{enable},
                 #{isDeleted},
+                #{emailVerified},
+                #{authVersion},
                 #{role},
                 NOW(),
                 #{username},
                 NOW(),
                 #{username})
     </insert>
+
+    <update id="updatePasswordByUsername">
+        UPDATE tbl_users
+        SET password = #{password}, auth_version = auth_version + 1, updated_at = NOW(), updated_id = #{username}
+        WHERE username = #{username} AND is_deleted = false AND email_verified = true
+    </update>
 
 </mapper>

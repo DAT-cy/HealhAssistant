@@ -1,0 +1,11 @@
+version: 1
+name: stripe-billing
+slug: stripe-billing
+protocol: http
+port: 4501
+origin: api.stripe.com
+interceptRequests: true
+scenarios:
+  - name: default
+    path: ./default.js
+    default: true

@@ -1,6 +1,7 @@
 package health_assistant.module.coach.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import health_assistant.module.coach.dto.GeminiRoadmapResponse;
 import health_assistant.module.coach.entity.RoadmapPreview;
 import health_assistant.module.coach.repository.RoadmapPreviewRepository;
@@ -17,7 +18,7 @@ import static org.mockito.Mockito.*;
 
 class RoadmapPreviewServiceTest {
     private final RoadmapPreviewRepository repository = mock(RoadmapPreviewRepository.class);
-    private final RoadmapPreviewService service = new RoadmapPreviewService(repository, new ObjectMapper());
+    private final RoadmapPreviewService service = new RoadmapPreviewService(repository, new ObjectMapper().registerModule(new JavaTimeModule()));
     private final Instant profileUpdatedAt = Instant.parse("2026-10-01T10:00:00Z");
 
     @Test
@@ -29,6 +30,19 @@ class RoadmapPreviewServiceTest {
 
         assertThat(selected.title()).isEqualTo("Plan 2");
         verify(repository).findByIdAndUserIdForUpdate("preview-id", 41L);
+    }
+
+    @Test
+    void returnsTheScheduleBoundToTheOwnedPreview() {
+        RoadmapPreview preview = preview(41L, profileUpdatedAt, Instant.now().plusSeconds(60));
+        preview.setScheduleJson("[{\"dayOfWeek\":1,\"sessionPeriod\":\"MORNING\",\"startTime\":\"06:00\",\"endTime\":\"07:00\",\"activityType\":\"RUNNING\",\"activity\":\"Chạy nhẹ\"}]");
+        when(repository.findByIdAndUserIdForUpdate("preview-id", 41L)).thenReturn(Optional.of(preview));
+
+        RoadmapPreviewService.Selection selected = service.selectWithSchedule("preview-id", 41L, profileUpdatedAt, 0);
+
+        assertThat(selected.schedule()).hasSize(1);
+        assertThat(selected.schedule().get(0).dayOfWeek()).isEqualTo(1);
+        assertThat(selected.schedule().get(0).startTime()).isEqualTo(java.time.LocalTime.of(6, 0));
     }
 
     @Test

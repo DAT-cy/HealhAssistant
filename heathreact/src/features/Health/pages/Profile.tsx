@@ -11,6 +11,7 @@ import { profileService } from '@/api/services/profile.service';
 import { ApiError } from '@/api/client';
 import { healthTrackingService, HealthGoal, HealthGoalType, AvailabilitySlot } from '@/api/services/health-tracking.service';
 import Avatar, { ProfileGender } from '@/components/ui/Avatar';
+import { navigationService } from '@/routes';
 
 export default function ProfilePage() {
   const [goal, setGoal] = useState('');
@@ -249,6 +250,7 @@ export default function ProfilePage() {
       </Card>
       <Pressable onPress={() => setConsent((value) => !value)} accessibilityRole="checkbox" accessibilityState={{ checked: consent }} style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 10, paddingVertical: 14 }}><View style={{ width: 22, height: 22, borderWidth: 1, borderColor: consent ? palette.primary : palette.border, borderRadius: 5, backgroundColor: consent ? palette.primary : 'transparent', alignItems: 'center', justifyContent: 'center' }}>{consent ? <Text style={{ color: palette.textInverse, fontWeight: '800' }}>✓</Text> : null}</View><Text style={{ flex: 1, color: palette.textMuted, lineHeight: 20 }}>Tôi đồng ý lưu thông tin hồ sơ để hỗ trợ kế hoạch tập luyện. Đây không phải dịch vụ chẩn đoán y khoa.</Text></Pressable>
       {message ? <Text accessibilityLiveRegion="polite" style={{ color: status === 'error' ? palette.danger : palette.primary, marginBottom: 8 }}>{message}</Text> : null}
+      <AppButton label="Gói dịch vụ và Premium" variant="secondary" onPress={() => navigationService.navigate('Subscription')} />
       <AppButton label="Lưu hồ sơ" loading={status === 'saving'} disabled={loadingProfile} onPress={() => void save()} />
     </>}
   </Screen>;

@@ -7,6 +7,7 @@ export type AppRoute =
   | 'Home'
   | 'NotFound'
   | 'Profile'
+  | 'Subscription'
   | 'Scan'
   | 'Roadmap'
   | 'DailyPlan'
@@ -25,6 +26,7 @@ const routePaths: Record<AppRoute, Href> = {
   Home: '/(user)',
   NotFound: '/not-found',
   Profile: '/(user)/profile',
+  Subscription: '/(user)/subscription',
   Scan: '/(user)/scan',
   Roadmap: '/(user)/roadmap',
   DailyPlan: '/(user)/daily-plan',

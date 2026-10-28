@@ -59,9 +59,9 @@ export default function WorkoutDashboardPage() {
           {plan.safetyNotes.map((note) => <Text key={note} style={styles.safetyText}>{note}</Text>)}
         </Card> : null}
 
-        <Pressable onPress={() => navigationService.navigate('WorkoutSession')} style={({ pressed }) => [styles.sessionLink, pressed && styles.pressed]} accessibilityRole="button">
-          <View style={styles.sessionIcon}><Ionicons name="body-outline" size={20} color={palette.primary} /></View>
-          <View style={styles.sessionCopy}><Text style={styles.sessionTitle}>Kiểm tra kỹ thuật Squat</Text><Text style={styles.sessionDetail}>Chế độ thử nghiệm dùng landmark mẫu, chưa kết nối camera.</Text></View>
+        <Pressable onPress={() => navigationService.navigate('Roadmap')} style={({ pressed }) => [styles.sessionLink, pressed && styles.pressed]} accessibilityRole="button">
+          <View style={styles.sessionIcon}><Ionicons name="barbell-outline" size={20} color={palette.primary} /></View>
+          <View style={styles.sessionCopy}><Text style={styles.sessionTitle}>Coach gym theo lịch</Text><Text style={styles.sessionDetail}>Hướng dẫn catalog và camera chụp ảnh kiểm tra tư thế.</Text></View>
           <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
         </Pressable>
         <AppButton label="Xem kế hoạch hôm nay" variant="secondary" onPress={() => navigationService.navigate('DailyPlan')} />

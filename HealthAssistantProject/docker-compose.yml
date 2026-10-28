@@ -33,18 +33,40 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       DB_URL: jdbc:mysql://mysql:3306/health_assistant?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       DB_USERNAME: root
+      MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
+      MAIL_PORT: ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-}
+      MAIL_FROM: ${MAIL_FROM:-}
+      MAIL_SMTP_AUTH: ${MAIL_SMTP_AUTH:-true}
+      MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_SMTP_STARTTLS_ENABLE:-true}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1234}
       JWT_SECRET: ${JWT_SECRET:-local-docker-secret-change-before-deploy-1234567890}
       GOOGLE_OAUTH_CLIENT_IDS: ${GOOGLE_OAUTH_CLIENT_IDS:-}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-AIzaSyACEdChYoUwlA3HSVUyLFPMLgSYyKZCoW0}
       CLOUDINARY_ENABLED: ${CLOUDINARY_ENABLED:-false}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-doan}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-653961144944774}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-x3_Zif3Vr_pqcZMW0WM69jR2x8I}
+      PERSONAL_ASSISTANT_STORAGE_DIR: ${PERSONAL_ASSISTANT_STORAGE_DIR:-/app/storage/personal-assistant}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      STRIPE_API_BASE: ${STRIPE_API_BASE:-https://api.stripe.com}
+      PAYPAL_CLIENT_ID: ${PAYPAL_CLIENT_ID:-}
+      PAYPAL_CLIENT_SECRET: ${PAYPAL_CLIENT_SECRET:-}
+      PAYPAL_WEBHOOK_ID: ${PAYPAL_WEBHOOK_ID:-}
+      PAYPAL_API_BASE: ${PAYPAL_API_BASE:-https://api-m.sandbox.paypal.com}
+      BILLING_RETURN_URL: ${BILLING_RETURN_URL:-http://localhost:8084/api/v1/billing/return}
+      BILLING_MODE: ${BILLING_MODE:-sandbox}
+      OTP_EXPIRY_MINUTES: ${OTP_EXPIRY_MINUTES:-5}
+      OTP_RESEND_COOLDOWN_SECONDS: ${OTP_RESEND_COOLDOWN_SECONDS:-60}
+      OTP_MAX_ATTEMPTS: ${OTP_MAX_ATTEMPTS:-5}
+      OTP_RATE_LIMIT_SECRET: ${OTP_RATE_LIMIT_SECRET:-${JWT_SECRET:-local-docker-secret-change-before-deploy-1234567890}}
     ports:
       - "${BACKEND_HOST_PORT:-8084}:8081"
     volumes:
       - knowledge-base-files:/app/data/knowledge-base
+      - personal-assistant-files:/app/storage/personal-assistant
     depends_on:
       mysql:
         condition: service_healthy
@@ -52,3 +74,4 @@ services:
 volumes:
   mysql-data:
   knowledge-base-files:
+  personal-assistant-files:

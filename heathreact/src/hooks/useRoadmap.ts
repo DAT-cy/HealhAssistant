@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { GeminiRoadmapResponse } from '@/api/types';
 import { ApiError } from '@/api/client';
-import { coachService } from '@/api/services/coach.service';
+import { coachService, RoadmapSlotRequest } from '@/api/services/coach.service';
 
 type State = { status: 'idle' | 'loading' | 'success' | 'error'; data: GeminiRoadmapResponse | null; message: string };
 
@@ -12,12 +12,12 @@ export function useRoadmap() {
   const [previewId, setPreviewId] = useState<string | null>(null);
   const [activated, setActivated] = useState(false);
 
-  const generate = useCallback(async (goal: string, weeks: number, postureSummary?: string, restrictions?: string) => {
+  const generate = useCallback(async (goal: string, weeks: number, schedule: RoadmapSlotRequest[], postureSummary?: string, restrictions?: string) => {
     setOptions([]);
     setPreviewId(null);
     setState({ status: 'loading', data: null, message: '' });
     try {
-      const preview = await coachService.preview({ goal, weeks, postureSummary, restrictions });
+      const preview = await coachService.preview({ goal, weeks, schedule, postureSummary, restrictions });
       setOptions(preview.options);
       setPreviewId(preview.previewId);
       setState({ status: 'success', data: null, message: '' });

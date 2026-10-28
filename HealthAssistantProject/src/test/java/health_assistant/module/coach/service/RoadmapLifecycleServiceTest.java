@@ -2,8 +2,10 @@ package health_assistant.module.coach.service;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import health_assistant.module.coach.dto.GeminiRoadmapResponse;
+import health_assistant.module.coach.dto.RoadmapSlotRequest;
 import health_assistant.module.coach.entity.RoadmapRecord;
 import health_assistant.module.coach.repository.RoadmapRecordRepository;
+import health_assistant.module.coach.repository.RoadmapPlanSlotRepository;
 import health_assistant.module.profile.entity.UserProfile;
 import health_assistant.module.profile.repository.UserProfileRepository;
 import health_assistant.module.users.entity.Role;
@@ -24,9 +26,10 @@ import static org.mockito.Mockito.*;
 class RoadmapLifecycleServiceTest {
     private final UserProfileRepository profileRepository = mock(UserProfileRepository.class);
     private final RoadmapRecordRepository roadmapRepository = mock(RoadmapRecordRepository.class);
+    private final RoadmapPlanSlotRepository slotRepository = mock(RoadmapPlanSlotRepository.class);
     private final RoadmapPreviewService previewService = mock(RoadmapPreviewService.class);
     private final RoadmapLifecycleService service = new RoadmapLifecycleService(
-            profileRepository, roadmapRepository, previewService, new ObjectMapper());
+            profileRepository, roadmapRepository, previewService, slotRepository, new ObjectMapper());
     private final Long userId = 41L;
 
     @BeforeEach
@@ -52,9 +55,12 @@ class RoadmapLifecycleServiceTest {
         profile.setHeightCm(170.0);
         profile.setWeightKg(65.0);
         when(profileRepository.findByUserIdForUpdate(userId)).thenReturn(Optional.of(profile));
-        when(previewService.select("preview-id", userId, profile.getUpdatedAt(), 1))
-                .thenReturn(new GeminiRoadmapResponse("Plan 2", "Overview", List.of("Week 1", "Week 2"),
-                        List.of("Stop if uncomfortable"), "gemini"));
+        when(previewService.selectWithSchedule("preview-id", userId, profile.getUpdatedAt(), 1))
+                .thenReturn(new RoadmapPreviewService.Selection(
+                        new GeminiRoadmapResponse("Plan 2", "Overview", List.of("Week 1", "Week 2"),
+                                List.of("Stop if uncomfortable"), "gemini"),
+                        List.of(new RoadmapSlotRequest(1, "MORNING", java.time.LocalTime.of(6, 0),
+                                java.time.LocalTime.of(7, 0), "RUNNING", "Chạy nhẹ"))));
 
         RoadmapRecord previous = new RoadmapRecord();
         previous.setId(8L);
@@ -87,5 +93,10 @@ class RoadmapLifecycleServiceTest {
         verify(roadmapRepository).save(previous);
         verify(roadmapRepository).save(argThat(record -> record.getId().equals(9L)
                 && record.getUserId().equals(userId) && record.getVersionNumber() == 2));
+        verify(slotRepository).saveAll(argThat((Iterable<health_assistant.module.coach.entity.RoadmapPlanSlot> slots) -> {
+            var materialized = java.util.stream.StreamSupport.stream(slots.spliterator(), false).toList();
+            return materialized.size() == 2 && materialized.get(0).getDurationMinutes() == 60
+                    && materialized.get(1).getDayIndex() - materialized.get(0).getDayIndex() == 7;
+        }));
     }
 }

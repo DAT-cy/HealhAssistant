@@ -5,8 +5,10 @@ import health_assistant.module.users.service.UserService;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
+@EnableScheduling
 @RequiredArgsConstructor
 public class HealthAssistantApplication implements CommandLineRunner {
 
@@ -20,4 +22,4 @@ public class HealthAssistantApplication implements CommandLineRunner {
     public void run(String... args) throws Exception {
         userService.initAdminUser();
     }
-} 
+}

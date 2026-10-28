@@ -31,16 +31,22 @@ public class GeminiClient {
     }
 
     public String generateJson(String prompt, JsonNode schema) {
+        return generateJson(prompt, schema, null, null);
+    }
+
+    public String generateJson(String prompt, JsonNode schema, String imageMimeType, String imageBase64) {
         if (!isConfigured()) {
             throw new GeminiException("Gemini API key is not configured.");
         }
 
         ObjectNode body = objectMapper.createObjectNode();
-        body.putArray("contents")
-                .addObject()
-                .putArray("parts")
-                .addObject()
-                .put("text", prompt);
+        var parts = body.putArray("contents").addObject().putArray("parts");
+        parts.addObject().put("text", prompt);
+        if (imageBase64 != null && imageMimeType != null) {
+            parts.addObject().putObject("inlineData")
+                    .put("mimeType", imageMimeType)
+                    .put("data", imageBase64);
+        }
 
         ObjectNode generationConfig = body.putObject("generationConfig");
         generationConfig.put("responseMimeType", "application/json");

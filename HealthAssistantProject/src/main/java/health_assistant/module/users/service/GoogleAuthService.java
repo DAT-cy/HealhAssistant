@@ -67,6 +67,7 @@ public class GoogleAuthService {
         identity = identityRepository.save(identity);
         User user = userMapper.findByUserId(identity.getUserId())
                 .orElseThrow(() -> new CommonException(ErrorCode.ENTITY_NOT_FOUND));
+        if (!user.isEnabled()) throw new CommonException(ErrorCode.ACCOUNT_DEACTIVATE);
 
         return LoginResponse.builder()
                 .username(user.getUsername())
@@ -85,6 +86,7 @@ public class GoogleAuthService {
             created.setRole(Role.ROLE_USER);
             created.setEnable(true);
             created.setIsDeleted(false);
+            created.setEmailVerified(true);
             userMapper.insertUser(created);
             return created;
         });

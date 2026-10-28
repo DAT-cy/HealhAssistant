@@ -33,12 +33,18 @@ public class SecurityConfig {
     private final Forbidden forbidden;
 
     private final String[] WHITE_LIST = {
-            "/api/v1/*/auth/**",
-            "/api/v1/auth/**",
+            "/api/v1/auth/login",
+            "/api/v1/auth/signup",
+            "/api/v1/auth/google",
+            "/api/v1/auth/otp/**",
+            "/api/v1/auth/forgot-password",
+            "/api/v1/auth/reset-password",
             "/swagger-ui/**",
             "/api-docs/**",
             "/v3/api-docs/**",
             "/api/v1/public/**",
+            "/api/v1/billing/webhooks/**",
+            "/api/v1/billing/return",
     };
 
     @Bean
@@ -51,6 +57,7 @@ public class SecurityConfig {
                 )
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(WHITE_LIST).permitAll()
+                        .requestMatchers("/api/v1/admin/feature-entitlements/**").hasRole(Role.ROLE_ADMIN.getName())
                         .requestMatchers("/api/v1/admin/knowledge/**").hasRole(Role.ROLE_ADMIN.getName())
                         .requestMatchers("/api/v1/admin/**").denyAll()
                         .requestMatchers("/api/v1/**").hasRole(Role.ROLE_USER.getName())

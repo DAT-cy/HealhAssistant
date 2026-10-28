@@ -1,0 +1,13 @@
+simulation: billing-providers
+routing: path
+mocks:
+  - name: stripe
+    routeKey: stripe
+    origin:
+      - api.stripe.com
+    path: postman/mocks/stripe-billing
+  - name: paypal
+    routeKey: paypal
+    origin:
+      - api-m.sandbox.paypal.com
+    path: postman/mocks/paypal-billing
