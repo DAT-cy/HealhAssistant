@@ -5,7 +5,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -21,6 +20,7 @@ import { Controller, useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { palette } from '@/theme/tokens';
+import AppModal from '@/components/ui/AppModal';
 import { navigationService } from '@/routes';
 import { useUserStore } from '@/stores/user';
 import {
@@ -298,7 +298,7 @@ export default function KnowledgeBasePage() {
         <Text style={styles.footerRole}>ADMIN</Text>
       </View>
 
-      <Modal visible={uploadOpen} animationType="slide" onRequestClose={() => setUploadOpen(false)}>
+      <AppModal visible={uploadOpen} animationType="slide" onRequestClose={() => setUploadOpen(false)}>
         <SafeAreaView style={styles.modalScreen}>
           <ModalHeader title="Nhập tài liệu" onClose={() => setUploadOpen(false)} />
           <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
@@ -348,9 +348,9 @@ export default function KnowledgeBasePage() {
             </Pressable>
           </ScrollView>
         </SafeAreaView>
-      </Modal>
+      </AppModal>
 
-      <Modal visible={Boolean(selected)} animationType="slide" onRequestClose={() => setSelected(null)}>
+      <AppModal visible={Boolean(selected)} animationType="slide" onRequestClose={() => setSelected(null)}>
         <SafeAreaView style={styles.modalScreen}>
           {selected && <>
             <ModalHeader title="Chi tiết tài liệu" onClose={() => setSelected(null)} />
@@ -380,7 +380,7 @@ export default function KnowledgeBasePage() {
             </ScrollView>}
           </>}
         </SafeAreaView>
-      </Modal>
+      </AppModal>
     </View>
   );
 }

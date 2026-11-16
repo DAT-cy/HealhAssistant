@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, Pressable, ScrollView } from 'react-native';
 import { cn } from '@/utils/helper';
+import AppModal from '@/components/ui/AppModal';
 
 export function Select({ value, onValueChange, children }: { value?: string; onValueChange?: (v: string) => void; children: React.ReactNode }) {
   return <>{children}</>;
@@ -21,15 +22,15 @@ export function SelectValue({ placeholder, value, className }: { placeholder?: s
 
 export function SelectContent({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: React.ReactNode }) {
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
+    <AppModal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1 }} onPress={onClose}>
         <View className="flex-1 bg-black/40 justify-end">
-          <TouchableWithoutFeedback>
-            <View className="bg-white rounded-t-2xl pb-8 max-h-[60%]">{children}</View>
-          </TouchableWithoutFeedback>
+          <Pressable onPress={(event) => event.stopPropagation()} className="bg-white rounded-t-2xl pb-8 max-h-[60%]">
+            <ScrollView keyboardShouldPersistTaps="handled">{children}</ScrollView>
+          </Pressable>
         </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      </Pressable>
+    </AppModal>
   );
 }
 

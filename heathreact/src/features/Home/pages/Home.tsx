@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Image,
-  Modal,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -16,6 +15,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { useQuery } from '@tanstack/react-query';
+import AppModal from '@/components/ui/AppModal';
 
 import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
@@ -249,7 +249,7 @@ export default function HomePage() {
         else if (tab === 'Progress') navigate('Progress');
       }} />
 
-      <Modal visible={showRoadmapSetup} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowRoadmapSetup(false)}>
+      <AppModal visible={showRoadmapSetup} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowRoadmapSetup(false)}>
         <View style={{ flex: 1, backgroundColor: '#F7F8FC' }}>
           <View style={{ minHeight: 62, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 20, borderBottomWidth: 1, borderColor: '#E8EAF4', backgroundColor: '#FFFFFF' }}>
             <View><Text style={{ color: '#20213A', fontSize: 18, fontWeight: '800' }}>Thiết lập lộ trình</Text><Text style={{ color: '#7A8099', fontSize: 11, marginTop: 2 }}>Thông tin dùng để tạo phương án phù hợp</Text></View>
@@ -296,7 +296,7 @@ export default function HomePage() {
             <Pressable onPress={continueRoadmapCreation} disabled={!setupGoal.trim() || setupDays.length === 0} accessibilityRole="button" style={{ minHeight: 50, marginTop: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#635BFF', opacity: setupGoal.trim() && setupDays.length > 0 ? 1 : 0.45 }}><Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800' }}>Tạo lộ trình cá nhân</Text></Pressable>
           </ScrollView>
         </View>
-      </Modal>
+      </AppModal>
     </View>
   );
 }

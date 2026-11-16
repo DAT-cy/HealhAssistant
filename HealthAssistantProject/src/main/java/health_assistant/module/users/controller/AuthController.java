@@ -4,7 +4,6 @@ import health_assistant.config.response.DefaultRes;
 import health_assistant.config.response.ResponseMessage;
 import health_assistant.config.response.StatusCode;
 import health_assistant.module.users.dto.request.LoginRequest;
-import health_assistant.module.users.dto.request.GoogleLoginRequest;
 import health_assistant.module.users.dto.request.SignUpRequest;
 import health_assistant.module.users.dto.request.ForgotPasswordRequest;
 import health_assistant.module.users.dto.request.OtpVerifyRequest;
@@ -15,7 +14,6 @@ import health_assistant.module.users.dto.response.OtpChallengeResponse;
 import health_assistant.module.users.dto.response.OtpVerificationResponse;
 import health_assistant.module.users.dto.response.ProfileUser;
 import health_assistant.module.users.service.UserService;
-import health_assistant.module.users.service.GoogleAuthService;
 import health_assistant.module.users.service.OtpService;
 import health_assistant.utils.ClientUtils;
 import io.swagger.v3.oas.annotations.Operation;
@@ -34,7 +32,6 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final UserService userService;
-    private final GoogleAuthService googleAuthService;
     private final OtpService otpService;
 
     @PostMapping("/login")
@@ -44,11 +41,6 @@ public class AuthController {
 
     }
 
-    @PostMapping("/google")
-    @Operation(summary = "Verify Google ID token and issue the app JWT")
-    public ResponseEntity<DefaultRes<LoginResponse>> googleLogin(@Valid @RequestBody GoogleLoginRequest request) {
-        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.SUCCESS, googleAuthService.login(request)));
-    }
     @PostMapping("/signup")
     public ResponseEntity<DefaultRes<OtpChallengeResponse>> signUp(@Valid @RequestBody SignUpRequest signUpRequest,
                                                                    HttpServletRequest servletRequest) {

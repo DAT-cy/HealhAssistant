@@ -1,8 +1,8 @@
 import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
 import { authService, type OtpPurpose } from '@/api/services/auth.service';
-import { signInWithGoogle } from '@/services/googleSignIn';
 import { palette } from '@/theme/tokens';
+import CustomButton from '@/components/ui/CustomButton';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import { appStorage } from '@/utils/storage';
@@ -254,22 +254,6 @@ export default function LoginPage() {
     triggerHaptic('error');
     setError(fieldErrors.username?.message || fieldErrors.pwd?.message || fieldErrors.confirmPwd?.message || 'Vui lòng kiểm tra lại thông tin.');
   });
-
-  const handleGoogleSignIn = async () => {
-    setError('');
-    setLoading(true);
-    try {
-      const idToken = await signInWithGoogle();
-      if (!idToken) return;
-      await completeLogin(await authService.googleLogin(idToken));
-      triggerHaptic('success');
-    } catch (err: unknown) {
-      triggerHaptic('error');
-      setError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Không thể đăng nhập Google.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const isFieldActive = (field: string) => focusedField === field;
 
@@ -609,52 +593,14 @@ export default function LoginPage() {
             )}
 
             {/* Submit Action Button */}
-            <Pressable
+            <CustomButton
+              title={loading ? (mode === 'login' ? 'Đang xác thực...' : 'Đang khởi tạo tài khoản...') : mode === 'login' ? 'Đăng nhập ngay' : 'Đăng ký tài khoản'}
               onPress={() => void submitLogin()}
-              disabled={loading}
-              style={({ pressed }) => [
-                styles.submitBtn,
-                loading && styles.submitBtnDisabled,
-                pressed && styles.submitBtnPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              {loading ? (
-                <View style={styles.submitBtnContent}>
-                  <ActivityIndicator size="small" color="#FFFFFF" />
-                  <Text style={styles.submitBtnText}>
-                    {mode === 'login' ? 'Đang xác thực...' : 'Đang khởi tạo tài khoản...'}
-                  </Text>
-                </View>
-              ) : (
-                <View style={styles.submitBtnContent}>
-                  <Text style={styles.submitBtnText}>
-                    {mode === 'login' ? 'Đăng nhập ngay' : 'Đăng ký tài khoản'}
-                  </Text>
-                  <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
-                </View>
-              )}
-            </Pressable>
-
-            {Platform.OS !== 'web' ? (
-              <>
-                <View style={styles.authDivider}>
-                  <View style={styles.authDividerLine} />
-                  <Text style={styles.authDividerText}>HOẶC</Text>
-                  <View style={styles.authDividerLine} />
-                </View>
-                <Pressable
-                  onPress={() => void handleGoogleSignIn()}
-                  disabled={loading}
-                  style={({ pressed }) => [styles.googleButton, (pressed || loading) && styles.googleButtonPressed]}
-                  accessibilityRole="button"
-                  accessibilityLabel="Tiếp tục với Google"
-                >
-                  <Ionicons name="logo-google" size={18} color="#4285F4" />
-                  <Text style={styles.googleButtonText}>Tiếp tục với Google</Text>
-                </Pressable>
-              </>
-            ) : null}
+              loading={loading}
+              accessibilityLabel={mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+              icon={<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
+              style={styles.submitBtn}
+            />
 
             {/* Switch Mode Footer */}
             <Pressable
@@ -877,7 +823,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderWidth: 1.5,
     borderColor: palette.border,
-    borderRadius: 14,
+    borderRadius: 12,
     paddingHorizontal: 14,
     minHeight: 52,
   },
@@ -955,32 +901,6 @@ const styles = StyleSheet.create({
     shadowRadius: 10,
     elevation: 4,
   },
-  submitBtnDisabled: {
-    opacity: 0.7,
-  },
-  submitBtnPressed: {
-    transform: [{ scale: 0.985 }],
-    opacity: 0.9,
-  },
-  submitBtnContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-  },
-  submitBtnText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontWeight: '800',
-  },
-
-  authDivider: { flexDirection: 'row', alignItems: 'center', gap: 12, marginTop: 17 },
-  authDividerLine: { flex: 1, height: 1, backgroundColor: palette.border },
-  authDividerText: { color: palette.textMuted, fontSize: 11, fontWeight: '700' },
-  googleButton: { minHeight: 48, marginTop: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: palette.border },
-  googleButtonPressed: { opacity: 0.75 },
-  googleButtonText: { color: palette.text, fontSize: 14, fontWeight: '700' },
-
   /* Switch Mode Footer */
   switchModeBtn: {
     alignItems: 'center',

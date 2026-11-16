@@ -30,7 +30,6 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-mail'
     implementation 'org.springframework.boot:spring-boot-starter-webflux'
     implementation 'com.cloudinary:cloudinary-http5:2.5.0'
-    implementation 'com.google.api-client:google-api-client:2.9.1'
     implementation 'com.stripe:stripe-java:34.0.0'
     
     // MyBatis

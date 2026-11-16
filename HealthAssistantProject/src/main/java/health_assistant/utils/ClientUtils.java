@@ -27,8 +27,6 @@ public class ClientUtils {
     public static final String LOCAL_PROFILE_NM = "local";
     public static final String DEV_PROFILE_NM = "dev";
     public static final String PROD_PROFILE_NM = "prod";
-    ///google
-    public static final String GOOGLE = "GOOGLE";
     public static final String FACEBOOK = "FACEBOOK";
 
 

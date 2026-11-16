@@ -66,7 +66,9 @@ export const useUserStore = create<UserState>((set) => ({
   completeLogin: async (response: LoginResponse) => {
     await appStorage.setItem(TOKEN_KEY, response.token);
     apiClient.setToken(response.token);
-    set({ token: response.token, username: response.username || '', role: response.role ?? null, profileComplete: null });
+    // Login has completed the same initialization boundary used by app/index.
+    // This keeps password and OTP login flows on the same auth guard.
+    set({ token: response.token, username: response.username || '', role: response.role ?? null, initialized: true, profileComplete: null });
   },
 
   logout: async () => {

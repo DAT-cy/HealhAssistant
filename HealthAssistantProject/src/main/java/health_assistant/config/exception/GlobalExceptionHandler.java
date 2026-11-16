@@ -6,6 +6,7 @@ import health_assistant.config.response.ErrorCode;
 import health_assistant.module.coach.service.CoachChatRateLimitException;
 import health_assistant.module.users.service.OtpEmailDeliveryException;
 import health_assistant.module.users.service.OtpRateLimitException;
+import health_assistant.module.ai.service.GeminiException;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
@@ -84,6 +85,38 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>(); errors.put("message", ex.getMessage());
         return ResponseEntity.status(HttpStatus.SERVICE_UNAVAILABLE).body(DefaultRes.<Map<String, String>>builder()
                 .statusCode(HttpStatus.SERVICE_UNAVAILABLE.value()).responseMessage(ex.getMessage()).data(errors).build());
+    }
+
+    @ExceptionHandler(GeminiException.class)
+    public ResponseEntity<DefaultRes<Map<String, String>>> handleGeminiFailure(GeminiException ex) {
+        Map<String, String> errors = new HashMap<>();
+        String message = friendlyGeminiMessage(ex.getKind());
+        errors.put("message", message);
+        String code = switch (ex.getKind()) {
+            case CONFIGURATION -> "AI-ERR-CONFIG";
+            case AUTHENTICATION -> "AI-ERR-AUTH";
+            case QUOTA -> "AI-ERR-QUOTA";
+            case TIMEOUT -> "AI-ERR-TIMEOUT";
+            case NETWORK -> "AI-ERR-NETWORK";
+            case INVALID_RESPONSE -> "AI-ERR-RESPONSE";
+            case SERVER -> "AI-ERR-SERVER";
+        };
+        int status = ex.getKind() == GeminiException.Kind.INVALID_RESPONSE
+                ? HttpStatus.BAD_GATEWAY.value() : HttpStatus.SERVICE_UNAVAILABLE.value();
+        return ResponseEntity.status(status).body(DefaultRes.<Map<String, String>>builder()
+                .statusCode(status).responseCode(code).responseMessage(message).data(errors).build());
+    }
+
+    private String friendlyGeminiMessage(GeminiException.Kind kind) {
+        return switch (kind) {
+            case CONFIGURATION -> "Hệ thống AI chưa được cấu hình. Vui lòng liên hệ quản trị viên.";
+            case AUTHENTICATION -> "Không thể xác thực dịch vụ AI. Vui lòng thử lại sau.";
+            case QUOTA -> "Dịch vụ AI đã vượt giới hạn sử dụng. Vui lòng thử lại sau.";
+            case TIMEOUT -> "AI xử lý quá thời gian cho phép. Vui lòng thử lại.";
+            case NETWORK -> "Không thể kết nối đến dịch vụ AI. Kiểm tra kết nối Internet.";
+            case INVALID_RESPONSE -> "Không thể xử lý kết quả AI. Vui lòng thử lại.";
+            case SERVER -> "Dịch vụ AI hiện không khả dụng. Vui lòng thử lại sau.";
+        };
     }
 
     @ExceptionHandler(value = {IllegalArgumentException.class, IllegalStateException.class})

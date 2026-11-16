@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { Modal, View, Text, TouchableOpacity, TouchableWithoutFeedback } from 'react-native';
+import React from 'react';
+import { View, Text, TouchableOpacity, Pressable } from 'react-native';
 import { cn } from '@/utils/helper';
+import AppModal from '@/components/ui/AppModal';
 
 export function DropdownMenu({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
@@ -22,17 +23,13 @@ export function DropdownMenuContent({
   className?: string;
 }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
-        <View className="flex-1">
-          <TouchableWithoutFeedback>
-            <View className={cn("absolute top-24 left-4 bg-white rounded-lg border border-slate-200 py-1.5 px-1 min-w-[180px] shadow-sm elevation-4", className)}>
-              {children}
-            </View>
-          </TouchableWithoutFeedback>
-        </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+    <AppModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1 }} onPress={onClose}>
+        <Pressable onPress={(event) => event.stopPropagation()} className={cn("absolute top-24 left-4 bg-white rounded-lg border border-slate-200 py-1.5 px-1 min-w-[180px] shadow-sm elevation-4", className)}>
+          {children}
+        </Pressable>
+      </Pressable>
+    </AppModal>
   );
 }
 

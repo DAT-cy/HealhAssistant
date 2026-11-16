@@ -30,7 +30,7 @@ export const apiClient = {
     let envelope: ApiEnvelope<T>;
     try { envelope = (await response.json()) as ApiEnvelope<T>; } catch { throw new ApiError(response.status, null, 'Phản hồi máy chủ không hợp lệ.'); }
     if (envelope.statusCode === 401) {
-      const isAuthenticationAttempt = /(?:^|\/)auth\/(?:login|signup|google)(?:\?|$)/.test(path);
+      const isAuthenticationAttempt = /(?:^|\/)auth\/(?:login|signup)(?:\?|$)/.test(path);
       if (!isAuthenticationAttempt && onUnauthorized) onUnauthorized();
 
       const message = isAuthenticationAttempt

@@ -10,7 +10,9 @@ export default function IndexRoute() {
 
   React.useEffect(() => {
     if (!initialized) return;
-    router.replace(!token ? '/welcome' : role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
+    // Authentication is the only decision at the app entry point. Subscription
+    // status is a feature concern and must never affect the initial destination.
+    router.replace(!token ? '/login' : role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
   }, [initialized, role, token]);
 
   return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#080C11' }}><ActivityIndicator color="#22C55E" /></View>;

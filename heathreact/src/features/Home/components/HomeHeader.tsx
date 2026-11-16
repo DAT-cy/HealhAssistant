@@ -1,8 +1,9 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Alert,
   Modal,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -12,12 +13,13 @@ import * as Haptics from 'expo-haptics';
 import { fitnessTheme } from './HomeTypes';
 import { navigationService } from '@/routes';
 import Avatar, { type ProfileGender } from '@/components/ui/Avatar';
+import CustomButton from '@/components/ui/CustomButton';
 
 interface Props {
   username: string;
   avatarUrl: string | null;
   gender: ProfileGender | null;
-  onLogout: () => void;
+  onLogout: () => void | Promise<void>;
   topInset: number;
 }
 
@@ -26,6 +28,28 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // iOS chỉ cho hiển thị 1 Modal tại một thời điểm: phải đợi dropdown đóng HẲN
+  // (hết animation fade) rồi mới mở Modal/Alert tiếp theo, nếu không iOS sẽ bỏ qua.
+  const afterDropdownCloseRef = useRef<(() => void) | null>(null);
+
+  const closeDropdownThen = (action: () => void) => {
+    if (Platform.OS === 'ios') {
+      afterDropdownCloseRef.current = action; // chạy trong onDismiss của dropdown
+      setShowDropdown(false);
+      // Dự phòng: nếu onDismiss không được gọi thì vẫn chạy sau khi animation fade kết thúc
+      setTimeout(handleDropdownDismiss, 450);
+    } else {
+      setShowDropdown(false);
+      action();
+    }
+  };
+
+  const handleDropdownDismiss = () => {
+    const action = afterDropdownCloseRef.current;
+    afterDropdownCloseRef.current = null;
+    action?.();
+  };
 
   const displayName = username?.split('@')[0]?.split(/[._]/)[0] || 'bạn';
 
@@ -42,8 +66,7 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
 
   const handleLogoutConfirm = () => {
     triggerHaptic('medium');
-    setShowDropdown(false);
-    setShowLogoutConfirmModal(true);
+    closeDropdownThen(() => setShowLogoutConfirmModal(true));
   };
 
   const handleExecuteLogout = async () => {
@@ -51,22 +74,23 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
       setIsLoggingOut(true);
       triggerHaptic('success');
       await onLogout();
+      setShowLogoutConfirmModal(false);
+      navigationService.replace('Login');
     } catch (e) {
       console.warn('Logout error:', e);
     } finally {
       setIsLoggingOut(false);
-      setShowLogoutConfirmModal(false);
-      navigationService.replace('Login');
     }
   };
 
   const handleShowProjectInfo = () => {
     triggerHaptic('light');
-    setShowDropdown(false);
-    Alert.alert(
-      '🎓 Đồ Án Tốt Nghiệp: Health Assistant',
-      '• Ứng dụng hỗ trợ theo dõi tư thế & cá nhân hóa kế hoạch luyện tập với trợ lý AI.\n\n• Công nghệ: React Native (Expo SDK 57), Spring Boot REST API, AI Landmark Pose Assessment, JWT Security.\n\n• Phiên bản: v1.0.0 (Bản bảo vệ)',
-      [{ text: 'Đã hiểu', style: 'default' }]
+    closeDropdownThen(() =>
+      Alert.alert(
+        '🎓 Đồ Án Tốt Nghiệp: Health Assistant',
+        '• Ứng dụng hỗ trợ theo dõi tư thế & cá nhân hóa kế hoạch luyện tập với trợ lý AI.\n\n• Công nghệ: React Native (Expo SDK 57), Spring Boot REST API, AI Landmark Pose Assessment, JWT Security.\n\n• Phiên bản: v1.0.0 (Bản bảo vệ)',
+        [{ text: 'Đã hiểu', style: 'default' }]
+      )
     );
   };
 
@@ -133,6 +157,7 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
         transparent
         animationType="fade"
         onRequestClose={() => setShowDropdown(false)}
+        onDismiss={handleDropdownDismiss}
       >
         <Pressable
           style={styles.modalBackdrop}
@@ -302,33 +327,28 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
 
             {/* Buttons */}
             <View style={styles.logoutBtnGroup}>
-              <Pressable
+              <CustomButton
+                title="Ở lại"
+                variant="outline"
+                size="sm"
+                fullWidth={false}
+                disabled={isLoggingOut}
                 onPress={() => {
                   triggerHaptic('light');
                   setShowLogoutConfirmModal(false);
                 }}
-                disabled={isLoggingOut}
-                style={({ pressed }) => [
-                  styles.logoutCancelBtn,
-                  pressed && styles.btnPressed,
-                ]}
-              >
-                <Text style={styles.logoutCancelBtnText}>Ở lại</Text>
-              </Pressable>
-
-              <Pressable
-                onPress={handleExecuteLogout}
-                disabled={isLoggingOut}
-                style={({ pressed }) => [
-                  styles.logoutConfirmBtn,
-                  pressed && styles.btnPressed,
-                ]}
-              >
-                <Ionicons name="log-out-outline" size={17} color="#FFFFFF" />
-                <Text style={styles.logoutConfirmBtnText}>
-                  {isLoggingOut ? 'Đang xóa...' : 'Đăng xuất'}
-                </Text>
-              </Pressable>
+                style={styles.logoutCancelBtn}
+              />
+              <CustomButton
+                title="Đăng xuất"
+                variant="danger"
+                size="sm"
+                fullWidth={false}
+                loading={isLoggingOut}
+                onPress={() => void handleExecuteLogout()}
+                icon={<Ionicons name="log-out-outline" size={17} color="#FFFFFF" />}
+                style={styles.logoutConfirmBtn}
+              />
             </View>
           </Pressable>
         </Pressable>
@@ -600,39 +620,10 @@ const styles = StyleSheet.create({
   },
   logoutCancelBtn: {
     flex: 1,
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: '#F1F5F9',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  logoutCancelBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#475569',
+    minHeight: 48,
   },
   logoutConfirmBtn: {
     flex: 1,
-    flexDirection: 'row',
-    paddingVertical: 12,
-    borderRadius: 14,
-    backgroundColor: fitnessTheme.danger,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    shadowColor: fitnessTheme.danger,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  logoutConfirmBtnText: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  btnPressed: {
-    opacity: 0.8,
-    transform: [{ scale: 0.98 }],
+    minHeight: 48,
   },
 });

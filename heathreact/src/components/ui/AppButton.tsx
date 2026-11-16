@@ -24,7 +24,8 @@ export default function AppButton({ label, onPress, variant = 'primary', loading
       disabled={isDisabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? label}
-      accessibilityState={{ disabled: isDisabled }}
+      accessibilityState={{ disabled: isDisabled, busy: loading }}
+      android_ripple={{ color: 'rgba(255,255,255,0.18)' }}
       style={({ pressed }) => [styles.button, { backgroundColor: bg[variant] }, variant === 'ghost' && styles.ghost, isDisabled && styles.disabled, pressed && styles.pressed]}
     >
       {loading ? <ActivityIndicator size="small" color={fg[variant]} /> : <Text style={[styles.label, { color: fg[variant] }]}>{label}</Text>}

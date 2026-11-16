@@ -6,6 +6,10 @@ import * as SystemUI from 'expo-system-ui';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { useUserStore } from '@/stores/user';
 
+// Keep the file-based root route as the only app entry point. The root route
+// then decides between auth and the protected area after token restoration.
+export const unstable_settings = { initialRouteName: 'index' };
+
 export default function RootLayout() {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {

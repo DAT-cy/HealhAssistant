@@ -8,6 +8,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientResponseException;
+import java.net.ConnectException;
+import java.util.concurrent.TimeoutException;
 
 @Service
 @Slf4j
@@ -36,7 +38,7 @@ public class GeminiClient {
 
     public String generateJson(String prompt, JsonNode schema, String imageMimeType, String imageBase64) {
         if (!isConfigured()) {
-            throw new GeminiException("Gemini API key is not configured.");
+            throw new GeminiException(GeminiException.Kind.CONFIGURATION, "Gemini API is not configured.");
         }
 
         ObjectNode body = objectMapper.createObjectNode();
@@ -73,15 +75,31 @@ public class GeminiClient {
                     }
                 }
             }
-            throw new GeminiException("Gemini returned no text content.");
+            throw new GeminiException(GeminiException.Kind.INVALID_RESPONSE, "Gemini returned no valid content.");
         } catch (WebClientResponseException exception) {
-            log.warn("Gemini API returned HTTP {}.", exception.getStatusCode().value());
-            throw new GeminiException("Gemini returned HTTP " + exception.getStatusCode().value() + ".", exception);
+            int status = exception.getStatusCode().value();
+            log.warn("Gemini API returned HTTP {}.", status);
+            GeminiException.Kind kind = status == 401 || status == 403
+                    ? GeminiException.Kind.AUTHENTICATION
+                    : status == 429 ? GeminiException.Kind.QUOTA
+                    : status >= 500 ? GeminiException.Kind.SERVER
+                    : GeminiException.Kind.INVALID_RESPONSE;
+            throw new GeminiException(kind, "Gemini upstream request failed.", exception);
         } catch (GeminiException exception) {
             throw exception;
         } catch (Exception exception) {
             log.warn("Gemini API request failed ({})", exception.getClass().getSimpleName());
-            throw new GeminiException("Gemini request failed.", exception);
+            Throwable cause = exception;
+            while (cause != null && cause.getCause() != cause) {
+                if (cause instanceof TimeoutException) {
+                    throw new GeminiException(GeminiException.Kind.TIMEOUT, "Gemini request timed out.", exception);
+                }
+                if (cause instanceof ConnectException) {
+                    throw new GeminiException(GeminiException.Kind.NETWORK, "Gemini network request failed.", exception);
+                }
+                cause = cause.getCause();
+            }
+            throw new GeminiException(GeminiException.Kind.NETWORK, "Gemini request failed.", exception);
         }
     }
 }

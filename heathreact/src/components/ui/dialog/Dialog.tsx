@@ -1,25 +1,23 @@
 import React from 'react';
 import {
-  Modal,
+  Pressable,
   View,
   Text,
   TouchableOpacity,
-  TouchableWithoutFeedback,
   ScrollView,
 } from 'react-native';
 import { cn } from '@/utils/helper';
+import AppModal from '@/components/ui/AppModal';
 
 export function Dialog({ visible, onClose, children }: { visible: boolean; onClose: () => void; children: React.ReactNode }) {
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <TouchableWithoutFeedback onPress={onClose}>
+    <AppModal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={{ flex: 1 }} onPress={onClose}>
         <View className="flex-1 bg-black/40 justify-center items-center p-4">
-          <TouchableWithoutFeedback>
-            <View className="bg-white rounded-xl w-full max-w-[480px]">{children}</View>
-          </TouchableWithoutFeedback>
+          <Pressable onPress={(event) => event.stopPropagation()} className="bg-white rounded-xl w-full max-w-[480px]">{children}</Pressable>
         </View>
-      </TouchableWithoutFeedback>
-    </Modal>
+      </Pressable>
+    </AppModal>
   );
 }
 export function DialogContent({ children, className }: { children?: React.ReactNode; className?: string }) {

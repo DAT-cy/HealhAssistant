@@ -23,7 +23,7 @@ Set `EXPO_PUBLIC_API_BASE_URL` in `heathreact/.env` before starting Expo. Use `h
 
 For WSL/Linux, run `npm ci` inside WSL before starting Expo. The existing WSL path under `/mnt/d` may contain Windows-built `node_modules`; native packages such as `lightningcss` need Linux binaries. If switching back to Windows development, run `npm ci` again from Windows.
 
-Optional backend values such as `GOOGLE_OAUTH_CLIENT_IDS`, `GEMINI_API_KEY`, and Cloudinary credentials can be set in `HealthAssistantProject/.env`. The default database password and JWT key are for local development only.
+Optional backend values such as `GEMINI_API_KEY` and Cloudinary credentials can be set in `HealthAssistantProject/.env`. The default database password and JWT key are for local development only.
 
 ## Email OTP
 

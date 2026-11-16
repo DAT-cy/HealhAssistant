@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Modal, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Pressable, Text, TextInput, View } from 'react-native';
+import AppModal from '@/components/ui/AppModal';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';
 import { Pedometer } from 'expo-sensors';
@@ -293,7 +294,7 @@ export default function ActivityTrackerModal({ visible, roadmapId, slot, onClose
   const isHistorical = ['COMPLETED', 'SKIPPED', 'CANCELLED'].includes(slot.status);
   const pace = liveDistanceMeters !== null && elapsedSeconds > 0 ? elapsedSeconds / (liveDistanceMeters / 1000) : null;
 
-  return <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => void cancel()}>
+  return <AppModal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => void cancel()}>
     <View style={{ flex: 1, padding: 20, paddingTop: 34, backgroundColor: palette.surface }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontSize: 19, fontWeight: '800' }}>{slot.activity}</Text><Text style={{ color: palette.textMuted, fontSize: 12, marginTop: 4 }}>{slot.activityType === 'RUNNING' ? 'Chạy bộ' : 'Đi bộ'} · theo dõi khi ứng dụng mở</Text></View>
@@ -333,7 +334,7 @@ export default function ActivityTrackerModal({ visible, roadmapId, slot, onClose
       {message ? <Text accessibilityLiveRegion="polite" style={{ color: palette.warning, fontSize: 12, lineHeight: 18, marginTop: 12 }}>{message}</Text> : null}
       {status !== 'done' && status !== 'idle' && status !== 'starting' ? <Text style={{ color: palette.textMuted, fontSize: 10, lineHeight: 15, marginTop: 12 }}>Nếu chuyển sang app khác, GPS và timer tạm dừng. Khi quay lại, tiếp tục phiên để đo chính xác.</Text> : null}
     </View>
-  </Modal>;
+  </AppModal>;
 }
 
 function Metric({ label, value }: { label: string; value: string }) {

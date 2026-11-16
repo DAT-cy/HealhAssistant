@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
 import AppButton from '@/components/ui/AppButton';
+import CustomIconButton from '@/components/ui/CustomIconButton';
 import MealScheduleCard from '@/features/Health/components/MealScheduleCard';
 import ActivityTrackerModal from '@/features/Health/components/ActivityTrackerModal';
 import GymCoachModal from '@/features/Health/components/GymCoachModal';
@@ -27,7 +28,7 @@ const activityTypes: { key: PlannedActivityType; label: string }[] = [
   { key: 'RUNNING', label: 'Chạy bộ' }, { key: 'GYM', label: 'Gym' }, { key: 'WALKING', label: 'Đi bộ' },
   { key: 'STRENGTH', label: 'Sức mạnh' }, { key: 'MOBILITY', label: 'Giãn cơ' }, { key: 'OTHER', label: 'Khác' },
 ];
-type WizardStep = 'duration' | 'schedule' | 'review' | 'preview';
+type WizardStep = 'title' | 'duration' | 'schedule' | 'review' | 'preview';
 
 function timeMinutes(value: string) {
   const match = /^(\d{2}):(\d{2})$/.exec(value);
@@ -90,7 +91,8 @@ export default function RoadmapPage() {
   const roadmap = useRoadmap();
   const queryClient = useQueryClient();
   const [weeks, setWeeks] = useState(4);
-  const [wizardStep, setWizardStep] = useState<WizardStep>('duration');
+  const [wizardStep, setWizardStep] = useState<WizardStep>('title');
+  const [roadmapTitle, setRoadmapTitle] = useState('');
   const [weeklySlots, setWeeklySlots] = useState<RoadmapSlotRequest[]>([]);
   const [scheduleValidation, setScheduleValidation] = useState('');
   const [selected, setSelected] = useState<number | null>(null);
@@ -299,6 +301,7 @@ export default function RoadmapPage() {
   const activeDay = dayQuery.data as RoadmapDay | undefined;
   const roadmapProgress = progressQuery.data as RoadmapProgress | undefined;
   const selectedPlan = selected === null ? null : roadmap.options[selected];
+  const roadmapList = (historyQuery.data ?? []).filter((item) => item.status !== 'DRAFT' && item.source === 'gemini');
   const previousVersion = activeQuery.data?.previousRoadmapId
     ? historyQuery.data?.find((item) => item.id === activeQuery.data?.previousRoadmapId)
     : undefined;
@@ -494,10 +497,28 @@ export default function RoadmapPage() {
     }
   };
 
-  return <Screen title="Lộ trình của bạn" subtitle="Xem trước và chọn kế hoạch phù hợp" showBack>
+  return <Screen title="Lộ trình của bạn" subtitle="Theo dõi và quản lý các kế hoạch sức khỏe cá nhân" showBack>
     {activeQuery.isPending ? <LoadingState label="Đang tải lộ trình hiện tại..." /> : null}
     {activeQuery.isError ? <ErrorState message="Không thể tải lộ trình hiện tại." onRetry={() => void activeQuery.refetch()} /> : null}
-    {activeQuery.data ? <>
+    <Card>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontSize: 20, fontWeight: '800' }}>Lộ trình của bạn</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 }}>Theo dõi và quản lý các kế hoạch sức khỏe cá nhân.</Text></View>
+        <CustomIconButton
+          onPress={() => { setConfirmed(false); setSelected(null); setRoadmapTitle(''); setWizardStep('title'); }}
+          accessibilityLabel="Tạo lộ trình mới"
+          size={56}
+          icon={<Ionicons name="add" size={28} color={palette.textInverse} />}
+        />
+      </View>
+    </Card>
+    {historyQuery.isPending ? <LoadingState label="Đang tải danh sách lộ trình..." /> : null}
+    {!historyQuery.isPending && roadmapList.length === 0 ? <Card><Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>Bạn chưa có lộ trình nào</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 6 }}>Nhấn nút + để tạo lộ trình sức khỏe cá nhân đầu tiên.</Text></Card> : null}
+    {roadmapList.map((item) => <Pressable key={item.id} onPress={() => { if (item.status === 'ACTIVE') setConfirmed(true); }} accessibilityRole="button" style={({ pressed }) => [{ padding: 14, borderRadius: 10, borderWidth: 1, borderColor: item.status === 'ACTIVE' ? palette.primary : palette.border, backgroundColor: palette.surface }, pressed && { opacity: 0.78 }]}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><Text style={{ flex: 1, color: palette.text, fontSize: 15, fontWeight: '800' }}>{item.title}</Text><Text style={{ color: item.status === 'ACTIVE' ? palette.primary : palette.textMuted, fontSize: 11, fontWeight: '700' }}>{item.status === 'ACTIVE' ? 'Đang thực hiện' : item.status === 'COMPLETED' ? 'Hoàn thành' : 'Tạm dừng'}</Text></View>
+      <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 6 }}>{item.overview}</Text>
+      <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 8 }}>{item.durationWeeks ?? 0} tuần · Tạo ngày {item.createdAt.slice(0, 10)}</Text>
+    </Pressable>)}
+    {activeQuery.data?.source === 'gemini' ? <>
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <Text style={{ color: palette.primary, fontSize: 12, fontWeight: '800' }}>ĐANG HOẠT ĐỘNG · PHIÊN BẢN {activeQuery.data.versionNumber ?? '—'}</Text>
@@ -505,10 +526,10 @@ export default function RoadmapPage() {
         </View>
         <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800', marginTop: 8 }}>{activeQuery.data.title}</Text>
         <Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 6 }}>{activeQuery.data.overview}</Text>
-        <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 8 }}>Bắt đầu {activeQuery.data.startDate ?? 'chưa xác định'} · {activeQuery.data.source === 'gemini' ? 'Đề xuất AI' : 'Kế hoạch dự phòng'}</Text>
+        <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 8 }}>Bắt đầu {activeQuery.data.startDate ?? 'chưa xác định'} · {activeQuery.data.source === 'gemini' ? 'Đề xuất AI' : 'Dữ liệu đã lưu'}</Text>
         {activeQuery.data.changeReason ? <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 4 }}>Lý do phiên bản: {activeQuery.data.changeReason === 'INITIAL_PLAN' ? 'Kế hoạch ban đầu' : 'Bạn xác nhận phương án mới'}</Text> : null}
-        {previousVersion ? <Pressable onPress={() => setCompareWithPrevious((value) => !value)} accessibilityRole="button" style={{ minHeight: 42, marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 9, borderWidth: 1, borderColor: palette.border }}>
-          <Text style={{ color: palette.primary, fontWeight: '700', fontSize: 12 }}>{compareWithPrevious ? 'Ẩn so sánh phiên bản' : `So sánh với phiên bản ${previousVersion.versionNumber ?? 'trước'}`}</Text>
+        {false && previousVersion ? <Pressable onPress={() => setCompareWithPrevious((value) => !value)} accessibilityRole="button" style={{ minHeight: 42, marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 9, borderWidth: 1, borderColor: palette.border }}>
+          <Text style={{ color: palette.primary, fontWeight: '700', fontSize: 12 }}>{compareWithPrevious ? 'Ẩn so sánh phiên bản' : `So sánh với phiên bản ${previousVersion?.versionNumber ?? 'trước'}`}</Text>
         </Pressable> : null}
       </Card>
       {progressQuery.isError ? <ErrorState message="Không thể tải tiến độ lộ trình." onRetry={() => void progressQuery.refetch()} /> : null}
@@ -573,9 +594,9 @@ export default function RoadmapPage() {
           </Card> : null}
         </> : null}
       </> : null}
-      {compareWithPrevious && previousVersion ? <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Card style={{ flex: 1 }}><Text style={{ color: palette.text, fontWeight: '800', fontSize: 12 }}>Hiện tại · v{activeQuery.data.versionNumber ?? '—'}</Text><Text style={{ color: palette.textMuted, fontSize: 11, lineHeight: 17, marginTop: 7 }}>{activeQuery.data.overview}</Text></Card>
-        <Card style={{ flex: 1 }}><Text style={{ color: palette.text, fontWeight: '800', fontSize: 12 }}>Trước đó · v{previousVersion.versionNumber ?? '—'}</Text><Text style={{ color: palette.textMuted, fontSize: 11, lineHeight: 17, marginTop: 7 }}>{previousVersion.overview}</Text></Card>
+      {false && compareWithPrevious && previousVersion ? <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Card style={{ flex: 1 }}><Text style={{ color: palette.text, fontWeight: '800', fontSize: 12 }}>Hiện tại · v{activeQuery.data?.versionNumber ?? '—'}</Text><Text style={{ color: palette.textMuted, fontSize: 11, lineHeight: 17, marginTop: 7 }}>{activeQuery.data?.overview}</Text></Card>
+        <Card style={{ flex: 1 }}><Text style={{ color: palette.text, fontWeight: '800', fontSize: 12 }}>Trước đó · v{previousVersion?.versionNumber ?? '—'}</Text><Text style={{ color: palette.textMuted, fontSize: 11, lineHeight: 17, marginTop: 7 }}>{previousVersion?.overview}</Text></Card>
       </View> : null}
       <Pressable onPress={() => void evaluateAdjustment()} disabled={adjustmentBusy} accessibilityRole="button" style={{ minHeight: 44, marginTop: 12, alignItems: 'center', justifyContent: 'center', borderRadius: 9, backgroundColor: palette.primarySoft, opacity: adjustmentBusy ? 0.6 : 1 }}>
         <Text style={{ color: palette.primary, fontSize: 12, fontWeight: '800' }}>{adjustmentBusy ? 'Đang đánh giá...' : 'Đề xuất giảm tải từ check-in 7 ngày'}</Text>
@@ -602,25 +623,25 @@ export default function RoadmapPage() {
         <View style={{ flex: 1 }}><AppButton label="Chấp nhận điều chỉnh" disabled={adjustmentBusy} loading={adjustmentBusy} onPress={() => void decideAdjustment('accept')} /></View>
       </View>
     </Card> : null}
-    <Card style={{ gap: 9 }}>
+    {false ? <Card style={{ gap: 9 }}>
       <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>Bản nháp lộ trình</Text>
       <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18 }}>Lưu tên lộ trình trước. Lịch chỉ được áp dụng sau khi bạn chọn phương án và xác nhận.</Text>
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
         <TextInput value={draftTitle} onChangeText={setDraftTitle} placeholder="Tên bản nháp" placeholderTextColor={palette.textMuted} style={{ flex: 1, minHeight: 42, paddingHorizontal: 10, borderRadius: 7, borderWidth: 1, borderColor: palette.border, color: palette.text, backgroundColor: palette.surface }} />
         <AppButton label={draftEditId ? 'Đổi tên' : 'Tạo nháp'} loading={draftBusy} disabled={draftBusy} onPress={() => void (draftEditId ? renameDraft(draftEditId) : createDraft())} />
       </View>
-      {selectedDraft ? <Text style={{ color: palette.primary, fontSize: 12 }}>Đang dùng bản nháp: {selectedDraft.title}</Text> : null}
+      {selectedDraft ? <Text style={{ color: palette.primary, fontSize: 12 }}>Đang dùng bản nháp: {selectedDraft?.title}</Text> : null}
       {historyQuery.data?.filter((item) => item.status === 'DRAFT').map((item) => <View key={item.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 5, borderTopWidth: 1, borderColor: palette.border }}>
         <Pressable onPress={() => setSelectedDraft({ id: item.id, title: item.title })} accessibilityRole="radio" accessibilityState={{ selected: selectedDraft?.id === item.id }} style={{ flex: 1, minHeight: 36, justifyContent: 'center' }}><Text numberOfLines={1} style={{ color: selectedDraft?.id === item.id ? palette.primary : palette.text, fontWeight: '700' }}>{item.title}</Text></Pressable>
         <Pressable onPress={() => { setDraftEditId(item.id); setDraftTitle(item.title); }} accessibilityRole="button" accessibilityLabel="Đổi tên bản nháp" style={{ padding: 7 }}><Ionicons name="create-outline" size={18} color={palette.textMuted} /></Pressable>
         <Pressable onPress={() => void deleteDraft(item.id)} disabled={draftBusy} accessibilityRole="button" accessibilityLabel="Xóa bản nháp" style={{ padding: 7 }}><Ionicons name="trash-outline" size={18} color={palette.danger} /></Pressable>
       </View>)}
       {draftMessage ? <Text accessibilityLiveRegion="polite" style={{ color: draftMessage.startsWith('Đã') ? palette.primary : palette.danger, fontSize: 12 }}>{draftMessage}</Text> : null}
-    </Card>
-    {historyQuery.isError ? <ErrorState message="Không thể tải lịch sử lộ trình." onRetry={() => void historyQuery.refetch()} /> : null}
-    {historyQuery.data && historyQuery.data.filter((item) => item.status !== 'ACTIVE').length > 0 ? <Card>
+    </Card> : null}
+    {historyQuery.isError ? <ErrorState message="Không thể tải danh sách lộ trình." onRetry={() => void historyQuery.refetch()} /> : null}
+    {false && (historyQuery.data ?? []).filter((item) => item.status !== 'ACTIVE').length > 0 ? <Card>
       <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>Lịch sử phiên bản</Text>
-      {historyQuery.data.filter((item) => item.status !== 'ACTIVE').map((item) => <View key={item.id} style={{ borderBottomWidth: 1, borderColor: palette.border }}>
+      {(historyQuery.data ?? []).filter((item) => item.status !== 'ACTIVE').map((item) => <View key={item.id} style={{ borderBottomWidth: 1, borderColor: palette.border }}>
         <Pressable onPress={() => setExpandedHistoryId((current) => current === item.id ? null : item.id)} accessibilityRole="button" style={{ minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontWeight: '700' }}>Phiên bản {item.versionNumber ?? '—'} · {item.title}</Text><Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 3 }}>{item.status === 'ARCHIVED' ? 'Đã lưu trữ' : item.status} · {item.createdAt.slice(0, 10)}</Text></View>
           <Text style={{ color: palette.primary }}>{expandedHistoryId === item.id ? 'Ẩn' : 'Xem'}</Text>
@@ -631,7 +652,16 @@ export default function RoadmapPage() {
     {profileReady === null ? <LoadingState label="Đang kiểm tra hồ sơ..." /> : null}
     {profileError ? <ErrorState message={profileError} onRetry={() => void profileQuery.refetch()} /> : null}
     {profileReady === false && (profileMissing || profileQuery.data) ? <Card><Text style={{ color: palette.text, fontSize: 17, fontWeight: '800' }}>{profileMissing ? 'Tạo hồ sơ trước' : 'Hoàn thiện hồ sơ trước'}</Text><Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Nhập mục tiêu, mức vận động, chiều cao, cân nặng và đồng ý lưu dữ liệu để tạo bản xem trước cá nhân hóa.</Text><View style={{ marginTop: 14 }}><AppButton label="Mở hồ sơ" onPress={() => navigationService.navigate('Profile')} /></View></Card> : null}
-    {historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}
+    {false && historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}
+    {profileReady && !confirmed && wizardStep === 'title' && roadmap.status !== 'loading' ? <Card>
+      <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Tạo lộ trình mới</Text>
+      <Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 8 }}>Đặt tên để dễ theo dõi mục tiêu sức khỏe của bạn.</Text>
+      <TextInput value={roadmapTitle} onChangeText={setRoadmapTitle} placeholder="Ví dụ: Giảm 5kg trong 3 tháng" placeholderTextColor={palette.textMuted} style={{ minHeight: 46, marginTop: 14, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border, borderRadius: 8, color: palette.text, backgroundColor: palette.surface }} />
+      <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
+        <View style={{ flex: 1 }}><AppButton label="Hủy" variant="secondary" onPress={() => setRoadmapTitle('')} /></View>
+        <View style={{ flex: 1 }}><AppButton label="Tiếp tục" disabled={!roadmapTitle.trim()} onPress={() => setWizardStep('duration')} /></View>
+      </View>
+    </Card> : null}
     {profileReady && !confirmed && wizardStep === 'duration' && roadmap.status !== 'loading' ? <Card>
       <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Tạo lộ trình</Text>
       <Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 8 }}>Mục tiêu: {goal}. Thể trạng và giới hạn lấy từ hồ sơ đã lưu. Thời lượng là ước tính ban đầu, có thể điều chỉnh theo tiến độ.</Text>
@@ -679,7 +709,7 @@ export default function RoadmapPage() {
       </View>
     </> : null}
     {roadmap.status === 'loading' ? <LoadingState label={roadmap.data ? 'Đang kích hoạt lộ trình...' : 'Đang tạo các phương án xem trước...'} /> : null}
-    {roadmap.status === 'error' ? <ErrorState message={roadmap.message} onRetry={generate} /> : null}
+    {roadmap.status === 'error' ? <ErrorState message={roadmap.message} onRetry={roadmap.canRetry ? generate : undefined} /> : null}
     {roadmap.options.length > 0 && !confirmed && wizardStep === 'preview' ? <>
       <Card><Text style={{ color: palette.text, fontWeight: '800' }}>Lịch đã gửi cho AI</Text><Text style={{ color: palette.textMuted, fontSize: 12, marginTop: 5 }}>{weeklySlots.length} khung/tuần · {Math.floor(weeklyMinutes / 60)} giờ {weeklyMinutes % 60} phút/tuần · lặp {weeks} tuần</Text><Pressable onPress={() => { setSelected(null); setWizardStep('schedule'); }} accessibilityRole="button" style={{ paddingTop: 10 }}><Text style={{ color: palette.primary, fontWeight: '700' }}>Chỉnh lịch</Text></Pressable></Card>
       <Text style={{ color: palette.text, fontSize: 17, fontWeight: '800', marginBottom: 4 }}>Chọn một phương án</Text>
@@ -693,10 +723,9 @@ export default function RoadmapPage() {
         </Card>
       </Pressable>)}
       <AppButton label="Xác nhận và bắt đầu" disabled={!selectedPlan} onPress={() => {
-        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected, selectedDraft?.title, selectedDraft?.id ?? null).then((ok) => {
+        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected, roadmapTitle.trim(), null).then((ok) => {
           if (ok) {
             setConfirmed(true);
-            setSelectedDraft(null);
             void queryClient.invalidateQueries({ queryKey: ['roadmap'] });
           }
         });

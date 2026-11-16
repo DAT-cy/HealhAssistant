@@ -2,8 +2,9 @@ import { Ionicons } from '@expo/vector-icons';
 import { CameraView, useCameraPermissions, type CameraType } from 'expo-camera';
 import { useQuery } from '@tanstack/react-query';
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, Image, Modal, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import AppButton from '@/components/ui/AppButton';
+import AppModal from '@/components/ui/AppModal';
 import { ApiError } from '@/api/client';
 import type { RoadmapPlanSlot } from '@/api/services/coach.service';
 import { gymWorkoutService, type ExerciseGuide, type GymPoseFeedback, type GymWorkoutSession } from '@/api/services/gym-workout.service';
@@ -107,7 +108,7 @@ export default function GymCoachModal({ visible, roadmapId, slot, onClose, onSav
   };
 
   if (!slot) return null;
-  return <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
+  return <AppModal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={close}>
     <ScrollView style={{ flex: 1, backgroundColor: palette.surface }} contentContainerStyle={{ padding: 18, paddingTop: 32, paddingBottom: 34 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 9 }}>
         <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Coach gym</Text><Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 3 }}>{slot.activity} · {slot.startTime}–{slot.endTime}</Text></View>
@@ -168,7 +169,7 @@ export default function GymCoachModal({ visible, roadmapId, slot, onClose, onSav
       </View> : null}
       {message ? <Text accessibilityLiveRegion="polite" style={{ color: palette.warning, fontSize: 11, lineHeight: 16, marginTop: 10 }}>{message}</Text> : null}
     </ScrollView>
-  </Modal>;
+  </AppModal>;
 }
 
 const inputStyle = { minHeight: 40, paddingHorizontal: 9, marginTop: 8, color: palette.text, backgroundColor: palette.surface, borderRadius: 6, fontSize: 11 } as const;

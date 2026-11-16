@@ -36,10 +36,6 @@ gemini:
   model: ${GEMINI_MODEL:gemini-3.8-flash}
   timeout: ${GEMINI_TIMEOUT:30s}
 
-google:
-  oauth:
-    client-ids: ${GOOGLE_OAUTH_CLIENT_IDS:}
-
 cloudinary:
   enabled: ${CLOUDINARY_ENABLED:false}
   cloud-name: ${CLOUDINARY_CLOUD_NAME:}

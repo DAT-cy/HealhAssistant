@@ -15,8 +15,6 @@ export const authService = {
   resendOtp: (email: string, purpose: OtpPurpose) => apiClient.request<OtpChallengeResponse>(`${apiVersion}/auth/otp/resend`, { method: 'POST', body: JSON.stringify({ email, purpose }) }),
   verifyOtp: (email: string, purpose: OtpPurpose, code: string) => apiClient.request<OtpVerificationResponse>(`${apiVersion}/auth/otp/verify`, { method: 'POST', body: JSON.stringify({ email, purpose, code }) }),
   resetPassword: (email: string, resetToken: string, newPassword: string) => apiClient.request<boolean>(`${apiVersion}/auth/reset-password`, { method: 'POST', body: JSON.stringify({ email, resetToken, newPassword }) }),
-  googleLogin: (idToken: string) =>
-    apiClient.request<LoginResponse>(`${apiVersion}/auth/google`, { method: 'POST', body: JSON.stringify({ idToken }) }),
   profile: () => apiClient.request<ProfileUser>(`${apiVersion}/auth/profile`),
 };
 
