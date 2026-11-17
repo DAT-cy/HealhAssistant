@@ -18,10 +18,10 @@ public class UserProfile {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
-    @Column(nullable = false, length = 40)
+    @Column(length = 40)
     private String goal;
 
-    @Column(name = "activity_level", nullable = false, length = 40)
+    @Column(name = "activity_level", length = 40)
     private String activityLevel;
 
     @Column(length = 10)
@@ -36,6 +36,16 @@ public class UserProfile {
 
     @Column(name = "pain_areas", length = 1000)
     private String painAreas;
+
+    @Column(name = "disease_codes", length = 2000) private String diseaseCodes;
+    @Column(columnDefinition = "TEXT") private String symptoms;
+    @Column(name = "medical_history", columnDefinition = "TEXT") private String medicalHistory;
+    @Column(name = "family_history", columnDefinition = "TEXT") private String familyHistory;
+    @Column(columnDefinition = "TEXT") private String allergies;
+    @Column(columnDefinition = "TEXT") private String medications;
+    @Column(name = "lifestyle_notes", columnDefinition = "TEXT") private String lifestyleNotes;
+    @Column(name = "sleep_hours") private Double sleepHours;
+    @Column(name = "health_metrics", columnDefinition = "TEXT") private String healthMetrics;
 
     @Column(name = "avatar_url", length = 1000)
     private String avatarUrl;

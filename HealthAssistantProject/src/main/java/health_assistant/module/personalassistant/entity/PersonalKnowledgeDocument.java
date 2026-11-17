@@ -14,7 +14,7 @@ import lombok.Setter;
 import java.time.Instant;
 
 @Entity
-@Table(name = "personal_knowledge_documents", indexes = @Index(name = "idx_personal_doc_owner_status", columnList = "user_id,status"))
+@Table(name = "personal_knowledge_documents", indexes = @Index(name = "idx_personal_doc_owner_status", columnList = "user_id,processing_status"))
 @Getter
 @Setter
 public class PersonalKnowledgeDocument {

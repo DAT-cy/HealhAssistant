@@ -6,7 +6,7 @@ export interface ApiEnvelope<T> {
   data: T | null;
 }
 
-export type Role = 'ROLE_ADMIN' | 'ROLE_USER';
+export type Role = 'ROLE_ADMIN' | 'ROLE_DOCTOR' | 'ROLE_USER';
 export interface LoginResponse { token: string; username: string; role: Role }
 export interface ProfileUser { username: string; role: Role }
 export interface Point3D { x: number; y: number; z: number; visibility: number }

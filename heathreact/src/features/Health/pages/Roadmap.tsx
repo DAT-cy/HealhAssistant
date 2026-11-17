@@ -1,42 +1,25 @@
 import React, { useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
 import AppButton from '@/components/ui/AppButton';
-import CustomIconButton from '@/components/ui/CustomIconButton';
 import MealScheduleCard from '@/features/Health/components/MealScheduleCard';
 import ActivityTrackerModal from '@/features/Health/components/ActivityTrackerModal';
 import GymCoachModal from '@/features/Health/components/GymCoachModal';
 import ReschedulePlanner from '@/features/Health/components/ReschedulePlanner';
+import RoadmapWizardModal from '@/features/Health/components/RoadmapWizardModal';
 import { ErrorState, LoadingState } from '@/components/ui/StateViews';
 import { palette } from '@/theme/tokens';
-import { useRoadmap } from '@/hooks/useRoadmap';
 import { profileService } from '@/api/services/profile.service';
 import { coachService } from '@/api/services/coach.service';
-import type { ActivitySession, DailyAiReview, PlannedActivityType, RoadmapDay, RoadmapPlanSlot, RoadmapProgress, RoadmapSlotRequest, SessionPeriod } from '@/api/services/coach.service';
+import type { ActivitySession, DailyAiReview, RoadmapDay, RoadmapPlanSlot, RoadmapProgress, SessionPeriod } from '@/api/services/coach.service';
 import { navigationService } from '@/routes';
 import { ApiError } from '@/api/client';
-
-const variants = ['Vận động nhẹ', 'Linh hoạt và phục hồi', 'Sức mạnh toàn thân'];
-const weekdays = ['Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy', 'Chủ nhật'];
-const periods: { key: SessionPeriod; label: string; icon: 'sunny-outline' | 'partly-sunny-outline' | 'moon-outline' }[] = [
-  { key: 'MORNING', label: 'Sáng', icon: 'sunny-outline' }, { key: 'AFTERNOON', label: 'Chiều', icon: 'partly-sunny-outline' }, { key: 'EVENING', label: 'Tối', icon: 'moon-outline' },
-];
-const activityTypes: { key: PlannedActivityType; label: string }[] = [
-  { key: 'RUNNING', label: 'Chạy bộ' }, { key: 'GYM', label: 'Gym' }, { key: 'WALKING', label: 'Đi bộ' },
-  { key: 'STRENGTH', label: 'Sức mạnh' }, { key: 'MOBILITY', label: 'Giãn cơ' }, { key: 'OTHER', label: 'Khác' },
-];
-type WizardStep = 'title' | 'duration' | 'schedule' | 'review' | 'preview';
-
-function timeMinutes(value: string) {
-  const match = /^(\d{2}):(\d{2})$/.exec(value);
-  if (!match) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2]);
-  return hours < 24 && minutes < 60 ? hours * 60 + minutes : null;
-}
+import { activityTypes, periods } from '@/features/Health/components/roadmapWizard.utils';
+import { doctorRequestService } from '@/api/services/doctor-request.service';
 
 function localDateIso() {
   const today = new Date();
@@ -64,39 +47,10 @@ const dayStatusLabels: Record<RoadmapDay['status'], string> = {
   REST: 'Ngày nghỉ', UPCOMING: 'Chưa bắt đầu', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', SKIPPED: 'Đã bỏ qua', CANCELLED: 'Đã hủy',
 };
 
-function scheduleError(slots: RoadmapSlotRequest[]) {
-  if (!slots.length) return 'Chọn ít nhất một khung giờ tập trong tuần.';
-  const byDay = new Map<number, RoadmapSlotRequest[]>();
-  for (const slot of slots) {
-    const start = timeMinutes(slot.startTime);
-    const end = timeMinutes(slot.endTime);
-    if (start === null || end === null || end <= start) return 'Nhập giờ hợp lệ và giờ kết thúc phải sau giờ bắt đầu.';
-    if (end - start < 15 || end - start > 240) return 'Mỗi khung tập cần dài từ 15 đến 240 phút.';
-    const periodValid = slot.sessionPeriod === 'MORNING' ? start < 720 && end <= 720
-      : slot.sessionPeriod === 'AFTERNOON' ? start >= 720 && start <= 1080 && end > 720 && end <= 1080
-        : start >= 1080 && end > 1080;
-    if (!periodValid) return 'Giờ tập chưa nằm trong buổi đã chọn.';
-    byDay.set(slot.dayOfWeek, [...(byDay.get(slot.dayOfWeek) ?? []), slot]);
-  }
-  for (const daySlots of byDay.values()) {
-    const ordered = daySlots.slice().sort((a, b) => (timeMinutes(a.startTime) ?? 0) - (timeMinutes(b.startTime) ?? 0));
-    for (let index = 1; index < ordered.length; index++) {
-      if ((timeMinutes(ordered[index].startTime) ?? 0) < (timeMinutes(ordered[index - 1].endTime) ?? 0)) return 'Các khung giờ trong cùng ngày không được trùng nhau.';
-    }
-  }
-  return '';
-}
-
 export default function RoadmapPage() {
-  const roadmap = useRoadmap();
   const queryClient = useQueryClient();
-  const [weeks, setWeeks] = useState(4);
-  const [wizardStep, setWizardStep] = useState<WizardStep>('title');
-  const [roadmapTitle, setRoadmapTitle] = useState('');
-  const [weeklySlots, setWeeklySlots] = useState<RoadmapSlotRequest[]>([]);
-  const [scheduleValidation, setScheduleValidation] = useState('');
-  const [selected, setSelected] = useState<number | null>(null);
-  const [confirmed, setConfirmed] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [wizardSession, setWizardSession] = useState(0);
   const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
   const [compareWithPrevious, setCompareWithPrevious] = useState(false);
   const [adjustmentBusy, setAdjustmentBusy] = useState(false);
@@ -153,49 +107,16 @@ export default function RoadmapPage() {
     queryKey: ['plan-adjustments', 'me'],
     queryFn: coachService.adjustmentHistory,
   });
+  const doctorRequestsQuery = useQuery({ queryKey: ['doctor-requests', 'mine'], queryFn: doctorRequestService.mine });
 
-  const profileReady = profileQuery.data
-    ? Boolean(profileQuery.data.consent && profileQuery.data.heightCm && profileQuery.data.weightKg)
-    : profileQuery.isPending ? null : false;
   const profileMissing = profileQuery.isError && profileQuery.error instanceof ApiError && profileQuery.error.status === 404;
   const profileError = profileQuery.isError && !profileMissing
     ? profileQuery.error instanceof ApiError ? profileQuery.error.message : 'Không thể tải hồ sơ.'
     : '';
   const goal = profileQuery.data?.goal ?? '';
-  const generate = () => {
-    const error = scheduleError(weeklySlots);
-    setScheduleValidation(error);
-    if (error) { setWizardStep('schedule'); return; }
-    setSelected(null);
-    setWizardStep('preview');
-    void roadmap.generate(goal, weeks, weeklySlots);
-  };
-  const updateSlot = (index: number, changes: Partial<RoadmapSlotRequest>) => {
-    setWeeklySlots((current) => current.map((slot, slotIndex) => slotIndex === index ? { ...slot, ...changes } : slot));
-    setScheduleValidation('');
-  };
-  const removeSlot = (index: number) => {
-    setWeeklySlots((current) => current.filter((_, slotIndex) => slotIndex !== index));
-    setScheduleValidation('');
-  };
-  const addSlot = (dayOfWeek: number, sessionPeriod: SessionPeriod) => {
-    const count = weeklySlots.filter((slot) => slot.dayOfWeek === dayOfWeek && slot.sessionPeriod === sessionPeriod).length;
-    if (count >= 4) return;
-    const firstHour = sessionPeriod === 'MORNING' ? 6 : sessionPeriod === 'AFTERNOON' ? 14 : 19;
-    const startHour = firstHour + count;
-    if (startHour >= 23) return;
-    const startTime = `${String(startHour).padStart(2, '0')}:00`;
-    const endTime = `${String(startHour).padStart(2, '0')}:30`;
-    setWeeklySlots((current) => [...current, { dayOfWeek, sessionPeriod, startTime, endTime, activityType: 'GYM', activity: 'Tập luyện' }]);
-    setScheduleValidation('');
-  };
-  const copyPreviousDay = (dayOfWeek: number) => {
-    if (dayOfWeek < 2) return;
-    setWeeklySlots((current) => [
-      ...current.filter((slot) => slot.dayOfWeek !== dayOfWeek),
-      ...current.filter((slot) => slot.dayOfWeek === dayOfWeek - 1).map((slot) => ({ ...slot, dayOfWeek })),
-    ]);
-    setScheduleValidation('');
+  const openWizard = () => {
+    setWizardSession((current) => current + 1);
+    setWizardOpen(true);
   };
   const refreshActivityQueries = async () => {
     const roadmapId = activeQuery.data?.id;
@@ -297,10 +218,8 @@ export default function RoadmapPage() {
       setScheduleMessage('Không còn khung tập sắp tới trong lộ trình này.');
     }
   };
-  const weeklyMinutes = weeklySlots.reduce((total, slot) => total + Math.max(0, (timeMinutes(slot.endTime) ?? 0) - (timeMinutes(slot.startTime) ?? 0)), 0);
   const activeDay = dayQuery.data as RoadmapDay | undefined;
   const roadmapProgress = progressQuery.data as RoadmapProgress | undefined;
-  const selectedPlan = selected === null ? null : roadmap.options[selected];
   const roadmapList = (historyQuery.data ?? []).filter((item) => item.status !== 'DRAFT' && item.source === 'gemini');
   const previousVersion = activeQuery.data?.previousRoadmapId
     ? historyQuery.data?.find((item) => item.id === activeQuery.data?.previousRoadmapId)
@@ -380,33 +299,6 @@ export default function RoadmapPage() {
     } finally { setDailyReviewBusy(false); }
   };
 
-  const renderPeriod = (dayOfWeek: number, period: { key: SessionPeriod; label: string }) => {
-    const indices = weeklySlots.flatMap((slot, index) => slot.dayOfWeek === dayOfWeek && slot.sessionPeriod === period.key ? [index] : []);
-    return <View key={period.key} style={{ paddingTop: 12, marginTop: 10, borderTopWidth: 1, borderColor: palette.border }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-        <Text style={{ color: palette.text, fontWeight: '800' }}>{period.label} {indices.length === 0 ? '· Nghỉ' : `· ${indices.length} khung`}</Text>
-        <Pressable onPress={() => addSlot(dayOfWeek, period.key)} disabled={indices.length >= 4} accessibilityRole="button" style={{ minHeight: 34, paddingHorizontal: 10, alignItems: 'center', justifyContent: 'center', borderRadius: 7, backgroundColor: palette.primarySoft, opacity: indices.length >= 4 ? 0.4 : 1 }}>
-          <Text style={{ color: palette.primary, fontSize: 11, fontWeight: '800' }}>+ Thêm giờ</Text>
-        </Pressable>
-      </View>
-      {indices.map((index) => {
-        const slot = weeklySlots[index];
-        return <View key={`${period.key}-${index}`} style={{ marginTop: 9, padding: 10, borderRadius: 8, backgroundColor: palette.surfaceRaised }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <TextInput value={slot.startTime} onChangeText={(startTime) => updateSlot(index, { startTime })} keyboardType="numbers-and-punctuation" maxLength={5} accessibilityLabel={`Giờ bắt đầu ${period.label}`} style={{ flex: 1, minHeight: 40, paddingHorizontal: 9, color: palette.text, backgroundColor: palette.surface, borderRadius: 6, textAlign: 'center' }} />
-            <Text style={{ color: palette.textMuted }}>đến</Text>
-            <TextInput value={slot.endTime} onChangeText={(endTime) => updateSlot(index, { endTime })} keyboardType="numbers-and-punctuation" maxLength={5} accessibilityLabel={`Giờ kết thúc ${period.label}`} style={{ flex: 1, minHeight: 40, paddingHorizontal: 9, color: palette.text, backgroundColor: palette.surface, borderRadius: 6, textAlign: 'center' }} />
-            <Pressable onPress={() => removeSlot(index)} accessibilityRole="button" accessibilityLabel="Xóa khung giờ" style={{ width: 38, height: 40, alignItems: 'center', justifyContent: 'center' }}><Text style={{ color: palette.danger, fontSize: 18 }}>×</Text></Pressable>
-          </View>
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 9 }}>
-            {activityTypes.map((activity) => <Pressable key={activity.key} onPress={() => updateSlot(index, { activityType: activity.key })} accessibilityRole="radio" accessibilityState={{ selected: slot.activityType === activity.key }} style={{ paddingVertical: 6, paddingHorizontal: 8, borderRadius: 6, borderWidth: 1, borderColor: slot.activityType === activity.key ? palette.primary : palette.border, backgroundColor: slot.activityType === activity.key ? palette.primarySoft : palette.surface }}><Text style={{ color: slot.activityType === activity.key ? palette.primary : palette.textMuted, fontSize: 10, fontWeight: '700' }}>{activity.label}</Text></Pressable>)}
-          </View>
-          <TextInput value={slot.activity} onChangeText={(activity) => updateSlot(index, { activity })} maxLength={100} placeholder="Nội dung, ví dụ: tập chân" placeholderTextColor={palette.textMuted} accessibilityLabel="Nội dung buổi tập" style={{ minHeight: 38, marginTop: 8, paddingHorizontal: 9, color: palette.text, backgroundColor: palette.surface, borderRadius: 6, fontSize: 12 }} />
-          <Text style={{ color: palette.textMuted, fontSize: 10, marginTop: 5 }}>{Math.max(0, (timeMinutes(slot.endTime) ?? 0) - (timeMinutes(slot.startTime) ?? 0))} phút dự kiến</Text>
-        </View>;
-      })}
-    </View>;
-  };
   const renderDaySession = (period: { key: SessionPeriod; label: string; icon: 'sunny-outline' | 'partly-sunny-outline' | 'moon-outline' }) => {
     const slots = (activeDay?.slots ?? []).filter((slot) => slot.sessionPeriod === period.key);
     return <Card key={period.key}>
@@ -497,28 +389,45 @@ export default function RoadmapPage() {
     }
   };
 
-  return <Screen title="Lộ trình của bạn" subtitle="Theo dõi và quản lý các kế hoạch sức khỏe cá nhân" showBack>
+  return <Screen title="Lộ trình của bạn" showBack>
     {activeQuery.isPending ? <LoadingState label="Đang tải lộ trình hiện tại..." /> : null}
     {activeQuery.isError ? <ErrorState message="Không thể tải lộ trình hiện tại." onRetry={() => void activeQuery.refetch()} /> : null}
-    <Card>
-      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-        <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontSize: 20, fontWeight: '800' }}>Lộ trình của bạn</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 }}>Theo dõi và quản lý các kế hoạch sức khỏe cá nhân.</Text></View>
-        <CustomIconButton
-          onPress={() => { setConfirmed(false); setSelected(null); setRoadmapTitle(''); setWizardStep('title'); }}
-          accessibilityLabel="Tạo lộ trình mới"
-          size={56}
-          icon={<Ionicons name="add" size={28} color={palette.textInverse} />}
-        />
-      </View>
-    </Card>
+<Card>
+  <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+    <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontSize: 20, fontWeight: '800' }}>Lộ trình của bạn</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 }}>Theo dõi và quản lý các kế hoạch sức khỏe cá nhân.</Text></View>
+    <Pressable
+      onPress={openWizard}
+      accessibilityRole="button"
+      accessibilityLabel="Tạo lộ trình mới"
+      hitSlop={8}
+      style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary }}
+    >
+      <Ionicons name="add" size={30} color={palette.textInverse} />
+    </Pressable>
+  </View>
+</Card>
+    <RoadmapWizardModal
+      key={wizardSession}
+      visible={wizardOpen}
+      onClose={() => setWizardOpen(false)}
+      onCompleted={() => {
+        setWizardOpen(false);
+        void queryClient.invalidateQueries({ queryKey: ['roadmap'] });
+      }}
+      goal={goal}
+      initialDiseaseCodes={(profileQuery.data?.diseaseCodes ?? '').split(',').map((item) => item.split(':')[0]).filter(Boolean)}
+    />
+    {profileError ? <ErrorState message={profileError} onRetry={() => void profileQuery.refetch()} /> : null}
+    {false && historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}
     {historyQuery.isPending ? <LoadingState label="Đang tải danh sách lộ trình..." /> : null}
-    {!historyQuery.isPending && roadmapList.length === 0 ? <Card><Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>Bạn chưa có lộ trình nào</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 6 }}>Nhấn nút + để tạo lộ trình sức khỏe cá nhân đầu tiên.</Text></Card> : null}
-    {roadmapList.map((item) => <Pressable key={item.id} onPress={() => { if (item.status === 'ACTIVE') setConfirmed(true); }} accessibilityRole="button" style={({ pressed }) => [{ padding: 14, borderRadius: 10, borderWidth: 1, borderColor: item.status === 'ACTIVE' ? palette.primary : palette.border, backgroundColor: palette.surface }, pressed && { opacity: 0.78 }]}>
+    {roadmapList.map((item) => (
+      <Pressable key={item.id} onPress={() => navigationService.navigate('Roadmap')} accessibilityRole="button" style={({ pressed }) => [{ padding: 14, borderRadius: 10, borderWidth: 1, borderColor: item.status === 'ACTIVE' ? palette.primary : palette.border, backgroundColor: palette.surface }, pressed && { opacity: 0.78 }]}>
       <View style={{ flexDirection: 'row', justifyContent: 'space-between', gap: 8 }}><Text style={{ flex: 1, color: palette.text, fontSize: 15, fontWeight: '800' }}>{item.title}</Text><Text style={{ color: item.status === 'ACTIVE' ? palette.primary : palette.textMuted, fontSize: 11, fontWeight: '700' }}>{item.status === 'ACTIVE' ? 'Đang thực hiện' : item.status === 'COMPLETED' ? 'Hoàn thành' : 'Tạm dừng'}</Text></View>
       <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 6 }}>{item.overview}</Text>
       <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 8 }}>{item.durationWeeks ?? 0} tuần · Tạo ngày {item.createdAt.slice(0, 10)}</Text>
-    </Pressable>)}
+    </Pressable>))}
     {activeQuery.data?.source === 'gemini' ? <>
+      {doctorRequestsQuery.data?.filter((request) => ['PENDING_ASSIGNMENT', 'ASSIGNED', 'IN_REVIEW', 'NEED_MORE_INFO'].includes(request.status)).slice(0, 1).map((request) => <Card key={request.id}><Text style={{ color: palette.primary, fontSize: 11, fontWeight: '800' }}>THEO DÕI YÊU CẦU BÁC SĨ</Text><Text style={{ color: palette.text, fontSize: 15, fontWeight: '800', marginTop: 7 }}>{request.status === 'PENDING_ASSIGNMENT' ? 'Đang chờ phân công' : request.status === 'ASSIGNED' ? 'Đã phân công bác sĩ' : request.status === 'IN_REVIEW' ? 'Bác sĩ đang kiểm tra' : 'Cần bổ sung thông tin'}</Text><Text style={{ color: palette.textMuted, fontSize: 11, lineHeight: 17, marginTop: 5 }}>{request.reason}</Text></Card>)}
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <Text style={{ color: palette.primary, fontSize: 12, fontWeight: '800' }}>ĐANG HOẠT ĐỘNG · PHIÊN BẢN {activeQuery.data.versionNumber ?? '—'}</Text>
@@ -526,6 +435,7 @@ export default function RoadmapPage() {
         </View>
         <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800', marginTop: 8 }}>{activeQuery.data.title}</Text>
         <Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 6 }}>{activeQuery.data.overview}</Text>
+        {activeQuery.data.fullText ? <View style={{ marginTop: 12, padding: 12, borderRadius: 9, backgroundColor: palette.surfaceRaised }}><Text style={{ color: palette.primary, fontSize: 11, fontWeight: '800' }}>TOÀN BỘ PHÂN TÍCH</Text><Text selectable style={{ color: palette.text, fontSize: 12, lineHeight: 19, marginTop: 7 }}>{activeQuery.data.fullText}</Text></View> : null}
         <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 8 }}>Bắt đầu {activeQuery.data.startDate ?? 'chưa xác định'} · {activeQuery.data.source === 'gemini' ? 'Đề xuất AI' : 'Dữ liệu đã lưu'}</Text>
         {activeQuery.data.changeReason ? <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 4 }}>Lý do phiên bản: {activeQuery.data.changeReason === 'INITIAL_PLAN' ? 'Kế hoạch ban đầu' : 'Bạn xác nhận phương án mới'}</Text> : null}
         {false && previousVersion ? <Pressable onPress={() => setCompareWithPrevious((value) => !value)} accessibilityRole="button" style={{ minHeight: 42, marginTop: 12, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderRadius: 9, borderWidth: 1, borderColor: palette.border }}>
@@ -550,7 +460,7 @@ export default function RoadmapPage() {
               <Text style={{ color: palette.text, fontSize: 16, fontWeight: '800' }}>Ngày {dayIndex + 1} / {roadmapDays}</Text>
               <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 3 }}>{new Date(`${selectedDate}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</Text>
             </View>
-            <Pressable disabled={dayIndex >= roadmapDays - 1} onPress={() => { setChosenDayIndex(dayIndex + 1); setExpandedSlotId(null); }} accessibilityRole="button" accessibilityLabel="Ngày tiếp theo" style={{ width: 42, height: 42, alignItems: 'center', justifyContent: 'center', opacity: dayIndex >= roadmapDays - 1 ? 0.35 : 1 }}><Ionicons name="chevron-forward" size={21} color={palette.primary} /></Pressable>
+            <Pressable disabled={dayIndex >= roadmapDays - 1} onPress={() => { setChosenDayIndex(dayIndex + 1); setExpandedSlotId(null); }} accessibilityRole="button" accessibilityLabel="Ngày tiếp theo" style={{ width: 42, height: 42, alignItems: 'center', justifyContent: 'center', opacity: dayIndex >= roadmapDays - 1 ? 0.35 : 1 }}><Text style={{ color: palette.primary, fontWeight: '700' }}>Sau</Text></Pressable>
           </View>
           {activeDay ? <Text style={{ color: palette.textMuted, fontSize: 11, textAlign: 'center', marginTop: 5 }}>{activeDay.totalSlots === 0 ? 'Ngày nghỉ' : `${activeDay.completedSlots}/${activeDay.totalSlots} khung hoàn thành · ${activeDay.expectedMinutes} phút dự kiến${activeDay.actualMinutes ? ` · ${activeDay.actualMinutes} phút thực tế` : ''}`} · {dayStatusLabels[activeDay.status]}</Text> : null}
           {activeDay && activeDay.totalSlots > 0 ? <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: activeDay.totalSlots, now: activeDay.completedSlots }} style={{ height: 6, backgroundColor: palette.surfaceRaised, borderRadius: 3, overflow: 'hidden', marginTop: 9 }}><View style={{ width: `${Math.round(activeDay.completedSlots * 100 / activeDay.totalSlots)}%`, height: '100%', backgroundColor: palette.primary }} /></View> : null}
@@ -649,89 +559,5 @@ export default function RoadmapPage() {
         {expandedHistoryId === item.id ? <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 19, paddingBottom: 12 }}>{item.overview}{item.changeReason ? `\nLý do: ${item.changeReason}` : ''}</Text> : null}
       </View>)}
     </Card> : null}
-    {profileReady === null ? <LoadingState label="Đang kiểm tra hồ sơ..." /> : null}
-    {profileError ? <ErrorState message={profileError} onRetry={() => void profileQuery.refetch()} /> : null}
-    {profileReady === false && (profileMissing || profileQuery.data) ? <Card><Text style={{ color: palette.text, fontSize: 17, fontWeight: '800' }}>{profileMissing ? 'Tạo hồ sơ trước' : 'Hoàn thiện hồ sơ trước'}</Text><Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>Nhập mục tiêu, mức vận động, chiều cao, cân nặng và đồng ý lưu dữ liệu để tạo bản xem trước cá nhân hóa.</Text><View style={{ marginTop: 14 }}><AppButton label="Mở hồ sơ" onPress={() => navigationService.navigate('Profile')} /></View></Card> : null}
-    {false && historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}
-    {profileReady && !confirmed && wizardStep === 'title' && roadmap.status !== 'loading' ? <Card>
-      <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Tạo lộ trình mới</Text>
-      <Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 8 }}>Đặt tên để dễ theo dõi mục tiêu sức khỏe của bạn.</Text>
-      <TextInput value={roadmapTitle} onChangeText={setRoadmapTitle} placeholder="Ví dụ: Giảm 5kg trong 3 tháng" placeholderTextColor={palette.textMuted} style={{ minHeight: 46, marginTop: 14, paddingHorizontal: 12, borderWidth: 1, borderColor: palette.border, borderRadius: 8, color: palette.text, backgroundColor: palette.surface }} />
-      <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-        <View style={{ flex: 1 }}><AppButton label="Hủy" variant="secondary" onPress={() => setRoadmapTitle('')} /></View>
-        <View style={{ flex: 1 }}><AppButton label="Tiếp tục" disabled={!roadmapTitle.trim()} onPress={() => setWizardStep('duration')} /></View>
-      </View>
-    </Card> : null}
-    {profileReady && !confirmed && wizardStep === 'duration' && roadmap.status !== 'loading' ? <Card>
-      <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Tạo lộ trình</Text>
-      <Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 8 }}>Mục tiêu: {goal}. Thể trạng và giới hạn lấy từ hồ sơ đã lưu. Thời lượng là ước tính ban đầu, có thể điều chỉnh theo tiến độ.</Text>
-      <Text style={{ color: palette.text, fontWeight: '700', marginTop: 18, marginBottom: 10 }}>Khoảng thời gian</Text>
-      <View style={{ flexDirection: 'row', gap: 8 }}>{[2, 4, 8].map((value) => <Pressable key={value} accessibilityRole="radio" accessibilityState={{ selected: weeks === value }} onPress={() => setWeeks(value)} style={{ flex: 1, paddingVertical: 11, alignItems: 'center', borderRadius: 8, borderWidth: 1, borderColor: weeks === value ? palette.primary : palette.border, backgroundColor: weeks === value ? palette.primary : 'transparent' }}><Text style={{ color: weeks === value ? palette.textInverse : palette.text, fontWeight: '700' }}>{value} tuần</Text></Pressable>)}</View>
-      <View style={{ marginTop: 16 }}><AppButton label="Tiếp tục chọn lịch" onPress={() => setWizardStep('schedule')} /></View>
-    </Card> : null}
-    {profileReady && !confirmed && wizardStep === 'schedule' && roadmap.status !== 'loading' ? <>
-      <Card>
-        <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Lịch tập lặp theo tuần</Text>
-        <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 7 }}>Chọn ngày và thêm một hoặc nhiều khung trong từng buổi. Ngày/buổi để trống được xem là nghỉ; lịch này lặp trong {weeks} tuần.</Text>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 12 }}>
-          <View style={{ flex: 1, padding: 10, borderRadius: 8, backgroundColor: palette.surfaceRaised }}><Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>{weeklySlots.length}</Text><Text style={{ color: palette.textMuted, fontSize: 10 }}>khung mỗi tuần</Text></View>
-          <View style={{ flex: 1, padding: 10, borderRadius: 8, backgroundColor: palette.surfaceRaised }}><Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>{Math.floor(weeklyMinutes / 60)}g {weeklyMinutes % 60}p</Text><Text style={{ color: palette.textMuted, fontSize: 10 }}>mỗi tuần · {weeklySlots.length * weeks} khung toàn kỳ</Text></View>
-        </View>
-      </Card>
-      {weekdays.map((day, index) => <Card key={day}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
-          <View><Text style={{ color: palette.text, fontSize: 15, fontWeight: '800' }}>{day}</Text><Text style={{ color: palette.textMuted, fontSize: 10, marginTop: 3 }}>{weeklySlots.filter((slot) => slot.dayOfWeek === index + 1).length} khung tập</Text></View>
-          {index > 0 ? <Pressable onPress={() => copyPreviousDay(index + 1)} accessibilityRole="button" style={{ minHeight: 36, paddingHorizontal: 9, justifyContent: 'center', borderRadius: 7, borderWidth: 1, borderColor: palette.border }}><Text style={{ color: palette.primary, fontSize: 10, fontWeight: '700' }}>Sao chép ngày trước</Text></Pressable> : null}
-        </View>
-        {periods.map((period) => renderPeriod(index + 1, period))}
-      </Card>)}
-      {scheduleValidation ? <Text accessibilityLiveRegion="polite" style={{ color: palette.danger, fontSize: 12 }}>{scheduleValidation}</Text> : null}
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <View style={{ flex: 1 }}><AppButton label="Quay lại" variant="secondary" onPress={() => setWizardStep('duration')} /></View>
-        <View style={{ flex: 1 }}><AppButton label="Xem lại lịch" onPress={() => { const error = scheduleError(weeklySlots); setScheduleValidation(error); if (!error) setWizardStep('review'); }} /></View>
-      </View>
-    </> : null}
-    {profileReady && !confirmed && wizardStep === 'review' && roadmap.status !== 'loading' ? <>
-      <Card>
-        <Text style={{ color: palette.text, fontSize: 18, fontWeight: '800' }}>Xem lại lịch tập</Text>
-        <Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 6 }}>{weeks} tuần · {weeklySlots.length} khung/tuần · {weeklySlots.length * weeks} khung toàn kỳ · {Math.floor(weeklyMinutes / 60)} giờ {weeklyMinutes % 60} phút/tuần. AI chỉ viết nội dung trong các khung này; ngày trống là ngày nghỉ.</Text>
-        {weekdays.map((day, dayIndex) => {
-          const daySlots = weeklySlots.filter((slot) => slot.dayOfWeek === dayIndex + 1);
-          return <View key={day} style={{ paddingTop: 10, marginTop: 10, borderTopWidth: 1, borderColor: palette.border }}>
-            <Text style={{ color: palette.text, fontWeight: '800' }}>{day}{daySlots.length === 0 ? ' · Nghỉ' : ''}</Text>
-            {periods.map((period) => daySlots.filter((slot) => slot.sessionPeriod === period.key).map((slot, slotIndex) => <Text key={`${period.key}-${slotIndex}`} style={{ color: palette.textMuted, fontSize: 11, lineHeight: 17, marginTop: 4 }}>{period.label} · {slot.startTime}–{slot.endTime} · {slot.activity} ({slot.activityType})</Text>))}
-          </View>;
-        })}
-      </Card>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        <View style={{ flex: 1 }}><AppButton label="Chỉnh lịch" variant="secondary" onPress={() => setWizardStep('schedule')} /></View>
-        <View style={{ flex: 1 }}><AppButton label="Tạo 3 phương án AI" onPress={generate} /></View>
-      </View>
-    </> : null}
-    {roadmap.status === 'loading' ? <LoadingState label={roadmap.data ? 'Đang kích hoạt lộ trình...' : 'Đang tạo các phương án xem trước...'} /> : null}
-    {roadmap.status === 'error' ? <ErrorState message={roadmap.message} onRetry={roadmap.canRetry ? generate : undefined} /> : null}
-    {roadmap.options.length > 0 && !confirmed && wizardStep === 'preview' ? <>
-      <Card><Text style={{ color: palette.text, fontWeight: '800' }}>Lịch đã gửi cho AI</Text><Text style={{ color: palette.textMuted, fontSize: 12, marginTop: 5 }}>{weeklySlots.length} khung/tuần · {Math.floor(weeklyMinutes / 60)} giờ {weeklyMinutes % 60} phút/tuần · lặp {weeks} tuần</Text><Pressable onPress={() => { setSelected(null); setWizardStep('schedule'); }} accessibilityRole="button" style={{ paddingTop: 10 }}><Text style={{ color: palette.primary, fontWeight: '700' }}>Chỉnh lịch</Text></Pressable></Card>
-      <Text style={{ color: palette.text, fontSize: 17, fontWeight: '800', marginBottom: 4 }}>Chọn một phương án</Text>
-      {roadmap.options.map((plan, index) => <Pressable key={`${index}-${plan.title}`} onPress={() => setSelected(index)} accessibilityRole="radio" accessibilityState={{ selected: selected === index }}>
-        <Card style={{ borderColor: selected === index ? palette.primary : palette.border }}>
-          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}><Text style={{ flex: 1, color: palette.text, fontSize: 17, fontWeight: '800' }}>{variants[index] ?? `Phương án ${index + 1}`}</Text><Text style={{ color: palette.primary, fontWeight: '800' }}>{selected === index ? 'Đã chọn' : 'Chọn'}</Text></View>
-          <Text style={{ color: palette.text, fontWeight: '700', marginTop: 10 }}>{plan.title}</Text><Text style={{ color: palette.textMuted, lineHeight: 20, marginTop: 6 }}>{plan.overview}</Text>
-          {plan.weeklyPlan.map((week, i) => <Text key={i} style={{ color: palette.textMuted, lineHeight: 20, marginTop: 7 }}>Tuần {i + 1}: {week}</Text>)}
-          <Text style={{ color: palette.warning, lineHeight: 19, marginTop: 10 }}>Lưu ý: {plan.safetyNotes.join(' ')}</Text>
-          <Text style={{ color: palette.textMuted, fontSize: 12, marginTop: 8 }}>{plan.source === 'fallback' ? 'Bản dự phòng' : 'Đề xuất AI'} · {weeks} tuần</Text>
-        </Card>
-      </Pressable>)}
-      <AppButton label="Xác nhận và bắt đầu" disabled={!selectedPlan} onPress={() => {
-        if (selectedPlan && selected !== null) void roadmap.activate(selectedPlan, selected, roadmapTitle.trim(), null).then((ok) => {
-          if (ok) {
-            setConfirmed(true);
-            void queryClient.invalidateQueries({ queryKey: ['roadmap'] });
-          }
-        });
-      }} />
-      <View style={{ height: 10 }} /><AppButton label="Tạo phương án khác" variant="secondary" onPress={generate} />
-    </> : null}
-    {confirmed ? <Card><Text style={{ color: palette.primary, fontSize: 18, fontWeight: '800' }}>Lộ trình đã bắt đầu</Text><Text style={{ color: palette.textMuted, lineHeight: 21, marginTop: 8 }}>{roadmap.data?.title}. Lịch theo ngày đã có trên trang chủ.</Text><View style={{ marginTop: 14 }}><AppButton label="Về trang chủ" onPress={() => navigationService.navigate('Home')} /></View></Card> : null}
   </Screen>;
 }

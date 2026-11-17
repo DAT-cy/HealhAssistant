@@ -48,6 +48,39 @@
         WHERE username = 'admin'
     </select>
 
+    <select id="countUsers" resultType="long">
+        SELECT COUNT(*) FROM tbl_users
+        WHERE is_deleted = false
+        <if test="role != null and role != ''">AND role = #{role}</if>
+        <if test="enabled != null">AND enable = #{enabled}</if>
+    </select>
+
+    <select id="findAdminUsers" resultMap="userResultMap">
+        SELECT user_id, username, email, display_name, password, enable, is_deleted,
+               email_verified, auth_version, role, created_at, updated_at
+        FROM tbl_users
+        WHERE is_deleted = false
+        <if test="role != null and role != ''">AND role = #{role}</if>
+        <if test="enabled != null">AND enable = #{enabled}</if>
+        <if test="query != null and query != ''">
+            AND (LOWER(username) LIKE CONCAT('%', LOWER(#{query}), '%')
+              OR LOWER(COALESCE(email, '')) LIKE CONCAT('%', LOWER(#{query}), '%')
+              OR LOWER(COALESCE(display_name, '')) LIKE CONCAT('%', LOWER(#{query}), '%'))
+        </if>
+        ORDER BY created_at DESC
+        LIMIT 200
+    </select>
+
+    <update id="updateEnabled">
+        UPDATE tbl_users SET enable = #{enabled}, updated_at = NOW(), updated_id = 'admin'
+        WHERE user_id = #{userId} AND is_deleted = false
+    </update>
+
+    <update id="updateRole">
+        UPDATE tbl_users SET role = #{role}, updated_at = NOW(), updated_id = 'admin'
+        WHERE user_id = #{userId} AND is_deleted = false
+    </update>
+
     <insert id="insertUser" parameterType="health_assistant.module.users.entity.User" useGeneratedKeys="true" keyProperty="userId" keyColumn="user_id">
         INSERT INTO tbl_users (username,
                                email,

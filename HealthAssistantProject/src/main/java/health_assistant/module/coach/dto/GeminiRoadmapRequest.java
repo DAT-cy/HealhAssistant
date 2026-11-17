@@ -13,9 +13,14 @@ public record GeminiRoadmapRequest(
         @Min(1) @Max(12) int weeks,
         @Size(max = 500) String postureSummary,
         @Size(max = 500) String restrictions,
-        @Size(max = 84) List<@NotNull @Valid RoadmapSlotRequest> schedule) {
+        @Size(max = 84) List<@NotNull @Valid RoadmapSlotRequest> schedule,
+        @Size(max = 20) List<@NotBlank String> diseaseCodes) {
 
     public GeminiRoadmapRequest(String goal, int weeks, String postureSummary, String restrictions) {
-        this(goal, weeks, postureSummary, restrictions, List.of());
+        this(goal, weeks, postureSummary, restrictions, List.of(), List.of());
+    }
+
+    public GeminiRoadmapRequest(String goal, int weeks, String postureSummary, String restrictions, List<RoadmapSlotRequest> schedule) {
+        this(goal, weeks, postureSummary, restrictions, schedule, List.of());
     }
 }

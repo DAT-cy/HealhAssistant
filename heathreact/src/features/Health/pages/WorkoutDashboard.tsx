@@ -10,7 +10,8 @@ import { palette, radius, spacing } from '@/theme/tokens';
 import { useQuery } from '@tanstack/react-query';
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import Screen from '@/components/ui/Screen';
 
 function sourceLabel(source: string) {
@@ -86,7 +87,6 @@ export default function WorkoutDashboardPage() {
         <Pressable onPress={() => navigationService.navigate('Roadmap')} style={({ pressed }) => [styles.sessionLink, pressed && styles.pressed]} accessibilityRole="button">
           <View style={styles.sessionIcon}><Ionicons name="barbell-outline" size={20} color={palette.primary} /></View>
           <View style={styles.sessionCopy}><Text style={styles.sessionTitle}>Coach gym theo lịch</Text><Text style={styles.sessionDetail}>Hướng dẫn catalog và camera chụp ảnh kiểm tra tư thế.</Text></View>
-          <Ionicons name="chevron-forward" size={18} color={palette.textMuted} />
         </Pressable>
         <AppButton label="Xem kế hoạch hôm nay" variant="secondary" onPress={() => navigationService.navigate('DailyPlan')} />
       </> : null}

@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import { router, useFocusEffect } from 'expo-router';
 import {
   Image,
-  Pressable,
   RefreshControl,
   ScrollView,
   StatusBar,
@@ -11,6 +10,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
@@ -18,10 +18,12 @@ import { useQuery } from '@tanstack/react-query';
 import AppModal from '@/components/ui/AppModal';
 
 import { useUserStore } from '@/stores/user';
+import { palette } from '@/theme/tokens';
 import { ApiError } from '@/api/client';
 import { coachService, type ActiveRoadmap, type RoadmapRecord } from '@/api/services/coach.service';
 import { dailyPlanService, type DailyPlanResponse } from '@/api/services/daily-plan.service';
 import { healthTrackingService, type AvailabilitySlot } from '@/api/services/health-tracking.service';
+import { profileService } from '@/api/services/profile.service';
 
 import HomeHeader from '../components/HomeHeader';
 import HomeTabBar from '../components/HomeTabBar';
@@ -90,6 +92,7 @@ export default function HomePage() {
     queryKey: ['availability', 'me'],
     queryFn: healthTrackingService.availability,
   });
+  const { data: profile } = useQuery({ queryKey: ['profile', 'me'], queryFn: profileService.getMine });
   const { data: todayPlan, isRefetching: planRefetching, refetch: refetchTodayPlan } = useQuery<DailyPlanResponse>({
     queryKey: ['daily-plan', 'today'],
     queryFn: dailyPlanService.today,
@@ -156,8 +159,8 @@ export default function HomePage() {
         <View style={styles.mainWrapper}>
           <HomeHeader
             username={username}
-            avatarUrl={null}
-            gender={null}
+            avatarUrl={profile?.avatarUrl ?? null}
+            gender={profile?.gender ?? null}
             onLogout={logout}
             topInset={insets.top}
           />
@@ -179,7 +182,6 @@ export default function HomePage() {
               <Text style={styles.heroDescription}>AI đồng hành cùng bạn xây dựng lộ trình tập luyện và dinh dưỡng cá nhân, phù hợp với thể trạng và mục tiêu.</Text>
               <Pressable onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.heroButton, pressed && styles.pressed]} accessibilityRole="button">
                 <Text style={styles.heroButtonText}>Tạo lộ trình ngay</Text>
-                <Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
               </Pressable>
             </View>
             <View style={styles.heroArt}>
@@ -191,20 +193,25 @@ export default function HomePage() {
             <Text style={styles.sectionTitle}>Bạn có thể làm gì?</Text>
           </View>
           <View style={styles.actionGrid}>
-            {actions.map((action) => (
+            {actions.map((action, index) => (
               <Pressable
                 key={action.title}
                 onPress={() => navigate(action.route)}
                 accessibilityRole="button"
-                style={({ pressed }) => [styles.actionCard, pressed && styles.pressed]}
+                style={({ pressed }) => [
+                  styles.actionCard,
+                  index === 0 && styles.actionCardFeatured,
+                  pressed && styles.pressed,
+                ]}
               >
-                <View style={[styles.actionIcon, { backgroundColor: action.background }]}>
-                  <Ionicons name={action.icon} size={22} color={action.color} />
+                <View style={styles.actionHeader}>
+                  <View style={[styles.actionIcon, { backgroundColor: action.background }, index === 0 && styles.actionIconFeatured]}>
+                    <Ionicons name={action.icon} size={20} color={index === 0 ? palette.textInverse : action.color} />
+                  </View>
+                  <Text style={[styles.actionTitle, index === 0 && styles.actionTitleFeatured]} numberOfLines={1}>{action.title}</Text>
+                  <Ionicons name="chevron-forward" size={17} color={index === 0 ? palette.primary : palette.textMuted} />
                 </View>
-                <View style={styles.actionCopy}>
-                  <Text style={styles.actionTitle} numberOfLines={1}>{action.title}</Text>
-                  <Text style={styles.actionDetail} numberOfLines={2}>{action.detail}</Text>
-                </View>
+                <Text style={styles.actionDetail} numberOfLines={2}>{action.detail}</Text>
               </Pressable>
             ))}
           </View>
@@ -212,9 +219,11 @@ export default function HomePage() {
           {roadmapHistory?.length ? <View style={styles.recentSection}>
             <View style={styles.recentHeading}><Text style={styles.sectionTitle}>Lộ trình gần đây</Text><Pressable onPress={() => navigate('Roadmap')} accessibilityRole="button"><Text style={styles.recentAll}>Xem tất cả</Text></Pressable></View>
             {roadmapHistory.slice(0, 3).map((roadmap) => <Pressable key={roadmap.id} onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.recentRoadmap, pressed && styles.pressed]} accessibilityRole="button">
-              <View style={[styles.recentRoadmapIcon, roadmap.status === 'ACTIVE' && styles.recentRoadmapIconActive]}><Ionicons name={roadmap.status === 'ACTIVE' ? 'sparkles' : 'archive-outline'} size={18} color={roadmap.status === 'ACTIVE' ? '#FFFFFF' : '#635BFF'} /></View>
-              <View style={{ flex: 1, minWidth: 0 }}><Text style={styles.recentRoadmapTitle} numberOfLines={1}>{roadmap.title}</Text><Text style={styles.recentRoadmapMeta}>{roadmap.status === 'ACTIVE' ? 'Đang theo dõi' : 'Đã lưu'} · {roadmap.durationWeeks ?? 0} tuần</Text></View>
-              <Ionicons name="chevron-forward" size={19} color="#7A8099" />
+              <View style={styles.recentRoadmapHeader}>
+                <View style={[styles.recentRoadmapIcon, roadmap.status === 'ACTIVE' && styles.recentRoadmapIconActive]}><Ionicons name={roadmap.status === 'ACTIVE' ? 'sparkles' : 'archive-outline'} size={18} color={roadmap.status === 'ACTIVE' ? '#FFFFFF' : '#635BFF'} /></View>
+                <Text style={styles.recentRoadmapTitle} numberOfLines={1}>{roadmap.title}</Text>
+              </View>
+              <Text style={styles.recentRoadmapMeta}>{roadmap.status === 'ACTIVE' ? 'Đang theo dõi' : 'Đã lưu'} · {roadmap.durationWeeks ?? 0} tuần</Text>
             </Pressable>)}
           </View> : null}
 
@@ -222,12 +231,11 @@ export default function HomePage() {
             <ActiveRoadmapSection roadmap={activeRoadmap} onOpenRoadmap={() => navigate('Roadmap')} onOpenDailyPlan={() => navigate('DailyPlan')} />
           ) : (
             <Pressable onPress={() => navigate('Roadmap')} style={({ pressed }) => [styles.roadmapBanner, pressed && styles.pressed]} accessibilityRole="button">
-              <View style={styles.bannerIcon}><Ionicons name="sparkles" size={22} color="#635BFF" /></View>
-              <View style={styles.bannerCopy}>
+              <View style={styles.bannerHeader}>
+                <View style={styles.bannerHeaderIcon}><Ionicons name="sparkles" size={20} color="#635BFF" /></View>
                 <Text style={styles.bannerTitle}>Hiện tại bạn chưa có lộ trình nào</Text>
-                <Text style={styles.bannerDetail}>Hãy tạo lộ trình để bắt đầu hành trình khỏe mạnh của mình.</Text>
               </View>
-              <Ionicons name="chevron-forward" size={20} color="#64748B" />
+              <Text style={styles.bannerDetail}>Hãy tạo lộ trình để bắt đầu hành trình khỏe mạnh của mình.</Text>
             </Pressable>
           )}
 
@@ -245,8 +253,8 @@ export default function HomePage() {
       </ScrollView>
 
       <HomeTabBar bottomInset={insets.bottom} activeTab="Home" onSelectTab={(tab) => {
-        if (tab === 'Workout') navigate('Workout');
-        else if (tab === 'Progress') navigate('Progress');
+        if (tab === 'Workout') navigationService.replace('Workout');
+        else if (tab === 'Progress') navigationService.replace('Progress');
       }} />
 
       <AppModal visible={showRoadmapSetup} animationType="slide" presentationStyle="pageSheet" onRequestClose={() => setShowRoadmapSetup(false)}>
@@ -293,7 +301,10 @@ export default function HomePage() {
             <SetupField label="Lưu ý sức khỏe khác" value={setupMedicalNotes} onChangeText={setSetupMedicalNotes} placeholder="Ví dụ: huyết áp, bệnh nền, thuốc đang dùng" />
             <Text style={{ color: '#20213A', fontSize: 13, fontWeight: '700', marginTop: 4 }}>Thời lượng lộ trình</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>{[2, 4, 8].map((value) => <Pressable key={value} onPress={() => setSetupWeeks(value)} accessibilityRole="radio" accessibilityState={{ selected: setupWeeks === value }} style={{ flex: 1, minHeight: 44, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: setupWeeks === value ? '#635BFF' : '#DDE1EE', backgroundColor: setupWeeks === value ? '#EFEEFF' : '#FFFFFF' }}><Text style={{ color: setupWeeks === value ? '#4438CA' : '#4A5069', fontWeight: '700' }}>{value} tuần</Text></Pressable>)}</View>
-            <Pressable onPress={continueRoadmapCreation} disabled={!setupGoal.trim() || setupDays.length === 0} accessibilityRole="button" style={{ minHeight: 50, marginTop: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#635BFF', opacity: setupGoal.trim() && setupDays.length > 0 ? 1 : 0.45 }}><Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800' }}>Tạo lộ trình cá nhân</Text></Pressable>
+            <Pressable onPress={continueRoadmapCreation} disabled={!setupGoal.trim() || setupDays.length === 0} accessibilityRole="button" style={{ minHeight: 50, marginTop: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, borderRadius: 8, backgroundColor: '#635BFF', opacity: setupGoal.trim() && setupDays.length > 0 ? 1 : 0.45 }}>
+              <Ionicons name="locate-outline" size={18} color="#FFFFFF" />
+              <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800' }}>Tạo lộ trình cá nhân</Text>
+            </Pressable>
           </ScrollView>
         </View>
       </AppModal>
@@ -322,24 +333,30 @@ const styles = StyleSheet.create({
   sectionHeading: { marginTop: 22, marginBottom: 11 },
   sectionTitle: { color: '#20213A', fontSize: 18, fontWeight: '800' },
   actionGrid: { gap: 10 },
-  actionCard: { width: '100%', minHeight: 76, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 14, backgroundColor: '#FFFFFF' },
-  actionIcon: { width: 46, height: 46, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  actionCopy: { flex: 1, minWidth: 0 },
-  actionTitle: { color: '#20213A', fontSize: 14, lineHeight: 19, fontWeight: '800' },
-  actionDetail: { color: '#7A8099', fontSize: 12, lineHeight: 17, marginTop: 3 },
+  actionCard: { width: '100%', gap: 8, padding: 12, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 14, backgroundColor: '#FFFFFF' },
+  actionCardFeatured: { borderColor: palette.primary, backgroundColor: palette.primarySoft },
+  actionHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  actionIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  actionIconFeatured: { backgroundColor: palette.primary },
+  actionTitle: { flex: 1, minWidth: 0, color: '#20213A', fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  actionTitleFeatured: { color: palette.primaryDark },
+  actionDetail: { color: '#7A8099', fontSize: 12, lineHeight: 17 },
   recentSection: { marginTop: 22 },
   recentHeading: { minHeight: 30, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
   recentAll: { color: '#268FCB', fontSize: 12, fontWeight: '800' },
-  recentRoadmap: { minHeight: 66, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, marginTop: 8, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 13, backgroundColor: '#FFFFFF' },
-  recentRoadmapIcon: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFEEFF' },
+  recentRoadmap: { gap: 8, padding: 12, marginTop: 8, borderWidth: 1, borderColor: '#E8EAF4', borderRadius: 14, backgroundColor: '#FFFFFF' },
+  recentRoadmapHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  recentRoadmapIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexShrink: 0, backgroundColor: '#EFEEFF' },
   recentRoadmapIconActive: { backgroundColor: '#635BFF' },
-  recentRoadmapTitle: { color: '#20213A', fontSize: 13, fontWeight: '800' },
-  recentRoadmapMeta: { color: '#7A8099', fontSize: 11, marginTop: 3 },
-  roadmapBanner: { minHeight: 82, flexDirection: 'row', alignItems: 'center', gap: 11, padding: 13, marginTop: 18, backgroundColor: '#EFEEFF', borderRadius: 16 },
+  recentRoadmapTitle: { flex: 1, minWidth: 0, color: '#20213A', fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  recentRoadmapMeta: { color: '#7A8099', fontSize: 12, lineHeight: 17 },
+  roadmapBanner: { gap: 8, padding: 12, marginTop: 18, backgroundColor: '#EFEEFF', borderRadius: 16 },
+  bannerHeader: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bannerHeaderIcon: { width: 38, height: 38, borderRadius: 10, backgroundColor: '#E4E1FF', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   bannerIcon: { width: 46, height: 46, borderRadius: 16, backgroundColor: '#E4E1FF', alignItems: 'center', justifyContent: 'center' },
   bannerCopy: { flex: 1 },
-  bannerTitle: { color: '#4438CA', fontSize: 13, fontWeight: '800' },
-  bannerDetail: { color: '#7A8099', fontSize: 11, lineHeight: 15, marginTop: 4 },
+  bannerTitle: { flex: 1, minWidth: 0, color: '#4438CA', fontSize: 14, lineHeight: 19, fontWeight: '800' },
+  bannerDetail: { color: '#7A8099', fontSize: 12, lineHeight: 17 },
   quoteBanner: { minHeight: 78, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 13, marginTop: 14, backgroundColor: '#EAF8FF', borderRadius: 16 },
   quoteMark: { width: 32, height: 32, borderRadius: 12, backgroundColor: '#D7F3FF', alignItems: 'center', justifyContent: 'center' },
   quoteCopy: { flex: 1 },
@@ -348,7 +365,7 @@ const styles = StyleSheet.create({
   errorText: { color: '#D95070', fontSize: 12, marginTop: 10 },
   pressed: { opacity: 0.82 },
   roadmapSection: { marginTop: 18, padding: 14, backgroundColor: '#F2F1FF', borderRadius: 20, borderWidth: 1, borderColor: '#E6E4FF' },
-  roadmapSectionHeading: { minHeight: 56, flexDirection: 'row', alignItems: 'center', gap: 11 },
+  roadmapSectionHeading: { gap: 8 },
   weekSummary: { marginTop: 14, padding: 13, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: '#E8EAF4' },
   weekSummaryTop: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', justifyContent: 'space-between', gap: 6 },
   weekSummaryTitle: { color: '#4438CA', fontSize: 14, fontWeight: '800' },
@@ -414,14 +431,11 @@ function ActiveRoadmapSection({
   return (
     <View style={styles.roadmapSection}>
       <View style={styles.roadmapSectionHeading}>
-        <View style={styles.bannerIcon}><Ionicons name="sparkles" size={22} color="#635BFF" /></View>
-        <View style={styles.bannerCopy}>
-          <Text style={styles.bannerTitle}>Lộ trình đang hoạt động</Text>
-          <Text style={styles.bannerDetail} numberOfLines={2}>{roadmap.title}</Text>
+        <View style={styles.bannerHeader}>
+          <View style={styles.bannerHeaderIcon}><Ionicons name="sparkles" size={20} color="#635BFF" /></View>
+          <Text style={styles.bannerTitle} numberOfLines={1}>Lộ trình đang hoạt động</Text>
         </View>
-        <Pressable onPress={onOpenRoadmap} hitSlop={8} accessibilityRole="button" accessibilityLabel="Mở chi tiết lộ trình">
-          <Ionicons name="chevron-forward" size={20} color="#64748B" />
-        </Pressable>
+        <Text style={styles.bannerDetail} numberOfLines={2}>{roadmap.title}</Text>
       </View>
 
       <View style={styles.weekSummary}>
@@ -436,7 +450,6 @@ function ActiveRoadmapSection({
       <Pressable onPress={onOpenDailyPlan} style={({ pressed }) => [styles.dailyPlanButton, pressed && styles.pressed]} accessibilityRole="button">
         <Ionicons name="calendar-outline" size={17} color="#FFFFFF" />
         <Text style={styles.dailyPlanButtonText}>Mở lịch tập theo ngày</Text>
-        <Ionicons name="arrow-forward" size={16} color="#FFFFFF" />
       </Pressable>
     </View>
   );
@@ -452,7 +465,7 @@ function WeeklyCalendarPreview({ availability, plan, onOpen, onOpenDate }: { ava
     <View style={styles.calendarPreviewHeading}>
       <View style={styles.bannerIcon}><Ionicons name="calendar" size={21} color="#268FCB" /></View>
       <View style={styles.bannerCopy}><Text style={styles.calendarPreviewTitle}>Lịch tuần này</Text><Text style={styles.calendarPreviewDate}>{formatDate(monday)} - {formatDate(addDays(monday, 6))}</Text></View>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel="Mở lịch tuần"><Ionicons name="chevron-forward" size={20} color="#64748B" /></Pressable>
+      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityLabel="Mở lịch tuần"><Text style={{ color: '#64748B', fontWeight: '700' }}>Mở</Text></Pressable>
     </View>
     <View style={styles.calendarDays}>
       {Array.from({ length: 7 }, (_, index) => {
@@ -475,7 +488,7 @@ function WeeklyCalendarPreview({ availability, plan, onOpen, onOpenDate }: { ava
       </View>
       <View style={styles.todayTime}><Ionicons name="time-outline" size={15} color="#315C7A" /><Text style={styles.todayTimeText}>{plan?.source === 'safety-rule' || plan?.source === 'rest-day' ? 'Nghỉ' : plan?.scheduledStart && plan.scheduledEnd ? `${plan.scheduledStart} - ${plan.scheduledEnd}` : todaySlot ? `${shortTime(todaySlot.startTime)} - ${shortTime(todaySlot.endTime)}` : 'Nghỉ'}</Text></View>
     </View>
-    <Pressable onPress={onOpen} style={styles.calendarOpenButton} accessibilityRole="button"><Text style={styles.calendarOpenText}>Xem lịch chi tiết</Text><Ionicons name="arrow-forward" size={16} color="#FFFFFF" /></Pressable>
+    <Pressable onPress={onOpen} style={styles.calendarOpenButton} accessibilityRole="button"><Text style={styles.calendarOpenText}>Xem lịch chi tiết</Text></Pressable>
   </View>;
 }
 

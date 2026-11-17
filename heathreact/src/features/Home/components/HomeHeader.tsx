@@ -1,19 +1,21 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
-  Alert,
+  ActivityIndicator,
   Modal,
   Platform,
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
 import * as Haptics from 'expo-haptics';
+import { router } from 'expo-router';
+import { Pressable } from '@/components/ui/Pressable';
 import { fitnessTheme } from './HomeTypes';
 import { navigationService } from '@/routes';
 import Avatar, { type ProfileGender } from '@/components/ui/Avatar';
-import CustomButton from '@/components/ui/CustomButton';
+import { profileService } from '@/api/services/profile.service';
 
 interface Props {
   username: string;
@@ -28,21 +30,21 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+  const [pressedItem, setPressedItem] = useState<string | null>(null);
+  useQuery({ queryKey: ['profile', 'medical-record'], queryFn: profileService.getMine, enabled: showDropdown });
 
+  const pressHandlers = (key: string) => ({
+    onPressIn: () => setPressedItem(key),
+    onPressOut: () => setPressedItem(null),
+  });
   // iOS chỉ cho hiển thị 1 Modal tại một thời điểm: phải đợi dropdown đóng HẲN
   // (hết animation fade) rồi mới mở Modal/Alert tiếp theo, nếu không iOS sẽ bỏ qua.
   const afterDropdownCloseRef = useRef<(() => void) | null>(null);
 
   const closeDropdownThen = (action: () => void) => {
-    if (Platform.OS === 'ios') {
-      afterDropdownCloseRef.current = action; // chạy trong onDismiss của dropdown
-      setShowDropdown(false);
-      // Dự phòng: nếu onDismiss không được gọi thì vẫn chạy sau khi animation fade kết thúc
-      setTimeout(handleDropdownDismiss, 450);
-    } else {
-      setShowDropdown(false);
-      action();
-    }
+    afterDropdownCloseRef.current = action;
+    setShowDropdown(false);
+    setTimeout(handleDropdownDismiss, Platform.OS === 'ios' ? 450 : 180);
   };
 
   const handleDropdownDismiss = () => {
@@ -69,6 +71,16 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
     closeDropdownThen(() => setShowLogoutConfirmModal(true));
   };
 
+  const openPersonalSettings = () => {
+    setShowDropdown(false);
+    setTimeout(() => router.push('/(user)/personal-settings'), 0);
+  };
+
+  const openHealthRecord = () => {
+    setShowDropdown(false);
+    setTimeout(() => router.push('/(user)/health-record'), 0);
+  };
+
   const handleExecuteLogout = async () => {
     try {
       setIsLoggingOut(true);
@@ -82,24 +94,6 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
       setIsLoggingOut(false);
     }
   };
-
-  const handleShowProjectInfo = () => {
-    triggerHaptic('light');
-    closeDropdownThen(() =>
-      Alert.alert(
-        '🎓 Đồ Án Tốt Nghiệp: Health Assistant',
-        '• Ứng dụng hỗ trợ theo dõi tư thế & cá nhân hóa kế hoạch luyện tập với trợ lý AI.\n\n• Công nghệ: React Native (Expo SDK 57), Spring Boot REST API, AI Landmark Pose Assessment, JWT Security.\n\n• Phiên bản: v1.0.0 (Bản bảo vệ)',
-        [{ text: 'Đã hiểu', style: 'default' }]
-      )
-    );
-  };
-
-  const handleNavigate = (route: 'Roadmap' | 'Progress') => {
-    triggerHaptic('light');
-    setShowDropdown(false);
-    navigationService.navigate(route);
-  };
-
   return (
     <View style={styles.container}>
       {/* ============================================================ */}
@@ -148,7 +142,6 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
           </Pressable>
         </View>
       </View>
-
       {/* ============================================================ */}
       {/* DROPDOWN MENU MODAL TỪ AVATAR (XỔ XUỐNG KHI BẤM AVATAR)      */}
       {/* ============================================================ */}
@@ -159,101 +152,42 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
         onRequestClose={() => setShowDropdown(false)}
         onDismiss={handleDropdownDismiss}
       >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setShowDropdown(false)}
-        >
-          <View
-            style={[
-              styles.dropdownCard,
-              { top: topInset + 60 },
-            ]}
-          >
-            {/* Header thông tin người dùng */}
-            <View style={styles.dropdownUserRow}>
-              <Avatar gender={gender} imageUrl={avatarUrl} size={44} />
-              <View style={styles.dropdownUserMeta}>
-                <Text style={styles.dropdownUserName} numberOfLines={1}>
-                  {username || 'Tuấn'}
-                </Text>
-                <Text style={styles.dropdownUserCaption}>Tài khoản Health Assistant</Text>
-              </View>
-            </View>
+<Pressable
+  style={styles.modalBackdrop}
+  onPress={() => setShowDropdown(false)}
+>
+  <Pressable style={[styles.dropdownCard, { top: topInset + 60 }]} onPress={(event) => event.stopPropagation()}>
+    {/* Header thông tin người dùng */}
+    <View style={styles.dropdownUserRow}>
+      <Avatar gender={gender} imageUrl={avatarUrl} size={44} />
+      <View style={styles.dropdownUserMeta}>
+        <Text style={styles.dropdownUserName} numberOfLines={1}>
+          {username}
+        </Text>
+        <Text style={styles.dropdownUserCaption}>Tài khoản Health Assistant</Text>
+      </View>
+    </View>
 
-            <View style={styles.dropdownDivider} />
+    <View style={styles.profileSummary}><Text style={styles.profileSummaryTitle}>Thông tin tài khoản</Text></View>
 
-            {/* Menu Items */}
-            <Pressable
-              onPress={() => handleNavigate('Roadmap')}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                pressed && styles.dropdownItemPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <View style={[styles.dropdownItemIcon, { backgroundColor: '#F0F9FF' }]}>
-                <Ionicons name="map-outline" size={17} color={fitnessTheme.accent} />
-              </View>
-              <View style={styles.dropdownItemMeta}>
-                <Text style={styles.dropdownItemTitle}>Lộ trình tập luyện</Text>
-                <Text style={styles.dropdownItemSub}>Kế hoạch 12 tuần cá nhân hóa</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={15} color="#94A3B8" />
-            </Pressable>
+    <View style={styles.dropdownDivider} />
+    <Pressable onPress={openHealthRecord} style={styles.profileAction} accessibilityRole="button"><Ionicons name="medical-outline" size={16} color={fitnessTheme.primary} /><Text style={styles.profileActionText}>Mở hồ sơ sức khỏe</Text><Ionicons name="chevron-forward" size={15} color={fitnessTheme.primary} /></Pressable>
+    <Pressable onPress={openPersonalSettings} style={styles.profileAction} accessibilityRole="button"><Ionicons name="options-outline" size={16} color={fitnessTheme.primary} /><Text style={styles.profileActionText}>Cài đặt cá nhân</Text><Ionicons name="chevron-forward" size={15} color={fitnessTheme.primary} /></Pressable>
 
-            <Pressable
-              onPress={() => handleNavigate('Progress')}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                pressed && styles.dropdownItemPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <View style={[styles.dropdownItemIcon, { backgroundColor: '#E8F7FF' }]}>
-                <Ionicons name="analytics-outline" size={17} color="#268FCB" />
-              </View>
-              <View style={styles.dropdownItemMeta}>
-                <Text style={styles.dropdownItemTitle}>Tiến độ & Nhật ký</Text>
-                <Text style={styles.dropdownItemSub}>Lịch sử buổi tập & calo</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={15} color="#94A3B8" />
-            </Pressable>
+    <View style={styles.dropdownDivider} />
 
-
-            <Pressable
-              onPress={handleShowProjectInfo}
-              style={({ pressed }) => [
-                styles.dropdownItem,
-                pressed && styles.dropdownItemPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <View style={[styles.dropdownItemIcon, { backgroundColor: '#FFFBEB' }]}>
-                <Ionicons name="information-circle-outline" size={17} color={fitnessTheme.warning} />
-              </View>
-              <View style={styles.dropdownItemMeta}>
-                <Text style={styles.dropdownItemTitle}>Thông tin Đồ án</Text>
-                <Text style={styles.dropdownItemSub}>Kiến trúc kỹ thuật & Đề tài</Text>
-              </View>
-              <Ionicons name="chevron-forward" size={15} color="#94A3B8" />
-            </Pressable>
-
-            <View style={styles.dropdownDivider} />
-
-            {/* Logout button */}
-            <Pressable
-              onPress={handleLogoutConfirm}
-              style={({ pressed }) => [
-                styles.dropdownLogoutBtn,
-                pressed && styles.dropdownLogoutBtnPressed,
-              ]}
-              accessibilityRole="button"
-            >
-              <Ionicons name="log-out-outline" size={18} color={fitnessTheme.danger} />
-              <Text style={styles.dropdownLogoutText}>Đăng xuất tài khoản</Text>
-            </Pressable>
-          </View>
-        </Pressable>
+    {/* Logout button */}
+    <Pressable
+      onPress={handleLogoutConfirm}
+      {...pressHandlers('logout')}
+      style={[styles.dropdownLogoutBtn, pressedItem === 'logout' && styles.dropdownLogoutBtnPressed]}
+      accessibilityRole="button"
+    >
+      <Ionicons name="log-out-outline" size={18} color={fitnessTheme.danger} />
+      <Text style={styles.dropdownLogoutText}>Đăng xuất tài khoản</Text>
+    </Pressable>
+  </Pressable>
+</Pressable>
       </Modal>
 
       {/* ============================================================ */}
@@ -312,43 +246,60 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
         >
           <Pressable
             style={styles.logoutConfirmCard}
-            onPress={(e) => e.stopPropagation()}
+            onPress={(event) => event.stopPropagation()}
           >
-            {/* Icon */}
             <View style={styles.logoutIconCircle}>
               <Ionicons name="log-out" size={28} color={fitnessTheme.danger} />
             </View>
 
-            {/* Title & Desc */}
             <Text style={styles.logoutDialogTitle}>Xác nhận đăng xuất</Text>
             <Text style={styles.logoutDialogDesc}>
               Bạn có chắc chắn muốn đăng xuất? Token phiên làm việc hiện tại sẽ bị xóa hoàn toàn khỏi thiết bị để bảo mật.
             </Text>
 
-            {/* Buttons */}
             <View style={styles.logoutBtnGroup}>
-              <CustomButton
-                title="Ở lại"
-                variant="outline"
-                size="sm"
-                fullWidth={false}
-                disabled={isLoggingOut}
-                onPress={() => {
-                  triggerHaptic('light');
-                  setShowLogoutConfirmModal(false);
-                }}
-                style={styles.logoutCancelBtn}
-              />
-              <CustomButton
-                title="Đăng xuất"
-                variant="danger"
-                size="sm"
-                fullWidth={false}
-                loading={isLoggingOut}
-                onPress={() => void handleExecuteLogout()}
-                icon={<Ionicons name="log-out-outline" size={17} color="#FFFFFF" />}
-                style={styles.logoutConfirmBtn}
-              />
+              <View style={styles.logoutBtnSlot}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Ở lại"
+                  disabled={isLoggingOut}
+                  onPress={() => {
+                    triggerHaptic('light');
+                    setShowLogoutConfirmModal(false);
+                  }}
+                  {...pressHandlers('logoutCancel')}
+                  style={[
+                    styles.logoutCancelBtn,
+                    pressedItem === 'logoutCancel' && styles.logoutButtonPressed,
+                    isLoggingOut && styles.logoutButtonDisabled,
+                  ]}
+                >
+                  <Text style={styles.logoutCancelText}>Ở lại</Text>
+                </Pressable>
+              </View>
+              <View style={styles.logoutBtnSlot}>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Đăng xuất"
+                  disabled={isLoggingOut}
+                  onPress={() => void handleExecuteLogout()}
+                  {...pressHandlers('logoutConfirm')}
+                  style={[
+                    styles.logoutConfirmBtn,
+                    pressedItem === 'logoutConfirm' && styles.logoutButtonPressed,
+                    isLoggingOut && styles.logoutButtonDisabled,
+                  ]}
+                >
+                  {isLoggingOut ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="log-out-outline" size={17} color="#FFFFFF" />
+                      <Text style={styles.logoutConfirmText}>Đăng xuất</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
             </View>
           </Pressable>
         </Pressable>
@@ -465,6 +416,7 @@ const styles = StyleSheet.create({
     fontWeight: '800',
   },
   dropdownUserCaption: { color: '#7A8099', fontSize: 11, marginTop: 3 },
+  profileSummary: { paddingHorizontal: 6, paddingVertical: 5 }, profileSummaryTitle: { color: '#0F172A', fontSize: 12, fontWeight: '800' }, profileSummaryValue: { color: '#334155', fontSize: 12, marginTop: 4 }, profileSummaryMeta: { color: '#64748B', fontSize: 10.5, marginTop: 3 }, medicalPreviewHeader: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 6, marginBottom: 3 }, healthSummary: { paddingHorizontal: 6, color: '#64748B', fontSize: 11, lineHeight: 16 }, profileAction: { minHeight: 38, flexDirection: 'row', alignItems: 'center', gap: 7, paddingHorizontal: 8, marginTop: 8, borderRadius: 9, backgroundColor: '#EFEEFF' }, profileActionText: { flex: 1, color: fitnessTheme.primary, fontSize: 11, fontWeight: '800' },
   dropdownDivider: {
     height: 1,
     backgroundColor: '#F1F5F9',
@@ -538,6 +490,10 @@ const styles = StyleSheet.create({
     shadowRadius: 18,
     elevation: 10,
   },
+  medicalField: { paddingVertical: 9, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#E2E8F0' },
+  medicalLabel: { color: '#64748B', fontSize: 10.5, fontWeight: '800', textTransform: 'uppercase', letterSpacing: 0.4 },
+  medicalValue: { color: '#0F172A', fontSize: 13, lineHeight: 19, marginTop: 4 },
+  medicalWarning: { color: '#C2410C' },
   notificationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -615,15 +571,50 @@ const styles = StyleSheet.create({
   },
   logoutBtnGroup: {
     flexDirection: 'row',
+    alignItems: 'stretch',
     width: '100%',
     gap: 12,
   },
-  logoutCancelBtn: {
+  logoutBtnSlot: {
     flex: 1,
+    minWidth: 0,
+  },
+  logoutCancelBtn: {
+    width: '100%',
     minHeight: 48,
+    borderWidth: 1,
+    borderColor: fitnessTheme.primary,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logoutConfirmBtn: {
-    flex: 1,
+    width: '100%',
     minHeight: 48,
+    flexDirection: 'row',
+    gap: 8,
+    borderWidth: 1,
+    borderColor: fitnessTheme.danger,
+    borderRadius: 12,
+    backgroundColor: fitnessTheme.danger,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoutCancelText: {
+    color: fitnessTheme.primary,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  logoutConfirmText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  logoutButtonPressed: {
+    opacity: 0.82,
+  },
+  logoutButtonDisabled: {
+    opacity: 0.52,
   },
 });

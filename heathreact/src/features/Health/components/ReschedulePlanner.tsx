@@ -1,6 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import AppButton from '@/components/ui/AppButton';
 import Card from '@/components/ui/Card';
 import { ApiError, apiClient } from '@/api/client';

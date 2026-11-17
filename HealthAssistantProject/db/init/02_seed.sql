@@ -13,6 +13,7 @@
 -- Tài khoản được tạo tự động (chỉ khi bảng còn trống):
 --   username: admin / password: admin   -> ROLE_ADMIN
 --   username: user  / password: user    -> ROLE_USER
+--   username: doctor / password: password -> ROLE_DOCTOR
 --
 -- Muốn thêm user khác thì dùng API, không sửa file này:
 --   POST /api/v1/auth/signup
@@ -21,4 +22,4 @@
 --
 -- Muốn đổi mật khẩu mặc định, xóa phần `initAdminUser()` trong code.
 
-SELECT 'Schema ready. Tai khoan mac dinh: admin/admin (ADMIN), user/user (USER).' AS message;
+SELECT 'Schema ready. Tai khoan mac dinh: admin/admin (ADMIN), user/user (USER), doctor/password (DOCTOR).' AS message;

@@ -31,8 +31,10 @@ export default function RootLayout() {
           <Stack.Screen name="index" options={{ animation: 'fade' }} />
           <Stack.Screen name="welcome" options={{ animation: 'fade' }} />
           <Stack.Screen name="login" options={{ animation: 'fade' }} />
+          <Stack.Screen name="forgot-password" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="(user)" />
           <Stack.Screen name="admin" />
+          <Stack.Screen name="doctor" />
           <Stack.Screen name="not-found" options={{ animation: 'fade' }} />
         </Stack>
       </QueryClientProvider>

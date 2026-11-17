@@ -1,1 +1,1 @@
-export { default } from '@/features/Health/pages/ProfileOnboarding';
+export { default } from '@/features/Health/pages/FullScreenOnboarding';

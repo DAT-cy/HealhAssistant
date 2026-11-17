@@ -13,7 +13,7 @@ export default function WelcomeRoute() {
   const initialized = useUserStore((state) => state.initialized);
 
   React.useEffect(() => {
-    if (initialized && token) router.replace(role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
+    if (initialized && token) router.replace(role === 'ROLE_ADMIN' ? '/admin' : role === 'ROLE_DOCTOR' ? '/doctor' : '/(user)');
   }, [initialized, role, token]);
 
   if (!initialized || token) return <View style={styles.loading} />;
@@ -51,7 +51,7 @@ export default function WelcomeRoute() {
         </View>
 
         <Pressable onPress={() => navigationService.navigate('Login')} style={({ pressed }) => [styles.primaryButton, pressed && styles.pressed]} accessibilityRole="button">
-          <Text style={styles.primaryText}>Bắt đầu ngay</Text><Ionicons name="arrow-forward" size={18} color="#FFFFFF" />
+          <Text style={styles.primaryText}>Bắt đầu ngay</Text>
         </Pressable>
       </ScrollView>
     </View>

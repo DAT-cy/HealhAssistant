@@ -1,0 +1,7 @@
+import React from 'react';
+import { StyleSheet, Text, TextInput, TextInputProps, View } from 'react-native';
+import { colors, radius, spacing, typography } from '@/theme';
+type Props = TextInputProps & { label?: string; error?: string; helperText?: string; required?: boolean };
+export function AppInput({ label, error, helperText, required, style, ...props }: Props) { return <View style={styles.wrap}>{label ? <Text style={styles.label}>{label}{required ? ' *' : ''}</Text> : null}<TextInput {...props} placeholderTextColor={colors.textSecondary} style={[styles.input, props.multiline && styles.multiline, error && styles.errorBorder, style]} />{error ? <Text style={styles.error}>{error}</Text> : helperText ? <Text style={styles.helper}>{helperText}</Text> : null}</View>; }
+export function AppSearchInput(props: TextInputProps) { return <AppInput {...props} placeholder={props.placeholder || 'Tìm kiếm'} clearButtonMode="while-editing" />; }
+const styles = StyleSheet.create({ wrap: { gap: spacing.xs }, label: { ...typography.label, color: colors.textPrimary }, input: { minHeight: 44, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, color: colors.textPrimary, backgroundColor: colors.surface, ...typography.body }, multiline: { minHeight: 92, textAlignVertical: 'top' }, errorBorder: { borderColor: colors.error }, error: { ...typography.caption, color: colors.error }, helper: { ...typography.caption, color: colors.textSecondary } });

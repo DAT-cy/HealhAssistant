@@ -1,5 +1,6 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text } from 'react-native';
+import { ActivityIndicator, StyleSheet, Text } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { palette, radius, spacing } from '@/theme/tokens';
 
 type Variant = 'primary' | 'secondary' | 'danger' | 'ghost';

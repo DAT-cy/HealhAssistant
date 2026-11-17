@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { ScrollView, Text, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
@@ -108,7 +109,7 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
     <View style={styles.weekHeading}>
       <Pressable onPress={() => changeWeek(-1)} accessibilityRole="button" accessibilityLabel="Tuần trước" style={styles.weekArrow}><Ionicons name="chevron-back" size={19} color={palette.text} /></Pressable>
       <Text style={styles.weekTitle}>{formatShortDate(weekStart)} - {formatShortDate(addDateDays(weekStart, 6))}</Text>
-      <Pressable onPress={() => changeWeek(1)} accessibilityRole="button" accessibilityLabel="Tuần sau" style={styles.weekArrow}><Ionicons name="chevron-forward" size={19} color={palette.text} /></Pressable>
+      <Pressable onPress={() => changeWeek(1)} accessibilityRole="button" accessibilityLabel="Tuần sau" style={styles.weekArrow}><Text style={{ color: palette.text, fontWeight: '700' }}>Sau</Text></Pressable>
     </View>
 
     <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.calendarStrip}>
@@ -176,7 +177,7 @@ function DailyPlanCalendar({ initialDate }: { initialDate: string }) {
         {plan.mealGuidance.map((meal, index) => <View key={meal} style={styles.mealRow}><View style={styles.mealDot}><Text style={styles.mealDotText}>{index + 1}</Text></View><Text style={styles.mealText}>{meal}</Text></View>)}
       </Card> : null}
 
-      {plan.activityType === 'WORKOUT' ? <Pressable onPress={() => router.push('/(user)/scan')} style={({ pressed }) => [styles.poseButton, pressed && { opacity: 0.82 }]} accessibilityRole="button"><Ionicons name="scan-outline" size={20} color={palette.primary} /><View style={{ flex: 1 }}><Text style={styles.poseTitle}>Kiểm tra tư thế khi tập</Text><Text style={styles.poseDetail}>Mở camera để quét tư thế trước buổi tập.</Text></View><Ionicons name="chevron-forward" size={20} color={palette.primary} /></Pressable> : null}
+      {plan.activityType === 'WORKOUT' ? <Pressable onPress={() => router.push('/(user)/scan')} style={({ pressed }) => [styles.poseButton, pressed && { opacity: 0.82 }]} accessibilityRole="button"><Ionicons name="scan-outline" size={20} color={palette.primary} /><View style={{ flex: 1 }}><Text style={styles.poseTitle}>Kiểm tra tư thế khi tập</Text><Text style={styles.poseDetail}>Mở camera để quét tư thế trước buổi tập.</Text></View></Pressable> : null}
 
       <Pressable onPress={() => void completeDay()} disabled={plan.completed || completing} style={({ pressed }) => [styles.completeButton, plan.completed && styles.completeButtonDone, (pressed || completing) && { opacity: 0.82 }]} accessibilityRole="button">
         <Ionicons name={plan.completed ? 'checkmark-circle' : 'checkmark-circle-outline'} size={21} color="#FFFFFF" /><Text style={styles.completeButtonText}>{plan.completed ? 'Đã hoàn thành hôm nay' : completing ? 'Đang lưu tiến độ...' : 'Đánh dấu hoàn thành hôm nay'}</Text>

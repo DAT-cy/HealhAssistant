@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as DocumentPicker from 'expo-document-picker';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Alert, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Alert, Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
 import { ApiError } from '@/api/client';

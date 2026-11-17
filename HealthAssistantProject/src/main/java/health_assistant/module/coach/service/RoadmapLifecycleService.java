@@ -45,6 +45,11 @@ public class RoadmapLifecycleService {
 
     @Transactional
     public RoadmapResponse activate(String previewId, int optionIndex, String requestedTitle, Long draftId) {
+        return activate(previewId, optionIndex, requestedTitle, draftId, null);
+    }
+
+    @Transactional
+    public RoadmapResponse activate(String previewId, int optionIndex, String requestedTitle, Long draftId, LocalDate requestedStartDate) {
         Long userId = SecurityUtils.getCurrentUserId();
         UserProfile profile = profileRepository.findByUserIdForUpdate(userId).orElse(null);
         Instant profileVersion = profile == null ? Instant.EPOCH : profile.getUpdatedAt();
@@ -62,6 +67,7 @@ public class RoadmapLifecycleService {
                 selected.weeklyPlan(), selected.safetyNotes(), selected.source(),
                 previous == null ? "INITIAL_PLAN" : "USER_CONFIRMED_NEW_PLAN",
                 GeminiCoachService.PROMPT_VERSION, GeminiCoachService.SCHEMA_VERSION);
+        if (requestedStartDate != null) activated.setStartDate(requestedStartDate);
         saveSchedule(activated, selection.schedule());
         return toResponse(activated);
     }
@@ -238,6 +244,7 @@ public class RoadmapLifecycleService {
         record.setOverview(overview);
         record.setWeeklyPlan(writeJson(weeklyPlan));
         record.setSafetyNotes(writeJson(safetyNotes));
+        record.setFullText(buildFullText(title, overview, weeklyPlan, safetyNotes));
         record.setSource(source);
         record.setStatus("ACTIVE");
         record.setStartDate(LocalDate.now());
@@ -345,8 +352,16 @@ public class RoadmapLifecycleService {
 
     private RoadmapResponse toResponse(RoadmapRecord record) {
         return new RoadmapResponse(record.getId(), record.getTitle(), record.getOverview(), record.getWeeklyPlan(),
-                record.getSafetyNotes(), record.getSource(), record.getStatus(), record.getStartDate(),
+                record.getSafetyNotes(), record.getFullText(), record.getSource(), record.getStatus(), record.getStartDate(),
                 record.getDurationWeeks(), record.getVersionNumber(), record.getPreviousRoadmapId(),
                 record.getChangeReason(), record.getPromptVersion(), record.getSchemaVersion(), record.getCreatedAt());
+    }
+
+    private String buildFullText(String title, String overview, List<String> weeklyPlan, List<String> safetyNotes) {
+        StringBuilder text = new StringBuilder("LỘ TRÌNH SỨC KHỎE: ").append(title).append("\n\nTỔNG QUAN\n").append(overview).append("\n\nKẾ HOẠCH THEO TUẦN\n");
+        for (int i = 0; i < weeklyPlan.size(); i++) text.append("Tuần ").append(i + 1).append(": ").append(weeklyPlan.get(i)).append('\n');
+        text.append("\nCẢNH BÁO AN TOÀN\n");
+        safetyNotes.forEach(note -> text.append("- ").append(note).append('\n'));
+        return text.toString().trim();
     }
 }

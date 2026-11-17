@@ -2,7 +2,8 @@ import Card from '@/components/ui/Card';
 import Screen from '@/components/ui/Screen';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Image, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { palette, radius, spacing } from '@/theme/tokens';
 import { nutritionService, MealLogEntry } from '@/api/services/nutrition.service';
 import { navigationService } from '@/routes';
@@ -29,7 +30,7 @@ export default function NutritionPage() {
         <View style={{ flex: 1 }}><Text style={styles.heading}>Nhật ký dinh dưỡng</Text><Text style={styles.caption}>Calories và thành phần dinh dưỡng chỉ hiển thị khi có dữ liệu thật.</Text></View>
       </View>
       <Pressable onPress={() => navigationService.navigate('Roadmap')} accessibilityRole="button" style={{ minHeight: 52, paddingHorizontal: 12, marginBottom: 12, borderRadius: 8, borderWidth: 1, borderColor: palette.border, flexDirection: 'row', alignItems: 'center', gap: 9 }}>
-        <Ionicons name="calendar-outline" size={18} color={palette.primary} /><Text style={{ flex: 1, color: palette.text, fontSize: 12, fontWeight: '700' }}>Mở lịch ăn và phân tích bữa theo ngày</Text><Ionicons name="chevron-forward" size={17} color={palette.primary} />
+        <Ionicons name="calendar-outline" size={18} color={palette.primary} /><Text style={{ flex: 1, color: palette.text, fontSize: 12, fontWeight: '700' }}>Mở lịch ăn và phân tích bữa theo ngày</Text>
       </Pressable>
 
       {loading ? <Card style={styles.emptyCard}><Text style={styles.emptyText}>Đang tải nhật ký...</Text></Card> : null}

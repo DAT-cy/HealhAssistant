@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
 import AppButton from '@/components/ui/AppButton';

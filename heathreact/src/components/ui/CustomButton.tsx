@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   ActivityIndicator,
-  Pressable,
   StyleProp,
   StyleSheet,
   Text,
@@ -9,6 +8,7 @@ import {
   View,
   ViewStyle,
 } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { palette, spacing } from '@/theme/tokens';
 
 export type CustomButtonVariant = 'primary' | 'secondary' | 'outline' | 'danger' | 'ghost';
@@ -66,7 +66,13 @@ export default function CustomButton({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? title}
       accessibilityState={{ disabled: isDisabled, busy: loading }}
-      android_ripple={{ color: variant === 'primary' || variant === 'danger' ? 'rgba(255,255,255,0.18)' : 'rgba(99,91,255,0.12)' }}
+      // foreground: true -> ripple được vẽ ở lớp trên, KHÔNG thay thế background drawable của view.
+      // Với ripple mặc định (foreground: false), một số bản React Native gần đây trên Android
+      // thay background của view bằng drawable ripple và làm mất backgroundColor -> nút trắng trơn.
+      android_ripple={{
+        color: variant === 'primary' || variant === 'danger' ? 'rgba(255,255,255,0.18)' : 'rgba(99,91,255,0.12)',
+        foreground: true,
+      }}
       style={({ pressed }) => [
         styles.button,
         { backgroundColor: colors.backgroundColor, borderColor: colors.borderColor, minHeight: dimensions.minHeight, paddingHorizontal: dimensions.paddingHorizontal },

@@ -19,4 +19,5 @@ public interface RoadmapRecordRepository extends JpaRepository<RoadmapRecord, Lo
     @Query("select r from RoadmapRecord r where r.id = :id and r.userId = :userId")
     Optional<RoadmapRecord> findByIdAndUserIdForUpdate(@Param("id") Long id, @Param("userId") Long userId);
     long countByUserId(Long userId);
+    long countByStatus(String status);
 }

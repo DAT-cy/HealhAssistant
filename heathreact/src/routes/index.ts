@@ -6,7 +6,8 @@ export type AppRoute =
   | 'Login'
   | 'Home'
   | 'NotFound'
-  | 'Profile'
+  | 'HealthRecord'
+  | 'PersonalSettings'
   | 'Subscription'
   | 'Scan'
   | 'Roadmap'
@@ -17,7 +18,10 @@ export type AppRoute =
   | 'Progress'
   | 'Nutrition'
   | 'Coach'
-  | 'AdminKnowledge';
+  | 'AdminKnowledge'
+  | 'AdminDashboard'
+  | 'AdminDesignSystem'
+  | 'DoctorDashboard';
 
 const routePaths: Record<AppRoute, Href> = {
   Index: '/',
@@ -25,7 +29,8 @@ const routePaths: Record<AppRoute, Href> = {
   Login: '/login',
   Home: '/(user)',
   NotFound: '/not-found',
-  Profile: '/(user)/profile',
+  HealthRecord: '/(user)/health-record',
+  PersonalSettings: '/(user)/personal-settings',
   Subscription: '/(user)/subscription',
   Scan: '/(user)/scan',
   Roadmap: '/(user)/roadmap',
@@ -37,6 +42,9 @@ const routePaths: Record<AppRoute, Href> = {
   Nutrition: '/(user)/nutrition',
   Coach: '/(user)/coach',
   AdminKnowledge: '/admin/knowledge',
+  AdminDashboard: '/admin',
+  AdminDesignSystem: '/admin/design-system',
+  DoctorDashboard: '/doctor',
 };
 
 function navigate(name: AppRoute) {

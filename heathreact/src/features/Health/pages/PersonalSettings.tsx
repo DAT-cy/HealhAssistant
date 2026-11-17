@@ -1,0 +1,57 @@
+import { Ionicons } from '@expo/vector-icons';
+import * as ImagePicker from 'expo-image-picker';
+import { useQuery } from '@tanstack/react-query';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ApiError } from '@/api/client';
+import { personalAssistantService } from '@/api/services/personal-assistant.service';
+import { profileService } from '@/api/services/profile.service';
+import Avatar, { type ProfileGender } from '@/components/ui/Avatar';
+import { Pressable } from '@/components/ui/Pressable';
+import AppButton from '@/components/ui/AppButton';
+import Screen from '@/components/ui/Screen';
+import { palette, spacing } from '@/theme/tokens';
+
+type Settings = { age: string; gender: ProfileGender | null; biologicalFactors: string; fitnessGoal: string; dailyRoutine: string; availableTrainingTime: string; dietPreferences: string; availableEquipment: string; fitnessLevel: string; avatarUrl: string | null };
+const empty: Settings = { age: '', gender: null, biologicalFactors: '', fitnessGoal: '', dailyRoutine: '', availableTrainingTime: '', dietPreferences: '', availableEquipment: '', fitnessLevel: '', avatarUrl: null };
+
+function Field({ label, value, onChangeText, placeholder, multiline = false, keyboardType = 'default' }: { label: string; value: string; onChangeText: (value: string) => void; placeholder: string; multiline?: boolean; keyboardType?: 'default' | 'numeric' }) {
+  return <View><Text style={styles.label}>{label}</Text><TextInput value={value} onChangeText={onChangeText} placeholder={placeholder} placeholderTextColor={palette.textMuted} multiline={multiline} keyboardType={keyboardType} style={[styles.input, multiline && styles.multiline]} accessibilityLabel={label} /></View>;
+}
+function Choice({ label, selected, onPress }: { label: string; selected: boolean; onPress: () => void }) {
+  return <Pressable onPress={onPress} accessibilityRole="radio" accessibilityState={{ selected }} style={[styles.choice, selected && styles.choiceSelected]}><Text style={[styles.choiceText, selected && styles.choiceTextSelected]}>{label}</Text></Pressable>;
+}
+function Section({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
+  return <View style={styles.section}><Text style={styles.sectionTitle}>{title}</Text>{hint ? <Text style={styles.hint}>{hint}</Text> : null}{children}</View>;
+}
+
+export default function PersonalSettingsPage() {
+  const personal = useQuery({ queryKey: ['personal-assistant', 'profile'], queryFn: personalAssistantService.getProfile });
+  const profile = useQuery({ queryKey: ['profile', 'personal-settings'], queryFn: profileService.getMine });
+  const [settings, setSettings] = useState<Settings>(empty);
+  const [saving, setSaving] = useState(false); const [uploading, setUploading] = useState(false); const [message, setMessage] = useState(''); const [messageKind, setMessageKind] = useState<'success' | 'error'>('success');
+  useEffect(() => { const p = profile.data; const a = personal.data; if (!p && !a) return; setSettings({ age: p?.age?.toString() || '', gender: p?.gender || null, biologicalFactors: '', fitnessGoal: a?.fitnessGoal || '', dailyRoutine: a?.dailyRoutine || '', availableTrainingTime: a?.availableTrainingTime || '', dietPreferences: a?.dietPreferences || '', availableEquipment: a?.availableEquipment || '', fitnessLevel: a?.fitnessLevel || '', avatarUrl: p?.avatarUrl || null }); }, [profile.data, personal.data]); // eslint-disable-line react-hooks/set-state-in-effect
+  const update = (key: keyof Settings, value: string | ProfileGender | null) => setSettings((current) => ({ ...current, [key]: value }));
+  const save = async () => { const age = settings.age.trim() ? Number(settings.age) : undefined; if (age !== undefined && (!Number.isInteger(age) || age <= 0 || age > 120)) { setMessageKind('error'); setMessage('Tuổi phải là số nguyên từ 1 đến 120.'); return; } setSaving(true); setMessage(''); try { await personalAssistantService.saveProfile({ fitnessGoal: settings.fitnessGoal.trim() || 'Chưa đặt mục tiêu', currentCondition: settings.biologicalFactors.trim() || null, fitnessLevel: settings.fitnessLevel.trim() || null, dietPreferences: settings.dietPreferences.trim() || null, dailyRoutine: settings.dailyRoutine.trim() || null, availableTrainingTime: settings.availableTrainingTime.trim() || null, availableEquipment: settings.availableEquipment.trim() || null, healthLimits: null, personalRules: null, additionalGuidance: null }); if (profile.data && (age !== undefined || settings.gender)) await profileService.save({ goal: profile.data.goal, activityLevel: profile.data.activityLevel, age, gender: settings.gender, heightCm: profile.data.heightCm, weightKg: profile.data.weightKg, restrictions: profile.data.restrictions, painAreas: profile.data.painAreas, consent: profile.data.consent }); setMessageKind('success'); setMessage('Đã lưu cài đặt cá nhân.'); await personal.refetch(); } catch (error) { setMessageKind('error'); setMessage(error instanceof ApiError ? error.message : 'Không thể lưu cài đặt cá nhân.'); } finally { setSaving(false); } };
+  const ensureProfile = async () => {
+    if (profile.data) return profile.data;
+    const created = await profileService.save({ age: settings.age ? Number(settings.age) : undefined, gender: settings.gender, consent: false });
+    return created;
+  };
+  const chooseAvatar = async () => { try { const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.85 }); const asset = result.assets?.[0]; if (result.canceled || !asset) return; setUploading(true); await ensureProfile(); const saved = await profileService.uploadAvatar(asset); update('avatarUrl', saved.avatarUrl); setMessageKind('success'); setMessage('Đã cập nhật ảnh đại diện.'); } catch (error) { setMessageKind('error'); setMessage(error instanceof ApiError ? error.message : 'Không thể cập nhật ảnh đại diện.'); } finally { setUploading(false); } };
+  if (personal.isPending || profile.isPending) return <Screen title="Cài đặt cá nhân" showBack><ActivityIndicator color={palette.primary} /></Screen>;
+  return <Screen title="Cài đặt cá nhân" subtitle="Thông tin mặc định dùng khi tạo lộ trình mới." showBack scroll={false}><KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}><ScrollView style={styles.flex} contentContainerStyle={styles.body} keyboardShouldPersistTaps="handled">
+    <View style={styles.notice}><Ionicons name="options-outline" size={19} color={palette.primary} /><Text style={styles.noticeText}>Cài đặt cá nhân mô tả sở thích và điều kiện sinh hoạt. Không thay thế dữ liệu Hồ sơ sức khỏe.</Text></View>
+    <Section title="Ảnh đại diện"><View style={styles.avatarRow}><Avatar gender={settings.gender} imageUrl={settings.avatarUrl} size={76} /><View style={styles.avatarCopy}><Text style={styles.hint}>Ảnh chỉ dùng làm ảnh đại diện.</Text><AppButton label={settings.avatarUrl ? 'Đổi ảnh đại diện' : 'Chọn ảnh đại diện'} variant="secondary" loading={uploading} disabled={uploading} onPress={() => void chooseAvatar()} /></View></View></Section>
+    <Section title="Thông tin cá nhân"><Field label="Tuổi" value={settings.age} onChangeText={(value) => update('age', value)} placeholder="Ví dụ: 28" keyboardType="numeric" /><Text style={styles.label}>Giới tính</Text><View style={styles.choices}>{[['MALE', 'Nam'], ['FEMALE', 'Nữ'], [null, 'Không muốn nêu']].map(([value, label]) => <Choice key={label} label={label as string} selected={settings.gender === value} onPress={() => update('gender', value as ProfileGender | null)} />)}</View><Field label="Yếu tố sinh lý cần thiết (tùy chọn)" value={settings.biologicalFactors} onChangeText={(value) => update('biologicalFactors', value)} placeholder="Chỉ cung cấp điều bạn muốn dùng để cá nhân hóa" multiline /></Section>
+    <Section title="Mục tiêu mặc định" hint="Mục tiêu cụ thể của từng lộ trình mới có thể thay thế mục tiêu này."><Field label="Mục tiêu sức khỏe" value={settings.fitnessGoal} onChangeText={(value) => update('fitnessGoal', value)} placeholder="Ví dụ: Tăng cơ, cải thiện thể lực" multiline /></Section>
+    <Section title="Thói quen sinh hoạt"><Field label="Thói quen hằng ngày" value={settings.dailyRoutine} onChangeText={(value) => update('dailyRoutine', value)} placeholder="Giờ ngủ, giờ thức dậy, công việc, học tập..." multiline /></Section>
+    <Section title="Thời gian rảnh"><Field label="Khoảng thời gian có thể tập hoặc ăn uống" value={settings.availableTrainingTime} onChangeText={(value) => update('availableTrainingTime', value)} placeholder="Ví dụ: T2-T6, 18:00-19:00" multiline /></Section>
+    <Section title="Sở thích ăn uống"><Field label="Chế độ và sở thích ăn uống" value={settings.dietPreferences} onChangeText={(value) => update('dietPreferences', value)} placeholder="Món thích, món không thích, số bữa, khả năng nấu..." multiline /></Section>
+    <Section title="Điều kiện tập luyện"><Field label="Nơi tập và dụng cụ hiện có" value={settings.availableEquipment} onChangeText={(value) => update('availableEquipment', value)} placeholder="Ví dụ: Tại nhà, có thảm và tạ đơn" multiline /></Section>
+    <Section title="Kinh nghiệm tập luyện"><Field label="Mức kinh nghiệm" value={settings.fitnessLevel} onChangeText={(value) => update('fitnessLevel', value)} placeholder="Mới bắt đầu, cơ bản, nâng cao" /></Section>
+    {message ? <Text accessibilityLiveRegion="polite" style={messageKind === 'success' ? styles.success : styles.error}>{message}</Text> : null}<AppButton label="Lưu cài đặt cá nhân" onPress={() => void save()} loading={saving} disabled={saving} />
+  </ScrollView></KeyboardAvoidingView></Screen>;
+}
+
+const styles = StyleSheet.create({ flex: { flex: 1 }, body: { paddingBottom: spacing.xl, gap: 12 }, notice: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 10, backgroundColor: palette.primarySoft }, noticeText: { flex: 1, color: palette.textMuted, fontSize: 11, lineHeight: 16 }, section: { gap: 10, padding: 15, borderRadius: 12, backgroundColor: palette.surface, borderWidth: 1, borderColor: palette.border }, sectionTitle: { color: palette.text, fontSize: 16, fontWeight: '800' }, hint: { color: palette.textMuted, fontSize: 11, lineHeight: 16 }, label: { marginBottom: 5, color: palette.textMuted, fontSize: 11, fontWeight: '700' }, input: { minHeight: 44, paddingHorizontal: 11, borderRadius: 9, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surfaceRaised, color: palette.text, fontSize: 13 }, multiline: { minHeight: 82, paddingTop: 11, textAlignVertical: 'top' }, choices: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 }, choice: { minHeight: 38, justifyContent: 'center', paddingHorizontal: 11, borderWidth: 1, borderColor: palette.border, borderRadius: 9, backgroundColor: palette.surface }, choiceSelected: { borderColor: palette.primary, backgroundColor: palette.primarySoft }, choiceText: { color: palette.textMuted, fontSize: 11, fontWeight: '700' }, choiceTextSelected: { color: palette.primary }, avatarRow: { flexDirection: 'row', alignItems: 'center', gap: 14 }, avatarCopy: { flex: 1, gap: 9 }, error: { color: palette.danger, fontSize: 12, lineHeight: 18 }, success: { color: palette.success, fontSize: 12, fontWeight: '700' } });

@@ -29,16 +29,18 @@ public class ProfileService {
         Long userId = SecurityUtils.getCurrentUserId();
         UserProfile profile = repository.findByUserId(userId).orElseGet(UserProfile::new);
         profile.setUserId(userId);
-        profile.setGoal(request.goal().trim());
-        profile.setActivityLevel(request.activityLevel().trim());
+        profile.setGoal(blankToNull(request.goal()) == null ? "HEALTH_RECORD" : blankToNull(request.goal()));
+        profile.setActivityLevel(blankToNull(request.activityLevel()) == null ? "UNSPECIFIED" : blankToNull(request.activityLevel()));
         if (request.gender() != null) {
             profile.setGender(request.gender());
         }
         profile.setAge(request.age());
         profile.setHeightCm(request.heightCm());
         profile.setWeightKg(request.weightKg());
-        profile.setRestrictions(request.restrictions());
-        profile.setPainAreas(request.painAreas());
+        profile.setRestrictions(blankToNull(request.restrictions()));
+        profile.setPainAreas(blankToNull(request.painAreas()));
+        profile.setDiseaseCodes(request.diseaseCodes()); profile.setSymptoms(request.symptoms()); profile.setMedicalHistory(request.medicalHistory()); profile.setFamilyHistory(request.familyHistory()); profile.setAllergies(request.allergies()); profile.setMedications(request.medications()); profile.setLifestyleNotes(request.lifestyleNotes()); profile.setSleepHours(request.sleepHours());
+        profile.setHealthMetrics(request.healthMetrics());
         profile.setConsent(request.consent());
         profile.setUpdatedAt(Instant.now());
         UserProfile savedProfile = repository.save(profile);
@@ -69,7 +71,11 @@ public class ProfileService {
     private ProfileResponse toResponse(UserProfile profile) {
         return new ProfileResponse(profile.getId(), profile.getUserId(), profile.getGoal(), profile.getActivityLevel(), profile.getGender(),
                 profile.getAge(), profile.getHeightCm(), profile.getWeightKg(), profile.getRestrictions(),
-                profile.getPainAreas(), profile.isConsent(), profile.getAvatarUrl());
+                profile.getPainAreas(), profile.isConsent(), profile.getAvatarUrl(), profile.getDiseaseCodes(), profile.getSymptoms(), profile.getMedicalHistory(), profile.getFamilyHistory(), profile.getAllergies(), profile.getMedications(), profile.getLifestyleNotes(), profile.getSleepHours(), profile.getHealthMetrics());
+    }
+
+    private String blankToNull(String value) {
+        return value == null || value.isBlank() ? null : value.trim();
     }
 
     private void saveCurrentWeight(Long userId, Double weightKg) {

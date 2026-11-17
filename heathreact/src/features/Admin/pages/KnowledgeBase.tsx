@@ -5,7 +5,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
-  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -14,6 +13,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
 import { Controller, useForm, useWatch } from 'react-hook-form';
@@ -135,7 +135,7 @@ export default function KnowledgeBasePage() {
 
   const pickFile = async () => {
     const result = await DocumentPicker.getDocumentAsync({
-      type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown'],
+      type: ['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'text/plain', 'text/markdown', 'text/csv', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'],
       copyToCacheDirectory: true,
       multiple: false,
     });
@@ -251,6 +251,9 @@ export default function KnowledgeBasePage() {
             <Text style={styles.title}>Dữ liệu kiến thức</Text>
             <Text style={styles.subtitle}>Quản lý tài liệu nhập, nguồn và kiểm duyệt</Text>
           </View>
+          <Pressable onPress={() => navigationService.navigate('AdminDashboard')} style={styles.secondaryHeaderButton} accessibilityRole="button" accessibilityLabel="Mở tổng quan quản trị">
+            <Ionicons name="grid-outline" size={17} color={PRIMARY} />
+          </Pressable>
           <Pressable onPress={() => void importWhoGuideline()} disabled={busy} style={[styles.whoButton, busy && styles.disabled]} accessibilityRole="button" accessibilityLabel="Nhập hướng dẫn hoạt động thể chất WHO">
             <Ionicons name="download-outline" size={18} color="#FFFFFF" />
             <Text style={styles.addText}>WHO</Text>
@@ -287,7 +290,7 @@ export default function KnowledgeBasePage() {
         {documentsLoading ? <View style={styles.loadingList}><ActivityIndicator color={PRIMARY} /><Text style={styles.emptyText}>Đang tải danh sách tài liệu...</Text></View> : documents.length === 0 ? <View style={styles.empty}>
           <Ionicons name="documents-outline" size={28} color="#94A3B8" />
           <Text style={styles.emptyTitle}>Chưa có tài liệu phù hợp</Text>
-          <Text style={styles.emptyText}>Nhập PDF, DOCX, TXT hoặc Markdown để bắt đầu.</Text>
+          <Text style={styles.emptyText}>Nhập PDF, DOCX, TXT, Markdown, CSV hoặc XLSX để bắt đầu.</Text>
         </View> : documents.map((document) => <DocumentRow key={document.id} item={document} onPress={() => void openDetails(document)} onArchive={() => archive(document)} />)}
       </ScrollView>
 
@@ -305,7 +308,7 @@ export default function KnowledgeBasePage() {
             <Text style={styles.fieldLabel}>Tệp nguồn</Text>
             <Pressable style={styles.filePicker} onPress={() => void pickFile()}>
               <Ionicons name="cloud-upload-outline" size={22} color={PRIMARY} />
-              <View style={{ flex: 1 }}><Text style={styles.fileName}>{file?.name || 'Chọn PDF, DOCX, TXT hoặc MD'}</Text><Text style={styles.fileMeta}>{file ? `${formatBytes(file.size || 0)} · tối đa 5 MB` : 'Tệp lưu riêng trong backend'}</Text></View>
+              <View style={{ flex: 1 }}><Text style={styles.fileName}>{file?.name || 'Chọn PDF, DOCX, TXT, MD, CSV hoặc XLSX'}</Text><Text style={styles.fileMeta}>{file ? `${formatBytes(file.size || 0)} · tối đa 5 MB` : 'Tệp lưu riêng trong backend'}</Text></View>
               <Ionicons name="folder-open-outline" size={20} color="#64748B" />
             </Pressable>
 
@@ -444,6 +447,7 @@ const styles = StyleSheet.create({
   subtitle: { marginTop: 2, fontSize: 12, color: '#7A8099' },
   iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   addButton: { height: 38, paddingHorizontal: 12, borderRadius: 10, backgroundColor: PRIMARY, flexDirection: 'row', alignItems: 'center', gap: 5 },
+  secondaryHeaderButton: { width: 38, height: 38, alignItems: 'center', justifyContent: 'center', borderRadius: 10, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' },
   whoButton: { height: 38, paddingHorizontal: 10, borderRadius: 10, backgroundColor: '#0F766E', flexDirection: 'row', alignItems: 'center', gap: 5 },
   addText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
   content: { paddingHorizontal: 16, paddingBottom: 38, gap: 14 },

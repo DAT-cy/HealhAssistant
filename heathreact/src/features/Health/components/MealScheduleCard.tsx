@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery } from '@tanstack/react-query';
 import React, { useState } from 'react';
-import { Image, Linking, Pressable, Text, TextInput, View } from 'react-native';
+import { Image, Linking, Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import * as ImagePicker from 'expo-image-picker';
 import AppButton from '@/components/ui/AppButton';
 import Card from '@/components/ui/Card';

@@ -24,6 +24,8 @@ public class RoadmapRecord {
     private String weeklyPlan;
     @Column(name = "safety_notes", columnDefinition = "TEXT")
     private String safetyNotes;
+    @Column(name = "full_text", columnDefinition = "LONGTEXT")
+    private String fullText;
     @Column(nullable = false, length = 30)
     private String source;
     @Column(length = 20)

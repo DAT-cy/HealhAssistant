@@ -31,7 +31,10 @@ export default function Screen({ title, subtitle, children, scroll = true, showB
       </View>
     </View>
   );
-  const body = <View style={styles.body}>{children}</View>;
+  // Non-scrolling screens commonly render a flex child (for example a
+  // KeyboardAvoidingView). Give their body a height so that child can fill
+  // the available viewport instead of collapsing to zero.
+  const body = <View style={[styles.body, !scroll && styles.bodyFill]}>{children}</View>;
   return (
     <View style={[styles.screen, { paddingTop: insets.top }]}>
       {header}
@@ -50,6 +53,7 @@ export default function Screen({ title, subtitle, children, scroll = true, showB
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: palette.bg },
+  bodyFill: { flex: 1, minHeight: 0 },
   header: { paddingHorizontal: spacing.xl, paddingTop: spacing.xl, paddingBottom: spacing.md },
   headerCompact: { paddingTop: spacing.md },
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },

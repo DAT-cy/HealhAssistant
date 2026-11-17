@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Animated, { FadeIn, FadeInDown, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
 import { Ionicons } from '@expo/vector-icons';
@@ -33,7 +34,7 @@ const periods = [
 ] as const;
 
 export default function RoadmapWizard({ initial, onSubmit, onCancel }: Props) {
-  const [data, setData] = useState<RoadmapWizardData>(initial);
+  const [data, setData] = useState<RoadmapWizardData>({ ...initial, weeks: 1 });
   const [step, setStep] = useState(0);
   const insets = useSafeAreaInsets();
   const progress = useSharedValue(0);
@@ -76,7 +77,7 @@ export default function RoadmapWizard({ initial, onSubmit, onCancel }: Props) {
         <Field label="Vùng cơ thể muốn cải thiện" value={data.bodyFocus} onChangeText={(v) => set('bodyFocus', v)} placeholder="Ví dụ: bụng, đùi, vóc dáng" />
       </StepCard> : null}
       {step === 1 ? <StepCard icon="calendar-outline" tint="#E8F2FF" accent="#2765B5">
-        <Text style={labelStyle}>Thời lượng lộ trình</Text><View style={rowStyle}>{[1, 2, 3].map((value) => <Choice key={value} label={`${value} tuần`} selected={data.weeks === value} onPress={() => set('weeks', value)} />)}</View>
+        <Text style={labelStyle}>Thời lượng lộ trình</Text><View style={rowStyle}><Choice label="1 tuần" selected={data.weeks === 1} onPress={() => set('weeks', 1)} /></View>
       </StepCard> : null}
       {step === 2 ? <StepCard icon="barbell-outline" tint="#FFF1E5" accent="#E26D16">
         <Text style={labelStyle}>Kinh nghiệm tập luyện</Text><View style={rowStyle}>{['Mới bắt đầu', 'Trung bình', 'Nâng cao'].map((value) => <Choice key={value} label={value} selected={data.experience === value} onPress={() => set('experience', value)} />)}</View>
@@ -100,7 +101,7 @@ export default function RoadmapWizard({ initial, onSubmit, onCancel }: Props) {
         <Field label="Bệnh lý đang có" value={data.medicalConditions} onChangeText={(v) => set('medicalConditions', v)} placeholder="Ví dụ: tim mạch, dạ dày" /><Field label="Chấn thương hoặc hạn chế" value={data.restrictions} onChangeText={(v) => set('restrictions', v)} placeholder="Ví dụ: đau gối, tránh nhảy" /><Field label="Giấc ngủ và phục hồi" value={data.sleep} onChangeText={(v) => set('sleep', v)} placeholder="Ví dụ: ngủ 6 giờ, hay mệt" /><Field label="Mức độ căng thẳng" value={data.stressLevel} onChangeText={(v) => set('stressLevel', v)} placeholder="Thấp, vừa hoặc cao" /><Field label="Lưu ý sức khỏe khác" value={data.medicalNotes} onChangeText={(v) => set('medicalNotes', v)} placeholder="Bệnh nền, thuốc đang dùng" />
       </StepCard> : null}
       {step === 7 ? <Animated.View entering={FadeInDown.duration(380)} layout={LinearTransition}>
-        <Card style={{ marginTop: 18, padding: 12, backgroundColor: '#FFFFFF' }}>{summary.map(([title, value, icon, tint, accent], index) => <Animated.View key={title} entering={FadeInDown.delay(index * 45).duration(260)} style={{ minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: index === summary.length - 1 ? 0 : 1, borderColor: palette.border }}><View style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tint }}><Ionicons name={icon} size={18} color={accent} /></View><View style={{ flex: 1 }}><Text style={{ color: palette.textMuted, fontSize: 11 }}>{title}</Text><Text style={{ color: palette.text, fontSize: 13, fontWeight: '800', marginTop: 2 }} numberOfLines={2}>{value}</Text></View><Ionicons name="chevron-forward" size={17} color={accent} /></Animated.View>)}</Card>
+        <Card style={{ marginTop: 18, padding: 12, backgroundColor: '#FFFFFF' }}>{summary.map(([title, value, icon, tint, accent], index) => <Animated.View key={title} entering={FadeInDown.delay(index * 45).duration(260)} style={{ minHeight: 54, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 7, borderBottomWidth: index === summary.length - 1 ? 0 : 1, borderColor: palette.border }}><View style={{ width: 34, height: 34, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: tint }}><Ionicons name={icon} size={18} color={accent} /></View><View style={{ flex: 1 }}><Text style={{ color: palette.textMuted, fontSize: 11 }}>{title}</Text><Text style={{ color: palette.text, fontSize: 13, fontWeight: '800', marginTop: 2 }} numberOfLines={2}>{value}</Text></View></Animated.View>)}</Card>
         <View style={{ marginTop: 14, padding: 13, borderRadius: 12, backgroundColor: palette.primarySoft }}><Text style={{ color: palette.primaryDark, fontSize: 12, lineHeight: 18 }}>AI sẽ dùng các thông tin này để tạo kế hoạch tập luyện, dinh dưỡng và lời khuyên phục hồi phù hợp.</Text></View>
       </Animated.View> : null}
     </Animated.ScrollView>
@@ -116,7 +117,7 @@ export default function RoadmapWizard({ initial, onSubmit, onCancel }: Props) {
         >
           <>
             <Text style={{ color: '#FFFFFF', fontSize: 14, fontWeight: '800', textAlign: 'center' }}>{step === stepMeta.length - 1 ? 'Tạo lộ trình' : 'Tiếp theo'}</Text>
-            <Ionicons name={step === stepMeta.length - 1 ? 'sparkles' : 'arrow-forward'} size={18} color="#FFFFFF" />
+            {step === stepMeta.length - 1 ? <Ionicons name="sparkles" size={18} color="#FFFFFF" /> : null}
           </>
         </Pressable>
       </View>

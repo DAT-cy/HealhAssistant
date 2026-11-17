@@ -39,7 +39,7 @@ public class RoadmapPreviewService {
         preview.setScheduleJson(writeSchedule(schedule));
         preview.setExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES));
         repository.save(preview);
-        return new RoadmapPreviewResponse(preview.getId(), options);
+        return new RoadmapPreviewResponse(preview.getId(), options, "AUTO_ROADMAP", null, null);
     }
 
     public GeminiRoadmapResponse select(String previewId, Long userId, Instant currentProfileUpdatedAt, int optionIndex) {

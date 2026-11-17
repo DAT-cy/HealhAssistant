@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, Pressable, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import AppModal from '@/components/ui/AppModal';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import * as Location from 'expo-location';

@@ -1,11 +1,11 @@
 import { Ionicons } from '@expo/vector-icons';
 import React from 'react';
 import {
-  Pressable,
   StyleSheet,
   Text,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import * as Haptics from 'expo-haptics';
 import { palette } from '@/theme/tokens';
 
@@ -77,6 +77,7 @@ const styles = StyleSheet.create({
     borderTopColor: palette.border,
     flexDirection: 'row',
     justifyContent: 'space-around',
+    paddingHorizontal: 8,
     paddingTop: 10,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },
@@ -85,9 +86,12 @@ const styles = StyleSheet.create({
     elevation: 8,
   },
   tabItem: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    gap: 3,
-    minWidth: 64,
+    justifyContent: 'center',
+    gap: 6,
+    minWidth: 0,
     paddingVertical: 2,
   },
   tabText: {

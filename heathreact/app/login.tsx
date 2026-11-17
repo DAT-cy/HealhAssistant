@@ -10,7 +10,7 @@ export default function LoginRoute() {
   const initialized = useUserStore((state) => state.initialized);
 
   React.useEffect(() => {
-    if (initialized && token) router.replace(role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
+    if (initialized && token) router.replace(role === 'ROLE_ADMIN' ? '/admin' : role === 'ROLE_DOCTOR' ? '/doctor' : '/(user)');
   }, [initialized, role, token]);
 
   if (!initialized || token) {

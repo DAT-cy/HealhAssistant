@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import Screen from '@/components/ui/Screen';
 import AppButton from '@/components/ui/AppButton';
 import SafetyBanner from '@/components/ui/SafetyBanner';

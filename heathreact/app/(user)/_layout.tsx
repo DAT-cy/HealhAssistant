@@ -12,12 +12,17 @@ export default function UserLayout() {
   React.useEffect(() => {
     if (!initialized) return;
     if (!token) router.replace('/login');
-    else if (role === 'ROLE_ADMIN') router.replace('/admin/knowledge');
+    else if (role === 'ROLE_ADMIN') router.replace('/admin');
+    else if (role === 'ROLE_DOCTOR') router.replace('/doctor');
   }, [initialized, role, token]);
 
   if (!initialized || !token || role !== 'ROLE_USER') {
     return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.bg }}><ActivityIndicator color={palette.primary} /></View>;
   }
 
-  return <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />;
+  return <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+    <Stack.Screen name="index" options={{ animation: 'none' }} />
+    <Stack.Screen name="workout" options={{ animation: 'none' }} />
+    <Stack.Screen name="progress" options={{ animation: 'none' }} />
+  </Stack>;
 }

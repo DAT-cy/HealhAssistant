@@ -1,19 +1,26 @@
 package health_assistant.module.profile.dto;
 
-import jakarta.validation.constraints.AssertTrue;
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.Pattern;
-import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Positive;
+import jakarta.validation.constraints.Size;
 
 public record ProfileRequest(
-        @NotBlank String goal,
-        @NotBlank String activityLevel,
+        String goal,
+        String activityLevel,
         @Pattern(regexp = "MALE|FEMALE", message = "Gender must be MALE or FEMALE") String gender,
-        @NotNull @Positive Integer age,
-        @NotNull @Positive Double heightCm,
-        @NotNull @Positive Double weightKg,
-        @NotBlank String restrictions,
-        @NotBlank String painAreas,
-        @AssertTrue(message = "Bạn cần đồng ý với việc sử dụng dữ liệu tập luyện") boolean consent) {
+        @Positive Integer age,
+        @Positive Double heightCm,
+        @Positive Double weightKg,
+        String restrictions,
+        String painAreas,
+        boolean consent,
+        @Size(max = 2000) String diseaseCodes,
+        @Size(max = 5000) String symptoms,
+        @Size(max = 5000) String medicalHistory,
+        @Size(max = 5000) String familyHistory,
+        @Size(max = 3000) String allergies,
+        @Size(max = 3000) String medications,
+        @Size(max = 5000) String lifestyleNotes,
+        @Positive Double sleepHours,
+        @Size(max = 5000) String healthMetrics) {
 }

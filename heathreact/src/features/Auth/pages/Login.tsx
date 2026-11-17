@@ -2,8 +2,8 @@ import { useUserStore } from '@/stores/user';
 import { ApiError } from '@/api/client';
 import { authService, type OtpPurpose } from '@/api/services/auth.service';
 import { palette } from '@/theme/tokens';
-import CustomButton from '@/components/ui/CustomButton';
 import { Ionicons } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import * as Haptics from 'expo-haptics';
 import { appStorage } from '@/utils/storage';
 import React, { useEffect, useMemo, useState } from 'react';
@@ -14,7 +14,6 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
-  Pressable,
   ScrollView,
   StatusBar,
   StyleSheet,
@@ -22,6 +21,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const SAVED_USER_KEY = 'saved_username';
@@ -50,7 +50,7 @@ export default function LoginPage() {
   const insets = useSafeAreaInsets();
   const login = useUserStore((state) => state.login);
   const completeLogin = useUserStore((state) => state.completeLogin);
-
+const [btnPressed, setBtnPressed] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showPwd, setShowPwd] = useState(false);
   const [showConfirmPwd, setShowConfirmPwd] = useState(false);
@@ -78,7 +78,7 @@ export default function LoginPage() {
   const pwd = useWatch({ control, name: 'pwd' }) ?? '';
   const confirmPwd = useWatch({ control, name: 'confirmPwd' }) ?? '';
 
-  // Nạp tài khoản đã lưu nếu người dùng đã bật 'Ghi nhớ tôi'
+  // Nhập tài khoản đã lưu nếu người dùng đã bật 'Ghi nhớ tôi'
   useEffect(() => {
     async function loadSavedCredentials() {
       try {
@@ -129,15 +129,7 @@ export default function LoginPage() {
 
   const handleForgotPassword = () => {
     triggerHaptic('light');
-    setFlowEmail(username.trim());
-    setFlowError('');
-    setFlowMessage('');
-    setFlow('FORGOT_EMAIL');
-    /* Alert.alert(
-      'Khôi phục mật khẩu',
-      'Nếu bạn quên mật khẩu hoặc tài khoản chưa kích hoạt, vui lòng liên hệ quản trị viên hoặc sử dụng email Gmail đã đăng ký để được cấp lại mật khẩu.',
-      [{ text: 'Đã hiểu', style: 'default' }]
-    ); */
+    router.push({ pathname: '/forgot-password', params: username.trim() ? { email: username.trim() } : {} });
   };
 
   const closeOtpFlow = () => {
@@ -146,12 +138,12 @@ export default function LoginPage() {
   };
 
   const startPasswordReset = async () => {
-    if (!/^[^\s@]+@gmail\.com$/i.test(flowEmail.trim())) { setFlowError('Nháº­p Ä‘á»‹a chá»‰ Gmail há»£p lá»‡.'); return; }
+    if (!/^[^\s@]+@gmail\.com$/i.test(flowEmail.trim())) { setFlowError('Nhập địa chỉ Gmail hợp lệ.'); return; }
     setLoading(true); setFlowError(''); setFlowMessage('');
     try {
       const result = await authService.sendPasswordResetOtp(flowEmail.trim());
       setOtpCountdown(result.resendAfterSeconds); setOtpExpiresIn(result.expiresInSeconds); setOtpCode(''); setFlow('RESET_OTP'); setFlowMessage(result.message);
-    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'KhÃ´ng thá»ƒ gá»­i yÃªu cáº§u lÃºc nÃ y.'); }
+    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'Không thể gửi yêu cầu lúc này.'); }
     finally { setLoading(false); }
   };
 
@@ -162,42 +154,42 @@ export default function LoginPage() {
     try {
       const result = await authService.resendOtp(flowEmail, purpose);
       setOtpCountdown(result.resendAfterSeconds); setOtpExpiresIn(result.expiresInSeconds); setOtpCode(''); setFlowMessage(result.message);
-    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'KhÃ´ng thá»ƒ gá»­i láº¡i mÃ£ lÃºc nÃ y.'); }
+    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'Không thể gửi lại mã lúc này.'); }
     finally { setLoading(false); }
   };
 
   const verifyOtp = async () => {
-    if (!/^\d{6}$/.test(otpCode)) { setFlowError('Nháº­p Ä‘á»§ 6 chá»¯ sá»‘.'); return; }
+    if (!/^\d{6}$/.test(otpCode)) { setFlowError('Nhập đủ 6 chữ số.'); return; }
     const purpose: OtpPurpose = flow === 'REGISTER_OTP' ? 'REGISTER' : 'RESET_PASSWORD';
     setLoading(true); setFlowError(''); setFlowMessage('');
     try {
       const response = await authService.verifyOtp(flowEmail, purpose, otpCode);
       if (!response.verified) throw new Error(response.message);
       if (purpose === 'REGISTER') {
-        if (!response.login?.token) throw new Error('MÃ¡y chá»§ chÆ°a tráº£ vá» phiÃªn Ä‘Äƒng nháº­p.');
+        if (!response.login?.token) throw new Error('Máy chủ chưa trả về phiên đăng nhập.');
         await completeLogin(response.login);
         if (rememberMe) { await appStorage.setItem(REMEMBER_ME_KEY, 'true'); await appStorage.setItem(SAVED_USER_KEY, flowEmail); }
         else { await appStorage.setItem(REMEMBER_ME_KEY, 'false'); await appStorage.removeItem(SAVED_USER_KEY); }
         triggerHaptic('success');
         return;
       }
-      if (!response.resetToken) throw new Error('MÃ¡y chá»§ chÆ°a tráº£ vá» quyá»n Ä‘áº·t láº¡i máº­t kháº©u.');
+      if (!response.resetToken) throw new Error('Máy chủ chưa trả về quyền đặt lại mật khẩu.');
       setResetToken(response.resetToken); setNewPassword(''); setConfirmNewPassword(''); setFlow('NEW_PASSWORD');
       setFlowMessage(response.message);
-    } catch (err) { triggerHaptic('error'); setFlowError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'KhÃ´ng thá»ƒ xÃ¡c minh mÃ£.'); }
+    } catch (err) { triggerHaptic('error'); setFlowError(err instanceof ApiError ? err.message : err instanceof Error ? err.message : 'Không thể xác minh mã.'); }
     finally { setLoading(false); }
   };
 
   const submitNewPassword = async () => {
-    if (newPassword.length < 8 || newPassword.length > 72) { setFlowError('Máº­t kháº©u pháº£i cÃ³ tá»« 8 Ä‘áº¿n 72 kÃ½ tá»±.'); return; }
-    if (newPassword !== confirmNewPassword) { setFlowError('Máº­t kháº©u xÃ¡c nháº­n khÃ´ng khá»›p.'); return; }
+    if (newPassword.length < 8 || newPassword.length > 72) { setFlowError('Mật khẩu phải có từ 8 đến 72 ký tự.'); return; }
+    if (newPassword !== confirmNewPassword) { setFlowError('Mật khẩu xác nhận không khớp.'); return; }
     setLoading(true); setFlowError(''); setFlowMessage('');
     try {
       await authService.resetPassword(flowEmail, resetToken, newPassword);
-      setFlowMessage('ÄÃ£ Ä‘áº·t máº­t kháº©u má»›i. HÃ£y Ä‘Äƒng nháº­p láº¡i.');
+      setFlowMessage('Đã đặt mật khẩu mới. Hãy đăng nhập lại.');
       setMode('login'); setValue('username', flowEmail); setValue('pwd', ''); setValue('confirmPwd', '');
       setFlow('AUTH'); setResetToken(''); setOtpCode('');
-    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'KhÃ´ng thá»ƒ Ä‘áº·t máº­t kháº©u má»›i.'); }
+    } catch (err) { setFlowError(err instanceof ApiError ? err.message : 'Không thể đặt mật khẩu mới.'); }
     finally { setLoading(false); }
   };
 
@@ -259,36 +251,54 @@ export default function LoginPage() {
 
   if (flow !== 'AUTH') {
     const otpFlow = flow === 'REGISTER_OTP' || flow === 'RESET_OTP';
-    const title = flow === 'FORGOT_EMAIL' ? 'KhÃ´i phá»¥c máº­t kháº©u'
-      : flow === 'NEW_PASSWORD' ? 'Äáº·t máº­t kháº©u má»›i'
-        : flow === 'REGISTER_OTP' ? 'XÃ¡c minh email' : 'Nháº­p mÃ£ OTP';
-    const primaryLabel = flow === 'FORGOT_EMAIL' ? 'Gá»­i mÃ£ xÃ¡c minh'
-      : flow === 'NEW_PASSWORD' ? 'LÆ°u máº­t kháº©u má»›i' : 'XÃ¡c minh mÃ£';
+    const title = flow === 'FORGOT_EMAIL' ? 'Khôi phục mật khẩu'
+      : flow === 'NEW_PASSWORD' ? 'Đặt mật khẩu mới'
+        : flow === 'REGISTER_OTP' ? 'Xác minh email' : 'Nhập mã OTP';
+    const primaryLabel = flow === 'FORGOT_EMAIL' ? 'Gửi mã xác minh'
+      : flow === 'NEW_PASSWORD' ? 'Lưu mật khẩu mới' : 'Xác minh mã';
     const primaryAction = flow === 'FORGOT_EMAIL' ? startPasswordReset
       : flow === 'NEW_PASSWORD' ? submitNewPassword : verifyOtp;
-    return <View style={{ flex: 1, backgroundColor: '#F7F8FC', paddingTop: insets.top + 20, paddingHorizontal: 22 }}>
+    return (
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        style={{ flex: 1, backgroundColor: '#F7F8FC' }}
+      >
+        <ScrollView
+          contentContainerStyle={{
+            flexGrow: 1,
+            paddingTop: insets.top + 20,
+            paddingHorizontal: 22,
+            paddingBottom: Math.max(insets.bottom, 24) + 24,
+          }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          <View style={{ flex: 1 }}>
       <StatusBar barStyle="dark-content" />
-      <Pressable onPress={closeOtpFlow} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: palette.primary, fontSize: 16 }}>‹  Quay láº¡i</Text></Pressable>
+      <Pressable onPress={closeOtpFlow} accessibilityRole="button" style={{ minHeight: 44, justifyContent: 'center' }}><Text style={{ color: palette.primary, fontSize: 16 }}>&lt;  Quay lại</Text></Pressable>
       <View style={{ marginTop: 32, gap: 12 }}>
         <Text style={{ color: palette.text, fontSize: 25, fontWeight: '800' }}>{title}</Text>
-        <Text style={{ color: palette.textMuted, lineHeight: 21 }}>{otpFlow ? `Nháº­p mÃ£ 6 chá»¯ sá»‘ gá»­i Ä‘áº¿n ${flowEmail}. MÃ£ chá»‰ dÃ¹ng má»™t láº§n.` : flow === 'FORGOT_EMAIL' ? 'Nháº­p Gmail Ä‘Ã£ Ä‘Äƒng kÃ½. Náº¿u thÃ´ng tin phÃ¹ há»£p, chÃºng tÃ´i sáº½ gá»­i mÃ£ xÃ¡c minh.' : 'Máº­t kháº©u má»›i cáº§n cÃ³ tá»« 8 Ä‘áº¿n 72 kÃ½ tá»±.'}</Text>
+        <Text style={{ color: palette.textMuted, lineHeight: 21 }}>{otpFlow ? `Nhập mã 6 chữ số gửi đến ${flowEmail}. Mã chỉ dùng một lần.` : flow === 'FORGOT_EMAIL' ? 'Nhập Gmail đã đăng ký. Nếu thông tin phù hợp, chúng tôi sẽ gửi mã xác minh.' : 'Mật khẩu mới cần có từ 8 đến 72 ký tự.'}</Text>
         {flow === 'FORGOT_EMAIL' ? <TextInput value={flowEmail} onChangeText={setFlowEmail} autoCapitalize="none" keyboardType="email-address" placeholder="email@gmail.com" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} /> : null}
         {otpFlow ? <>
           <TextInput value={otpCode} onChangeText={value => setOtpCode(value.replace(/\D/g, '').slice(0, 6))} keyboardType="number-pad" maxLength={6} autoComplete="one-time-code" textContentType="oneTimeCode" placeholder="000000" placeholderTextColor={palette.textMuted} style={{ minHeight: 58, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text, fontSize: 25, letterSpacing: 5, textAlign: 'center' }} />
-          <Text style={{ color: otpExpiresIn > 0 ? palette.textMuted : palette.danger, fontSize: 13 }}>MÃ£ háº¿t háº¡n sau {otpExpiresIn}s</Text>
-          <Pressable disabled={otpCountdown > 0 || loading} onPress={() => void resendOtp()} accessibilityRole="button" style={{ minHeight: 38, justifyContent: 'center', opacity: otpCountdown > 0 || loading ? 0.55 : 1 }}><Text style={{ color: palette.primary, fontWeight: '700' }}>{otpCountdown > 0 ? `Gá»­i láº¡i sau ${otpCountdown}s` : 'Gá»­i láº¡i mÃ£ OTP'}</Text></Pressable>
+          <Text style={{ color: otpExpiresIn > 0 ? palette.textMuted : palette.danger, fontSize: 13 }}>Mã hết hạn sau {otpExpiresIn}s</Text>
+          <Pressable disabled={otpCountdown > 0 || loading} onPress={() => void resendOtp()} accessibilityRole="button" style={{ minHeight: 38, justifyContent: 'center', opacity: otpCountdown > 0 || loading ? 0.55 : 1 }}><Text style={{ color: palette.primary, fontWeight: '700' }}>{otpCountdown > 0 ? `Gửi lại sau ${otpCountdown}s` : 'Gửi lại mã OTP'}</Text></Pressable>
         </> : null}
         {flow === 'NEW_PASSWORD' ? <>
-          <TextInput value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Máº­t kháº©u má»›i" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} />
-          <TextInput value={confirmNewPassword} onChangeText={setConfirmNewPassword} secureTextEntry placeholder="XÃ¡c nháº­n máº­t kháº©u má»›i" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} />
+          <TextInput value={newPassword} onChangeText={setNewPassword} secureTextEntry placeholder="Mật khẩu mới" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} />
+          <TextInput value={confirmNewPassword} onChangeText={setConfirmNewPassword} secureTextEntry placeholder="Xác nhận mật khẩu mới" placeholderTextColor={palette.textMuted} style={{ minHeight: 50, paddingHorizontal: 14, borderWidth: 1, borderColor: palette.border, borderRadius: 10, backgroundColor: '#FFFFFF', color: palette.text }} />
         </> : null}
         {flowMessage ? <Text accessibilityLiveRegion="polite" style={{ color: palette.success, lineHeight: 20 }}>{flowMessage}</Text> : null}
         {flowError ? <Text accessibilityLiveRegion="polite" style={{ color: palette.danger, lineHeight: 20 }}>{flowError}</Text> : null}
         <Pressable onPress={() => void primaryAction()} disabled={loading} accessibilityRole="button" style={{ minHeight: 50, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 10, backgroundColor: palette.primary, opacity: loading ? 0.6 : 1 }}>
-          {loading ? <ActivityIndicator color="#FFFFFF" /> : null}<Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{loading ? 'Äang xá»­ lÃ½...' : primaryLabel}</Text>
+          {loading ? <ActivityIndicator color="#FFFFFF" /> : null}<Text style={{ color: '#FFFFFF', fontWeight: '800' }}>{loading ? 'Đang xử lý...' : primaryLabel}</Text>
         </Pressable>
       </View>
-    </View>;
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    );
   }
 
   return (
@@ -336,56 +346,19 @@ export default function LoginPage() {
             </Text>
           </View>
 
-          {/* Segmented Mode Switcher */}
-          <View style={styles.segmentContainer}>
             <Pressable
-              onPress={() => handleSwitchMode('login')}
-              style={[
-                styles.segmentTab,
-                mode === 'login' && styles.segmentTabActive,
+              onPress={() => void submitLogin()}
+              disabled={loading}
+              accessibilityRole="button"
+              accessibilityLabel={mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+              accessibilityState={{ disabled: loading, busy: loading }}
+              style={({ pressed }) => [
+                styles.submitBtn,
+                loading && styles.submitBtnDisabled,
+                pressed && !loading && styles.submitBtnPressed,
               ]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: mode === 'login' }}
             >
-              <Ionicons
-                name="log-in-outline"
-                size={17}
-                color={mode === 'login' ? palette.primary : palette.textMuted}
-              />
-              <Text
-                style={[
-                  styles.segmentText,
-                  mode === 'login' && styles.segmentTextActive,
-                ]}
-              >
-                Đăng nhập
-              </Text>
             </Pressable>
-
-            <Pressable
-              onPress={() => handleSwitchMode('signup')}
-              style={[
-                styles.segmentTab,
-                mode === 'signup' && styles.segmentTabActive,
-              ]}
-              accessibilityRole="tab"
-              accessibilityState={{ selected: mode === 'signup' }}
-            >
-              <Ionicons
-                name="person-add-outline"
-                size={16}
-                color={mode === 'signup' ? palette.primary : palette.textMuted}
-              />
-              <Text
-                style={[
-                  styles.segmentText,
-                  mode === 'signup' && styles.segmentTextActive,
-                ]}
-              >
-                Đăng ký
-              </Text>
-            </Pressable>
-          </View>
 
           {/* Main Form Card */}
           <View style={styles.card}>
@@ -592,15 +565,36 @@ export default function LoginPage() {
               </View>
             )}
 
-            {/* Submit Action Button */}
-            <CustomButton
-              title={loading ? (mode === 'login' ? 'Đang xác thực...' : 'Đang khởi tạo tài khoản...') : mode === 'login' ? 'Đăng nhập ngay' : 'Đăng ký tài khoản'}
-              onPress={() => void submitLogin()}
-              loading={loading}
-              accessibilityLabel={mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
-              icon={<Ionicons name="arrow-forward" size={18} color="#FFFFFF" />}
-              style={styles.submitBtn}
-            />
+                <Pressable
+                onPress={() => void submitLogin()}
+                onPressIn={() => setBtnPressed(true)}
+                onPressOut={() => setBtnPressed(false)}
+                disabled={loading}
+                accessibilityRole="button"
+                accessibilityLabel={mode === 'login' ? 'Đăng nhập' : 'Đăng ký'}
+                accessibilityState={{ disabled: loading, busy: loading }}
+              >
+                <View
+                  style={{
+                    width: '100%',
+                    minHeight: 52,
+                    flexDirection: 'row',
+                    gap: 8,
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    borderRadius: 14,
+                    backgroundColor: '#635BFF',
+                    opacity: loading ? 0.6 : btnPressed ? 0.85 : 1,
+                  }}
+                >
+                  {loading ? <ActivityIndicator color="#FFFFFF" /> : null}
+                  <Text style={{ color: '#FFFFFF', fontSize: 15.5, fontWeight: '800' }}>
+                    {loading
+                      ? (mode === 'login' ? 'Đang xác thực...' : 'Đang khởi tạo tài khoản...')
+                      : (mode === 'login' ? 'Đăng nhập' : 'Đăng ký')}
+                  </Text>
+                </View>
+              </Pressable>
 
             {/* Switch Mode Footer */}
             <Pressable
@@ -889,10 +883,39 @@ const styles = StyleSheet.create({
   },
 
   /* Submit Button */
-  submitBtn: {
-    backgroundColor: palette.primary,
-    borderRadius: 14,
+  loginBtn: {
+    alignSelf: 'stretch',
+    width: '100%',
+    height: 52,
     minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: palette.primary,
+    borderWidth: 1,
+    borderColor: palette.primary,
+    borderRadius: 14,
+    shadowColor: palette.primary,
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.35,
+    shadowRadius: 10,
+    elevation: 4,
+  },
+  loginBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  submitBtn: {
+    alignSelf: 'stretch',
+    width: '100%',
+    backgroundColor: palette.primary,
+    borderColor: palette.primary,
+    borderRadius: 14,
+    height: 52,
+    minHeight: 52,
+    flexShrink: 0,
     alignItems: 'center',
     justifyContent: 'center',
     shadowColor: palette.primary,
@@ -900,6 +923,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 4,
+  },
+  submitBtnText: {
+    color: '#FFFFFF',
+    fontSize: 15,
+    fontWeight: '800',
+  },
+  submitBtnContent: {
+    minHeight: 52,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  submitBtnDisabled: {
+    opacity: 0.55,
+  },
+  submitBtnPressed: {
+    opacity: 0.82,
   },
   /* Switch Mode Footer */
   switchModeBtn: {

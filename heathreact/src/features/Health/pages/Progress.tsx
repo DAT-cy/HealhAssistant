@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { Ionicons } from '@expo/vector-icons';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
@@ -85,7 +86,6 @@ export default function ProgressPage() {
       <Pressable onPress={() => navigationService.navigate('DailyCheckin')} accessibilityRole="button" style={{ minHeight: 56, paddingHorizontal: 15, borderRadius: 12, backgroundColor: palette.primarySoft, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
         <Ionicons name="journal-outline" size={20} color={palette.primary} />
         <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontWeight: '800' }}>Nhật ký sức khỏe</Text><Text style={{ color: palette.textMuted, fontSize: 12, marginTop: 3 }}>Check-in, giấc ngủ, năng lượng và hoạt động</Text></View>
-        <Ionicons name="chevron-forward" size={18} color={palette.primary} />
       </Pressable>
 
       <WeightTrend weights={weights} />

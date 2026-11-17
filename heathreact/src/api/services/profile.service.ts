@@ -4,21 +4,44 @@ import type { ImagePickerAsset } from 'expo-image-picker';
 import type { ProfileGender } from '@/components/ui/Avatar';
 
 export interface ProfileRequest {
-  goal: string;
-  activityLevel: string;
+  goal?: string;
+  activityLevel?: string;
   gender?: ProfileGender | null;
   age?: number;
   heightCm?: number;
   weightKg?: number;
   restrictions?: string;
   painAreas?: string;
-  consent: boolean;
+  consent?: boolean;
+  diseaseCodes?: string | null;
+  symptoms?: string | null;
+  medicalHistory?: string | null;
+  familyHistory?: string | null;
+  allergies?: string | null;
+  medications?: string | null;
+  lifestyleNotes?: string | null;
+  sleepHours?: number | null;
+  healthMetrics?: string | null;
 }
 
-export interface ProfileResponse extends ProfileRequest {
+export interface ProfileResponse extends Omit<ProfileRequest, 'goal' | 'activityLevel' | 'consent' | 'restrictions' | 'painAreas'> {
   id: number;
   userId: number;
+  goal: string;
+  activityLevel: string;
+  restrictions: string;
+  painAreas: string;
+  consent: boolean;
   avatarUrl: string | null;
+  diseaseCodes?: string | null;
+  symptoms?: string | null;
+  medicalHistory?: string | null;
+  familyHistory?: string | null;
+  allergies?: string | null;
+  medications?: string | null;
+  lifestyleNotes?: string | null;
+  sleepHours?: number | null;
+  healthMetrics?: string | null;
 }
 
 export const profileService = {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { Pressable, StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { StyleProp, StyleSheet, ViewStyle } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { palette } from '@/theme/tokens';
 
 export interface CustomIconButtonProps {

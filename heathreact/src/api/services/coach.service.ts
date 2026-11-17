@@ -84,15 +84,16 @@ export interface ActivityReview {
   enoughEvidence: boolean;
   source: 'GEMINI' | 'FALLBACK';
 }
-export interface RoadmapRequest { goal: string; weeks: number; postureSummary?: string; restrictions?: string; schedule?: RoadmapSlotRequest[] }
+export interface RoadmapRequest { goal: string; weeks: number; postureSummary?: string; restrictions?: string; schedule?: RoadmapSlotRequest[]; diseaseCodes?: string[] }
 export type RoadmapPreviewRequest = RoadmapRequest & { schedule: RoadmapSlotRequest[] };
-export interface RoadmapPreview { previewId: string; options: GeminiRoadmapResponse[] }
+export interface RoadmapPreview { previewId: string | null; options: GeminiRoadmapResponse[]; routingDecision?: 'AUTO_ROADMAP' | 'DOCTOR_REVIEW_REQUIRED' | 'NEED_MORE_INFORMATION' | 'URGENT_MEDICAL_ATTENTION'; reviewRequestId?: number | null; routingReason?: string | null }
 export interface RoadmapRecord {
   id: number;
   title: string;
   overview: string;
   weeklyPlan: string;
   safetyNotes: string;
+  fullText: string | null;
   source: string;
   status: string;
   startDate: string | null;
@@ -205,7 +206,7 @@ export interface PlanReschedulePreview {
 export const coachService = {
   roadmap: (body: RoadmapRequest) => apiClient.request<GeminiRoadmapResponse>(`${apiVersion}/coach/roadmap`, { method: 'POST', body: JSON.stringify(body), ai: true }),
   preview: (body: RoadmapPreviewRequest) => apiClient.request<RoadmapPreview>(`${apiVersion}/coach/roadmap/preview`, { method: 'POST', body: JSON.stringify(body), ai: true }),
-  activate: (previewId: string, optionIndex: number, title?: string, draftId?: number | null) => apiClient.request<ActiveRoadmap>(`${apiVersion}/coach/roadmap/activate`, { method: 'POST', body: JSON.stringify({ previewId, optionIndex, title, draftId }) }),
+  activate: (previewId: string, optionIndex: number, title?: string, draftId?: number | null, startDate?: string) => apiClient.request<ActiveRoadmap>(`${apiVersion}/coach/roadmap/activate`, { method: 'POST', body: JSON.stringify({ previewId, optionIndex, title, draftId, startDate }) }),
   createDraft: (title: string) => apiClient.request<RoadmapRecord>(`${apiVersion}/coach/roadmaps/draft`, { method: 'POST', body: JSON.stringify({ title }) }),
   renameDraft: (id: number, title: string) => apiClient.request<RoadmapRecord>(`${apiVersion}/coach/roadmaps/draft/${id}`, { method: 'PATCH', body: JSON.stringify({ title }) }),
   deleteDraft: (id: number) => apiClient.request<boolean>(`${apiVersion}/coach/roadmaps/draft/${id}`, { method: 'DELETE' }),

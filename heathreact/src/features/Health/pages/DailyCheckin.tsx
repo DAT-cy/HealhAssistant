@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, TextInput, View } from 'react-native';
+import { Text, TextInput, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { ApiError } from '@/api/client';
 import { DailyCheckin as DailyCheckinType, DailyCheckinInput, DailyCheckinSummary, CheckinMood, healthTrackingService } from '@/api/services/health-tracking.service';
 import Card from '@/components/ui/Card';

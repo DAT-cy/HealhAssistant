@@ -9,6 +9,8 @@ import health_assistant.module.coach.service.GeminiCoachService;
 import health_assistant.module.coach.service.RoadmapLifecycleService;
 import health_assistant.module.coach.service.RoadmapPreviewService;
 import health_assistant.module.coach.service.RoadmapScheduleValidator;
+import health_assistant.module.doctor.dto.RiskRoutingDecision;
+import health_assistant.module.doctor.service.DiseaseRiskAssessmentService;
 import health_assistant.module.profile.repository.UserProfileRepository;
 import health_assistant.utils.ClientUtils;
 import health_assistant.utils.SecurityUtils;
@@ -22,6 +24,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
@@ -34,6 +37,7 @@ public class GeminiCoachController {
     private final RoadmapPreviewService roadmapPreviewService;
     private final RoadmapLifecycleService roadmapLifecycleService;
     private final RoadmapScheduleValidator scheduleValidator;
+    private final DiseaseRiskAssessmentService riskAssessmentService;
 
     @PostMapping("/roadmap")
     public ResponseEntity<DefaultRes<GeminiRoadmapResponse>> roadmap(@Valid @RequestBody GeminiRoadmapRequest request) {
@@ -54,7 +58,12 @@ public class GeminiCoachController {
         String restrictions = profile == null ? request.restrictions() : String.join("; ", List.of(
                 profile.getRestrictions() == null ? "" : profile.getRestrictions(),
                 profile.getPainAreas() == null ? "" : profile.getPainAreas()));
-        var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule());
+        var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), request.diseaseCodes());
+        RiskRoutingDecision routing = riskAssessmentService.evaluate(userId, null, request.diseaseCodes(), measurements + "\n" + restrictions);
+        if (!"AUTO_ROADMAP".equals(routing.decision())) {
+            return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE,
+                    new RoadmapPreviewResponse(null, List.of(), routing.decision(), routing.reviewRequestId(), routing.reason())));
+        }
         var options = List.of(
                 geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. " + goal)),
                 geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên linh hoạt, tư thế và phục hồi. " + goal)),
@@ -67,7 +76,7 @@ public class GeminiCoachController {
     @PostMapping("/roadmap/activate")
     public ResponseEntity<DefaultRes<RoadmapResponse>> activate(@Valid @RequestBody ActivateRoadmapRequest request) {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED,
-                roadmapLifecycleService.activate(request.previewId(), request.optionIndex(), request.title(), request.draftId())));
+                roadmapLifecycleService.activate(request.previewId(), request.optionIndex(), request.title(), request.draftId(), request.startDate())));
     }
 
     @PostMapping("/roadmaps/draft")
@@ -93,11 +102,11 @@ public class GeminiCoachController {
     }
 
     private GeminiRoadmapRequest withGoal(GeminiRoadmapRequest request, String goal) {
-        return new GeminiRoadmapRequest(goal, request.weeks(), request.postureSummary(), request.restrictions(), request.schedule());
+        return new GeminiRoadmapRequest(goal, request.weeks(), request.postureSummary(), request.restrictions(), request.schedule(), request.diseaseCodes());
     }
 
     public record ActivateRoadmapRequest(@NotBlank @Size(max = 36) String previewId, @Min(0) @Max(2) int optionIndex,
-                                         @Size(max = 120) String title, Long draftId) {}
+                                         @Size(max = 120) String title, Long draftId, LocalDate startDate) {}
     public record CreateDraftRequest(@NotBlank @Size(max = 160) String title) {}
 
     @GetMapping("/roadmaps/me")

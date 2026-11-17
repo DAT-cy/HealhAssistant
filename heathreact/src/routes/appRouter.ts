@@ -15,7 +15,8 @@ export const AppRouter = {
     navigationService.replace('Login');
   },
   onLoginSuccess: () => {
-    const destination = useUserStore.getState().role === 'ROLE_ADMIN' ? 'AdminKnowledge' : 'Home';
+    const role = useUserStore.getState().role;
+    const destination = role === 'ROLE_ADMIN' ? 'AdminDashboard' : role === 'ROLE_DOCTOR' ? 'DoctorDashboard' : 'Home';
     navigationService.replace(destination);
   },
   onLogout: () => {

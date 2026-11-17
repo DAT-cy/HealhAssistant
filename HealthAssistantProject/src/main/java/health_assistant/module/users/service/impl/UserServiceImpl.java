@@ -102,6 +102,21 @@ public class UserServiceImpl implements UserService {
             user.setRole(Role.ROLE_USER);
             userMapper.insertUser(user);
         }
+        User existingDoctor = userMapper.findByUsername("doctor").orElse(null);
+        if (existingDoctor == null) {
+            User doctor = new User();
+            doctor.setUsername("doctor");
+            doctor.setPassword(passwordEncoder.encode("doctor"));
+            doctor.setEnable(true);
+            doctor.setIsDeleted(false);
+            doctor.setEmailVerified(true);
+            doctor.setRole(Role.ROLE_DOCTOR);
+            userMapper.insertUser(doctor);
+            log.info("Created default doctor account: doctor");
+        } else if (existingDoctor.getPassword() == null || !passwordEncoder.matches("password", existingDoctor.getPassword())) {
+            userMapper.updatePasswordByUsername("doctor", passwordEncoder.encode("password"));
+            log.info("Reset default doctor account password");
+        }
     }
 
 

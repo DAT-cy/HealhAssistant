@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import { cn } from '@/utils/helper';
 import AppModal from '@/components/ui/AppModal';
 

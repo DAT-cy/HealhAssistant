@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import * as WebBrowser from 'expo-web-browser';
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, AppState, Pressable, Text, View } from 'react-native';
+import { ActivityIndicator, AppState, Text, View } from 'react-native';
+import { Pressable } from '@/components/ui/Pressable';
 import Card from '@/components/ui/Card';
 import Screen from '@/components/ui/Screen';
 import { billingService, BillingPlan, BillingStatus } from '@/api/services/billing.service';

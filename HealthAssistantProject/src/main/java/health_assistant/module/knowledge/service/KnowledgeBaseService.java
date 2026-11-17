@@ -50,7 +50,7 @@ import java.util.UUID;
 @Slf4j
 public class KnowledgeBaseService {
     private static final long MAX_FILE_BYTES = 5L * 1024 * 1024;
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "docx", "txt", "md");
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("pdf", "docx", "txt", "md", "csv", "xlsx");
     private static final int MAX_EXTRACTED_CHARACTERS = 1_000_000;
     private static final int CHUNK_SIZE = 1200;
     private static final int CHUNK_OVERLAP = 150;
@@ -298,7 +298,7 @@ public class KnowledgeBaseService {
             throw new IllegalArgumentException("Loại tài liệu không hợp lệ.");
         }
         String extension = extension(safeFilename(file.getOriginalFilename()));
-        if (!ALLOWED_EXTENSIONS.contains(extension)) throw new IllegalArgumentException("Chỉ hỗ trợ PDF, DOCX, TXT và Markdown.");
+        if (!ALLOWED_EXTENSIONS.contains(extension)) throw new IllegalArgumentException("Chỉ hỗ trợ PDF, DOCX, TXT, Markdown, CSV và XLSX.");
     }
 
     private void validateMetadata(String description, String organization, String sourceUrl, String license) {
