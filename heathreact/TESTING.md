@@ -24,7 +24,10 @@ GitHub Actions (`.github/workflows/frontend-ci.yml`) tự chạy typecheck + tes
 | `src/utils/profileCompletion.test.ts` | Điều kiện "hồ sơ đã hoàn thành" trước khi tạo lộ trình |
 | `__tests__/role-routing.test.tsx` | Điều hướng theo role (USER / ADMIN / DOCTOR) và chặn truy cập sai khu vực |
 | `src/features/Admin/pages/Dashboard.test.tsx` | Dashboard admin: số liệu, danh sách user, khoá/mở, lọc |
-| `src/features/Doctor/pages/Dashboard.test.tsx` | Dashboard bác sĩ: tổng quan, bệnh lý, yêu cầu duyệt |
+| `src/features/Doctor/pages/Dashboard.test.tsx` | Dashboard bác sĩ: tổng quan, bệnh lý, danh sách/chi tiết yêu cầu, modal quyết định (4 thao tác, bắt buộc nhận xét) |
+| `src/features/Admin/pages/Diseases.test.tsx` | Admin quản lý bệnh lý: lọc, thêm (validate + body gửi lên), ngưng dùng có xác nhận |
+| `src/features/Health/components/DoctorRequestStatusCard.test.tsx` | Người dùng thấy đúng trạng thái/kết quả duyệt của bác sĩ |
+| `src/features/Auth/pages/Login.test.tsx` | Đăng nhập, đăng ký, validate form, lỗi từ server |
 
 ## Quy ước khi viết chức năng mới
 

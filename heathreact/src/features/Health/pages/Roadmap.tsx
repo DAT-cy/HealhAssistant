@@ -20,6 +20,7 @@ import { navigationService } from '@/routes';
 import { ApiError } from '@/api/client';
 import { activityTypes, periods } from '@/features/Health/components/roadmapWizard.utils';
 import { doctorRequestService } from '@/api/services/doctor-request.service';
+import DoctorRequestStatusCard from '@/features/Health/components/DoctorRequestStatusCard';
 
 function localDateIso() {
   const today = new Date();
@@ -427,7 +428,7 @@ export default function RoadmapPage() {
       <Text style={{ color: palette.textMuted, fontSize: 11, marginTop: 8 }}>{item.durationWeeks ?? 0} tuần · Tạo ngày {item.createdAt.slice(0, 10)}</Text>
     </Pressable>))}
     {activeQuery.data?.source === 'gemini' ? <>
-      {doctorRequestsQuery.data?.filter((request) => ['PENDING_ASSIGNMENT', 'ASSIGNED', 'IN_REVIEW', 'NEED_MORE_INFO'].includes(request.status)).slice(0, 1).map((request) => <Card key={request.id}><Text style={{ color: palette.primary, fontSize: 11, fontWeight: '800' }}>THEO DÕI YÊU CẦU BÁC SĨ</Text><Text style={{ color: palette.text, fontSize: 15, fontWeight: '800', marginTop: 7 }}>{request.status === 'PENDING_ASSIGNMENT' ? 'Đang chờ phân công' : request.status === 'ASSIGNED' ? 'Đã phân công bác sĩ' : request.status === 'IN_REVIEW' ? 'Bác sĩ đang kiểm tra' : 'Cần bổ sung thông tin'}</Text><Text style={{ color: palette.textMuted, fontSize: 11, lineHeight: 17, marginTop: 5 }}>{request.reason}</Text></Card>)}
+      <DoctorRequestStatusCard requests={doctorRequestsQuery.data} />
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
           <Text style={{ color: palette.primary, fontSize: 12, fontWeight: '800' }}>ĐANG HOẠT ĐỘNG · PHIÊN BẢN {activeQuery.data.versionNumber ?? '—'}</Text>

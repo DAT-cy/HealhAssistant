@@ -70,4 +70,33 @@ describe('Admin Dashboard', () => {
     await fireEvent.changeText(screen.getByPlaceholderText('Tìm tên, email, tài khoản'), 'an');
     await waitFor(() => expect(mocked.users).toHaveBeenLastCalledWith('an', false));
   });
+
+  it('đổi vai trò: hỏi xác nhận rồi gọi setUserRole(ROLE_DOCTOR) đúng user, admin không có nút đổi', async () => {
+    mocked.setUserRole.mockResolvedValue(user({ id: 3, role: 'ROLE_DOCTOR' }));
+    await renderScreen(<AdminDashboardPage />);
+    await screen.findByText('u@test.vn · Người dùng');
+    expect(screen.queryByLabelText('Đặt làm bác sĩ admin')).toBeNull();
+    await fireEvent.press(screen.getByLabelText('Đặt làm bác sĩ user'));
+    expect(mocked.setUserRole).not.toHaveBeenCalled();
+    expect(screen.getByText('Cấp quyền bác sĩ cho user?')).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Xác nhận đổi vai trò user'));
+    await waitFor(() => expect(mocked.setUserRole).toHaveBeenCalledWith(3, 'ROLE_DOCTOR'));
+    expect(await screen.findByText('user giờ là Bác sĩ.')).toBeTruthy();
+  });
+
+  it('bác sĩ thì có nút chuyển về người dùng', async () => {
+    mocked.setUserRole.mockResolvedValue(user({ id: 2, role: 'ROLE_USER' }));
+    await renderScreen(<AdminDashboardPage />);
+    await fireEvent.press(await screen.findByLabelText('Đặt làm người dùng BS An'));
+    await fireEvent.press(screen.getByLabelText('Xác nhận đổi vai trò BS An'));
+    await waitFor(() => expect(mocked.setUserRole).toHaveBeenCalledWith(2, 'ROLE_USER'));
+  });
+
+  it('đổi vai trò lỗi -> hiện thông báo trên dòng đó', async () => {
+    mocked.setUserRole.mockRejectedValue(new Error('Vai trò không hợp lệ.'));
+    await renderScreen(<AdminDashboardPage />);
+    await fireEvent.press(await screen.findByLabelText('Đặt làm bác sĩ user'));
+    await fireEvent.press(screen.getByLabelText('Xác nhận đổi vai trò user'));
+    expect(await screen.findByText('Vai trò không hợp lệ.')).toBeTruthy();
+  });
 });

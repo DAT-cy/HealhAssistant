@@ -21,6 +21,7 @@ export type AppRoute =
   | 'AdminKnowledge'
   | 'AdminDashboard'
   | 'AdminDesignSystem'
+  | 'AdminDiseases'
   | 'DoctorDashboard';
 
 const routePaths: Record<AppRoute, Href> = {
@@ -44,6 +45,7 @@ const routePaths: Record<AppRoute, Href> = {
   AdminKnowledge: '/admin/knowledge',
   AdminDashboard: '/admin',
   AdminDesignSystem: '/admin/design-system',
+  AdminDiseases: '/admin/diseases',
   DoctorDashboard: '/doctor',
 };
 
