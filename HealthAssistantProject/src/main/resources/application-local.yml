@@ -39,7 +39,7 @@ jwt:
 gemini:
   api-key: ${GEMINI_API_KEY:}
   model: ${GEMINI_MODEL:gemini-2.5-flash}
-  base-url: https://generativelanguage.googleapis.com/v1beta
+  base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
 cloudinary:
   api-key: 653961144944774
   api-secet: x3_Zif3Vr_pqcZMW0WM69jR2x8I

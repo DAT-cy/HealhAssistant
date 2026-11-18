@@ -17,6 +17,8 @@ public class GeminiClient {
     private final GeminiProperties properties;
     private final ObjectMapper objectMapper;
     private final WebClient webClient;
+    /** true khi gọi qua proxy (vd. ShopAIKey) thay vì Google trực tiếp. */
+    private final boolean usesProxy;
 
     public GeminiClient(GeminiProperties properties, ObjectMapper objectMapper) {
         this.properties = properties;
@@ -25,7 +27,13 @@ public class GeminiClient {
         String baseUrl = configuredBaseUrl == null || configuredBaseUrl.isBlank()
                 ? "https://generativelanguage.googleapis.com/v1beta"
                 : configuredBaseUrl.replaceAll("/+$", "");
-        this.webClient = WebClient.builder().baseUrl(baseUrl + "/models").build();
+        this.usesProxy = !baseUrl.contains("generativelanguage.googleapis.com");
+        // Ảnh/base64 có thể lớn hơn giới hạn mặc định 256KB của WebClient.
+        this.webClient = WebClient.builder()
+                .baseUrl(baseUrl + "/models")
+                .codecs(configurer -> configurer.defaultCodecs().maxInMemorySize(16 * 1024 * 1024))
+                .build();
+        log.info("Gemini client: baseUrl={}, model={}, configured={}", baseUrl, properties.getModel(), isConfigured());
     }
 
     public boolean isConfigured() {
@@ -59,6 +67,8 @@ public class GeminiClient {
             JsonNode response = webClient.post()
                     .uri("/{model}:generateContent", properties.getModel())
                     .header("x-goog-api-key", properties.getApiKey())
+                    // Proxy kiểu ShopAIKey xác thực bằng Bearer token; Google bỏ qua header này.
+                    .headers(headers -> { if (usesProxy) headers.setBearerAuth(properties.getApiKey()); })
                     .bodyValue(body)
                     .retrieve()
                     .bodyToMono(JsonNode.class)

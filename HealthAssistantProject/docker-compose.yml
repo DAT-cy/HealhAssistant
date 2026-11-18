@@ -42,7 +42,11 @@ services:
       MAIL_SMTP_STARTTLS_ENABLE: ${MAIL_SMTP_STARTTLS_ENABLE:-true}
       DB_PASSWORD: ${MYSQL_ROOT_PASSWORD:-1234}
       JWT_SECRET: ${JWT_SECRET:-local-docker-secret-change-before-deploy-1234567890}
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-AIzaSyACEdChYoUwlA3HSVUyLFPMLgSYyKZCoW0}
+      # AI (Gemini). Dùng ShopAIKey: GEMINI_BASE_URL=https://api.shopaikey.com/v1beta
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-60s}
       CLOUDINARY_ENABLED: ${CLOUDINARY_ENABLED:-false}
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-doan}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-653961144944774}
