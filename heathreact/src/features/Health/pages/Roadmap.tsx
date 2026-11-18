@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Ionicons } from '@expo/vector-icons';
 import { Text, TextInput, View } from 'react-native';
 import { Pressable } from '@/components/ui/Pressable';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Screen from '@/components/ui/Screen';
 import Card from '@/components/ui/Card';
 import AppButton from '@/components/ui/AppButton';
@@ -118,6 +118,14 @@ export default function RoadmapPage() {
     refetchInterval: (query) => (query.state.data?.some((request) => isOpenReview(request.status)) ? 30_000 : false),
   });
   const refetchDoctorRequests = doctorRequestsQuery.refetch;
+  const replyMutation = useMutation({
+    mutationFn: ({ id, message }: { id: number; message: string }) => doctorRequestService.reply(id, message),
+    onSuccess: () => {
+      notify.success('Đã gửi bác sĩ', 'Yêu cầu đã quay lại cho bác sĩ xem tiếp.');
+      void queryClient.invalidateQueries({ queryKey: ['doctor-requests', 'mine'] });
+    },
+    onError: (error) => notify.error('Chưa gửi được', error instanceof ApiError ? error.message : 'Vui lòng thử lại.'),
+  });
   useFocusEffect(useCallback(() => { void refetchDoctorRequests(); }, [refetchDoctorRequests]));
 
   const profileMissing = profileQuery.isError && profileQuery.error instanceof ApiError && profileQuery.error.status === 404;
@@ -433,7 +441,11 @@ export default function RoadmapPage() {
       initialDiseaseCodes={(profileQuery.data?.diseaseCodes ?? '').split(',').map((item) => item.split(':')[0]).filter(Boolean)}
     />
     {/* Luôn hiện trạng thái yêu cầu bác sĩ, kể cả khi người dùng chưa có lộ trình đang hoạt động. */}
-    <DoctorRequestStatusCard requests={doctorRequestsQuery.data} />
+    <DoctorRequestStatusCard
+      requests={doctorRequestsQuery.data}
+      replying={replyMutation.isPending}
+      onReply={(id, message) => replyMutation.mutateAsync({ id, message })}
+    />
     {profileError ? <ErrorState message={profileError} onRetry={() => void profileQuery.refetch()} /> : null}
     {false && historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}
     {historyQuery.isPending ? <LoadingState label="Đang tải danh sách lộ trình..." /> : null}

@@ -9,6 +9,7 @@ import java.util.Optional;
 public interface DiseaseRepository extends JpaRepository<Disease, Long> {
     Optional<Disease> findByCodeAndActiveTrue(String code);
     List<Disease> findAllByActiveTrue(Sort sort);
+    boolean existsByCodeIgnoreCase(String code);
     long countByActiveTrue();
     long countByActiveTrueAndDoctorRequiredTrue();
 }

@@ -30,6 +30,12 @@ public class RoadmapPreviewService {
 
     public RoadmapPreviewResponse create(Long userId, Instant profileUpdatedAt, List<GeminiRoadmapResponse> options,
                                          List<RoadmapSlotRequest> schedule) {
+        return create(userId, profileUpdatedAt, options, schedule, null, null);
+    }
+
+    /** Tạo bản xem trước từ phương án đã được bác sĩ duyệt (reviewRequestId != null). */
+    public RoadmapPreviewResponse create(Long userId, Instant profileUpdatedAt, List<GeminiRoadmapResponse> options,
+                                         List<RoadmapSlotRequest> schedule, Long reviewRequestId, String routingReason) {
         if (options.size() != OPTION_COUNT) throw new IllegalArgumentException("Cần tạo đủ ba phương án lộ trình.");
         RoadmapPreview preview = new RoadmapPreview();
         preview.setId(UUID.randomUUID().toString());
@@ -38,8 +44,23 @@ public class RoadmapPreviewService {
         preview.setOptionsJson(write(options));
         preview.setScheduleJson(writeSchedule(schedule));
         preview.setExpiresAt(Instant.now().plus(30, ChronoUnit.MINUTES));
+        preview.setReviewRequestId(reviewRequestId);
         repository.save(preview);
-        return new RoadmapPreviewResponse(preview.getId(), options, "AUTO_ROADMAP", null, null);
+        return new RoadmapPreviewResponse(preview.getId(), options, "AUTO_ROADMAP", reviewRequestId, routingReason);
+    }
+
+    /** Id yêu cầu bác sĩ gắn với bản xem trước (nếu có). */
+    public java.util.Optional<Long> reviewRequestIdOf(String previewId, Long userId) {
+        return repository.findById(previewId).filter(p -> userId.equals(p.getUserId())).map(RoadmapPreview::getReviewRequestId);
+    }
+
+    public String toJson(Object value) {
+        try { return objectMapper.writeValueAsString(value); }
+        catch (JsonProcessingException exception) { throw new IllegalStateException("Không thể lưu phương án.", exception); }
+    }
+
+    public List<GeminiRoadmapResponse> readOptions(String json) {
+        return read(json);
     }
 
     public GeminiRoadmapResponse select(String previewId, Long userId, Instant currentProfileUpdatedAt, int optionIndex) {

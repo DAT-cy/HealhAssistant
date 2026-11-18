@@ -9,4 +9,5 @@ import java.util.Optional;
 public interface ExerciseCatalogRepository extends JpaRepository<ExerciseCatalog, Long> {
     List<ExerciseCatalog> findAllByActiveTrueOrderByNameAsc();
     Optional<ExerciseCatalog> findByCodeAndActiveTrue(String code);
+    boolean existsByCodeIgnoreCase(String code);
 }

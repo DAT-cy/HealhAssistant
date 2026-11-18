@@ -23,6 +23,10 @@ public class DoctorPortalService {
     private final DoctorReviewRequestRepository requestRepository;
     private final DoctorReviewRepository reviewRepository;
     private final ObjectMapper objectMapper;
+    private final DoctorReviewResponseMapper responseMapper;
+
+    /** Trạng thái bác sĩ còn được ra quyết định. */
+    static final List<String> DECIDABLE_STATUSES = List.of("ASSIGNED", "IN_REVIEW", "NEED_MORE_INFO");
 
     @Transactional
     public DoctorProfile saveProfile(Long doctorId, DoctorProfileRequest request) {
@@ -65,7 +69,7 @@ public class DoctorPortalService {
     @Transactional(readOnly = true)
     public List<DoctorReviewRequestResponse> requests(Long doctorId, String status) {
         List<DoctorReviewRequest> rows = status == null || status.isBlank() ? requestRepository.findAllByAssignedDoctorId(doctorId, Sort.by(Sort.Direction.ASC, "createdAt")) : requestRepository.findAllByStatus(status.trim().toUpperCase(Locale.ROOT), Sort.by(Sort.Direction.ASC, "createdAt"));
-        return rows.stream().filter(r -> doctorId.equals(r.getAssignedDoctorId())).map(DoctorReviewRequestResponse::from).toList();
+        return rows.stream().filter(r -> doctorId.equals(r.getAssignedDoctorId())).map(responseMapper::toResponse).toList();
     }
 
     @Transactional
@@ -75,9 +79,18 @@ public class DoctorPortalService {
         String action = command.action().trim().toUpperCase(Locale.ROOT);
         if (!List.of("APPROVE", "REJECT", "NEED_MORE_INFO", "REQUEST_REVISION").contains(action)) throw new IllegalArgumentException("Thao tác review không hợp lệ.");
         if (List.of("REJECT", "NEED_MORE_INFO", "REQUEST_REVISION").contains(action) && (command.note() == null || command.note().isBlank())) throw new IllegalArgumentException("Cần ghi nhận xét cho thao tác này.");
-        request.setStatus("APPROVE".equals(action) ? "COMPLETED" : "REJECT".equals(action) ? "REJECTED" : "NEED_MORE_INFO"); request.setCompletedAt(Instant.now());
-        requestRepository.save(request); reviewRepository.save(new DoctorReview(requestId, doctorId, action, command.note(), request.getPolicyVersion()));
-        return DoctorReviewRequestResponse.from(request);
+        if (!DECIDABLE_STATUSES.contains(request.getStatus())) throw new IllegalArgumentException("Yêu cầu đã kết thúc hoặc chưa sẵn sàng, không thể ra quyết định.");
+        String status = switch (action) {
+            case "APPROVE" -> "COMPLETED";
+            case "REJECT" -> "REJECTED";
+            case "REQUEST_REVISION" -> "REVISION_REQUESTED";
+            default -> "NEED_MORE_INFO";
+        };
+        request.setStatus(status);
+        // NEED_MORE_INFO vẫn đang mở (chờ người dùng bổ sung) nên chưa có thời điểm kết thúc.
+        request.setCompletedAt("NEED_MORE_INFO".equals(status) ? null : Instant.now());
+        requestRepository.save(request); reviewRepository.saveAndFlush(new DoctorReview(requestId, doctorId, action, command.note(), request.getPolicyVersion()));
+        return responseMapper.toResponse(request);
     }
 
     @Transactional
@@ -86,7 +99,7 @@ public class DoctorPortalService {
         if (!doctorId.equals(request.getAssignedDoctorId())) throw new IllegalArgumentException("Yêu cầu chưa được phân công cho bác sĩ này.");
         if (!List.of("ASSIGNED", "PENDING_ASSIGNMENT").contains(request.getStatus())) throw new IllegalArgumentException("Yêu cầu không còn ở trạng thái chờ kiểm tra.");
         request.setStatus("IN_REVIEW");
-        return DoctorReviewRequestResponse.from(requestRepository.save(request));
+        return responseMapper.toResponse(requestRepository.save(request));
     }
 
     private String snapshot(Disease d) { try { return objectMapper.writeValueAsString(new Object[]{d.getSeverity(), d.isDoctorRequired(), d.isRoadmapConfirmationRequired(), d.isAiAllowed(), d.getPriority(), d.getSpecialInstructions()}); } catch (JsonProcessingException e) { throw new IllegalStateException("Không lưu được lịch sử chính sách.", e); } }

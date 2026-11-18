@@ -18,11 +18,13 @@ services:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-1234}"]
+      # Ping qua TCP (127.0.0.1): lúc chạy script init lần đầu MySQL tắt mạng,
+      # nên "localhost" (socket) báo healthy quá sớm và backend kết nối lỗi.
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-1234}"]
       interval: 10s
       timeout: 5s
-      retries: 10
-      start_period: 30s
+      retries: 20
+      start_period: 60s
 
   backend:
     build:
@@ -48,9 +50,9 @@ services:
       GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
       GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-60s}
       CLOUDINARY_ENABLED: ${CLOUDINARY_ENABLED:-false}
-      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-doan}
-      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-653961144944774}
-      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-x3_Zif3Vr_pqcZMW0WM69jR2x8I}
+      CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
+      CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
+      CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}
       PERSONAL_ASSISTANT_STORAGE_DIR: ${PERSONAL_ASSISTANT_STORAGE_DIR:-/app/storage/personal-assistant}
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}

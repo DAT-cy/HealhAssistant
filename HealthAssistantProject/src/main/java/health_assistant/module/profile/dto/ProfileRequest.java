@@ -13,7 +13,7 @@ public record ProfileRequest(
         @Positive Double weightKg,
         String restrictions,
         String painAreas,
-        boolean consent,
+        Boolean consent, // null = giữ nguyên lựa chọn đồng ý hiện tại
         @Size(max = 2000) String diseaseCodes,
         @Size(max = 5000) String symptoms,
         @Size(max = 5000) String medicalHistory,

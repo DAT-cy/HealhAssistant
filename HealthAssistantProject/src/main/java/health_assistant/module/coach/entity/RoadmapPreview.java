@@ -38,4 +38,8 @@ public class RoadmapPreview {
 
     @Column(name = "consumed_at")
     private Instant consumedAt;
+
+    /** Yêu cầu bác sĩ đã duyệt mà bản xem trước này lấy phương án từ đó (null nếu AI tự tạo). */
+    @Column(name = "review_request_id")
+    private Long reviewRequestId;
 }

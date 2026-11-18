@@ -10,6 +10,7 @@ import health_assistant.module.coach.service.RoadmapLifecycleService;
 import health_assistant.module.coach.service.RoadmapPreviewService;
 import health_assistant.module.coach.service.RoadmapScheduleValidator;
 import health_assistant.module.doctor.dto.RiskRoutingDecision;
+import health_assistant.module.doctor.repository.DoctorReviewRepository;
 import health_assistant.module.doctor.service.DiseaseRiskAssessmentService;
 import health_assistant.module.profile.repository.UserProfileRepository;
 import health_assistant.utils.ClientUtils;
@@ -38,6 +39,7 @@ public class GeminiCoachController {
     private final RoadmapLifecycleService roadmapLifecycleService;
     private final RoadmapScheduleValidator scheduleValidator;
     private final DiseaseRiskAssessmentService riskAssessmentService;
+    private final DoctorReviewRepository doctorReviewRepository;
 
     @PostMapping("/roadmap")
     public ResponseEntity<DefaultRes<GeminiRoadmapResponse>> roadmap(@Valid @RequestBody GeminiRoadmapRequest request) {
@@ -53,30 +55,87 @@ public class GeminiCoachController {
         if (profile != null && (profile.getHeightCm() == null || profile.getWeightKg() == null))
             throw new IllegalArgumentException("Hãy nhập chiều cao và cân nặng trước khi xem phác thảo.");
         String goal = profile == null ? request.goal() : profile.getGoal();
-        String measurements = profile == null ? request.postureSummary() : "Tuổi: " + profile.getAge() + ", chiều cao cm: "
-                + profile.getHeightCm() + ", cân nặng kg: " + profile.getWeightKg() + ", trình độ vận động: " + profile.getActivityLevel();
-        String restrictions = profile == null ? request.restrictions() : String.join("; ", List.of(
-                profile.getRestrictions() == null ? "" : profile.getRestrictions(),
-                profile.getPainAreas() == null ? "" : profile.getPainAreas()));
-        var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), request.diseaseCodes());
-        RiskRoutingDecision routing = riskAssessmentService.evaluate(userId, null, request.diseaseCodes(), measurements + "\n" + restrictions);
-        if (!"AUTO_ROADMAP".equals(routing.decision())) {
-            return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE,
-                    new RoadmapPreviewResponse(null, List.of(), routing.decision(), routing.reviewRequestId(), routing.reason())));
+        String measurements = profile == null ? request.postureSummary() : measurements(profile);
+        String restrictions = profile == null ? request.restrictions() : joinNonBlank("; ", profile.getRestrictions(), profile.getPainAreas());
+        String fullText = joinNonBlank("\n", measurements, restrictions);
+        Instant profileVersion = profile == null ? Instant.EPOCH : profile.getUpdatedAt();
+        var assessment = riskAssessmentService.assess(request.diseaseCodes());
+
+        if (assessment.auto()) {
+            var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), request.diseaseCodes());
+            return ok(roadmapPreviewService.create(userId, profileVersion, generateOptions(serverRequest, goal), request.schedule()));
         }
-        var options = List.of(
+        if (assessment.urgent()) {
+            RiskRoutingDecision routing = riskAssessmentService.submit(userId, null, assessment, fullText, null, null, null);
+            return ok(routed(routing));
+        }
+        // Bác sĩ đã duyệt → cho người dùng chọn đúng phương án bác sĩ đã xem.
+        var approved = riskAssessmentService.findApprovedRequest(userId, assessment);
+        if (approved.isPresent()) {
+            var approvedRequest = approved.get();
+            List<GeminiRoadmapResponse> options = approvedRequest.getAiPlanJson() == null || approvedRequest.getAiPlanJson().isBlank()
+                    ? generateOptions(new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), request.diseaseCodes()), goal)
+                    : roadmapPreviewService.readOptions(approvedRequest.getAiPlanJson());
+            return ok(roadmapPreviewService.create(userId, profileVersion, options, request.schedule(), approvedRequest.getId(),
+                    "Bác sĩ đã duyệt phương án. Hãy chọn một phương án để kích hoạt."));
+        }
+        // Đang chờ bác sĩ → không gọi AI lại, trả yêu cầu đang mở.
+        var open = riskAssessmentService.findOpenRequest(userId, assessment.decision());
+        if (open.isPresent()) {
+            return ok(new RoadmapPreviewResponse(null, List.of(), assessment.decision(), open.get().getId(), "Yêu cầu trước đó vẫn đang được bác sĩ xử lý."));
+        }
+        // AI lập phương án trước, rồi gửi kèm cho bác sĩ duyệt. Nếu bác sĩ từng yêu cầu sửa → đưa nhận xét vào cho AI.
+        var revision = riskAssessmentService.findLatestRevision(userId, assessment);
+        String doctorFeedback = revision.flatMap(r -> doctorReviewRepository.findFirstByRequestIdOrderByCreatedAtDescIdDesc(r.getId()))
+                .map(review -> review.getNote()).filter(note -> note != null && !note.isBlank())
+                .map(note -> "Bác sĩ yêu cầu điều chỉnh phương án trước: " + note.trim()).orElse(null);
+        String aiRestrictions = joinNonBlank("; ", doctorFeedback, restrictions); // nhận xét bác sĩ đặt trước vì prompt cắt ở 500 ký tự
+        var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, aiRestrictions, request.schedule(), request.diseaseCodes());
+        List<GeminiRoadmapResponse> options = generateOptions(serverRequest, goal);
+        RiskRoutingDecision routing = riskAssessmentService.submit(userId, null, assessment, fullText,
+                roadmapPreviewService.toJson(options), roadmapPreviewService.toJson(request.schedule() == null ? List.of() : request.schedule()),
+                revision.orElse(null));
+        return ok(routed(routing));
+    }
+
+    private List<GeminiRoadmapResponse> generateOptions(GeminiRoadmapRequest serverRequest, String goal) {
+        return List.of(
                 geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. " + goal)),
                 geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên linh hoạt, tư thế và phục hồi. " + goal)),
                 geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. " + goal)));
-        Instant profileVersion = profile == null ? Instant.EPOCH : profile.getUpdatedAt();
-        var preview = roadmapPreviewService.create(userId, profileVersion, options, request.schedule());
-        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE, preview));
+    }
+
+    private static RoadmapPreviewResponse routed(RiskRoutingDecision routing) {
+        return new RoadmapPreviewResponse(null, List.of(), routing.decision(), routing.reviewRequestId(), routing.reason());
+    }
+
+    private static ResponseEntity<DefaultRes<RoadmapPreviewResponse>> ok(RoadmapPreviewResponse body) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_ONE, body));
+    }
+
+    /** Tóm tắt chỉ số, bỏ qua trường chưa nhập (tránh "Tuổi: null"). */
+    static String measurements(health_assistant.module.profile.entity.UserProfile profile) {
+        List<String> parts = new java.util.ArrayList<>();
+        parts.add("Tuổi: " + (profile.getAge() == null ? "chưa cập nhật" : profile.getAge()));
+        if (profile.getHeightCm() != null) parts.add("chiều cao cm: " + profile.getHeightCm());
+        if (profile.getWeightKg() != null) parts.add("cân nặng kg: " + profile.getWeightKg());
+        if (profile.getActivityLevel() != null && !profile.getActivityLevel().isBlank() && !"UNSPECIFIED".equals(profile.getActivityLevel()))
+            parts.add("trình độ vận động: " + profile.getActivityLevel());
+        return String.join(", ", parts);
+    }
+
+    static String joinNonBlank(String separator, String... values) {
+        return java.util.Arrays.stream(values).filter(v -> v != null && !v.isBlank()).map(String::trim).collect(java.util.stream.Collectors.joining(separator));
     }
 
     @PostMapping("/roadmap/activate")
     public ResponseEntity<DefaultRes<RoadmapResponse>> activate(@Valid @RequestBody ActivateRoadmapRequest request) {
-        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED,
-                roadmapLifecycleService.activate(request.previewId(), request.optionIndex(), request.title(), request.draftId(), request.startDate())));
+        Long userId = SecurityUtils.getCurrentUserId();
+        var reviewRequestId = roadmapPreviewService.reviewRequestIdOf(request.previewId(), userId);
+        RoadmapResponse activated = roadmapLifecycleService.activate(request.previewId(), request.optionIndex(), request.title(), request.draftId(), request.startDate());
+        // Phương án do bác sĩ duyệt → đánh dấu đã áp dụng để lần sau không dùng lại.
+        reviewRequestId.ifPresent(id -> riskAssessmentService.markApplied(id, userId, activated.id()));
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.CREATED, activated));
     }
 
     @PostMapping("/roadmaps/draft")

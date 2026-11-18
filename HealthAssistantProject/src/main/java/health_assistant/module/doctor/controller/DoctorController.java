@@ -64,7 +64,10 @@ public class DoctorController {
 
     @PostMapping("/heartbeat")
     public ResponseEntity<DefaultRes<Boolean>> heartbeat() {
-        portalService.heartbeat(SecurityUtils.getCurrentUserId());
+        Long doctorId = SecurityUtils.getCurrentUserId();
+        portalService.heartbeat(doctorId);
+        // Bác sĩ vừa online → nhận các yêu cầu đang chờ phân công.
+        riskService.assignPendingTo(doctorId);
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.SUCCESS, true));
     }
 }

@@ -21,7 +21,7 @@ jest.mock('@/features/Health/components/GymCoachModal', () => () => null);
 jest.mock('@/features/Health/components/ReschedulePlanner', () => () => null);
 jest.mock('@/features/Health/components/MealScheduleCard', () => () => null);
 jest.mock('@/routes', () => ({ navigationService: { navigate: jest.fn(), replace: jest.fn(), goBack: jest.fn() } }));
-jest.mock('@/api/services/doctor-request.service', () => ({ doctorRequestService: { mine: jest.fn(), get: jest.fn() } }));
+jest.mock('@/api/services/doctor-request.service', () => ({ doctorRequestService: { mine: jest.fn(), get: jest.fn(), reply: jest.fn() } }));
 jest.mock('@/api/services/profile.service', () => ({ profileService: { getMine: jest.fn().mockResolvedValue(null) } }));
 jest.mock('@/api/services/coach.service', () => ({
   // Người dùng chưa có lộ trình nào: mọi API danh sách trả rỗng, lộ trình đang chạy = null.
@@ -39,9 +39,29 @@ const request = (patch: Partial<DoctorReviewRequest>): DoctorReviewRequest => ({
 
 describe('Màn Lộ trình: thẻ theo dõi yêu cầu bác sĩ', () => {
   it('hiện kết quả "Yêu cầu sửa" ngay cả khi người dùng CHƯA có lộ trình đang hoạt động', async () => {
-    mocked.mine.mockResolvedValue([request({})]);
+    mocked.mine.mockResolvedValue([request({ status: 'REVISION_REQUESTED', doctorNote: 'Giảm cường độ tuần 1' })]);
     await renderScreen(<RoadmapPage />);
-    expect(await screen.findByText('Bác sĩ cần bổ sung / điều chỉnh')).toBeTruthy();
+    expect(await screen.findByText('Bác sĩ yêu cầu sửa lộ trình')).toBeTruthy();
+    expect(screen.getByText('Giảm cường độ tuần 1')).toBeTruthy();
+  });
+
+  it('"Yêu cầu sửa" không chặn tạo lộ trình mới (để AI lập lại theo góp ý)', async () => {
+    mocked.mine.mockResolvedValue([request({ status: 'REVISION_REQUESTED', doctorNote: 'Giảm cường độ' })]);
+    await renderScreen(<RoadmapPage />);
+    await screen.findByText('Bác sĩ yêu cầu sửa lộ trình');
+    await fireEvent.press(screen.getByLabelText('Tạo lộ trình mới'));
+    expect(toast.warning).not.toHaveBeenCalled();
+  });
+
+  it('bác sĩ cần thêm thông tin -> người dùng trả lời ngay trên thẻ', async () => {
+    mocked.mine.mockResolvedValue([request({ doctorNote: 'Bạn đang dùng thuốc gì?' })]);
+    mocked.reply.mockResolvedValue(request({ status: 'ASSIGNED' }));
+    await renderScreen(<RoadmapPage />);
+    await screen.findByText('Bác sĩ cần thêm thông tin');
+    await fireEvent.changeText(screen.getByTestId('doctor-reply-input'), 'Amlodipine 5mg');
+    await fireEvent.press(screen.getByTestId('doctor-reply-send'));
+    expect(mocked.reply).toHaveBeenCalledWith(2, 'Amlodipine 5mg');
+    expect(toast.success).toHaveBeenCalledWith('Đã gửi bác sĩ', expect.anything());
   });
 
   it('không có yêu cầu nào -> không hiện thẻ', async () => {
@@ -54,7 +74,7 @@ describe('Màn Lộ trình: thẻ theo dõi yêu cầu bác sĩ', () => {
   it('còn yêu cầu chưa xong -> bấm "Tạo lộ trình mới" chỉ hiện cảnh báo, không mở trình tạo', async () => {
     mocked.mine.mockResolvedValue([request({})]);
     await renderScreen(<RoadmapPage />);
-    await screen.findByText('Bác sĩ cần bổ sung / điều chỉnh');
+    await screen.findByText('Bác sĩ cần thêm thông tin');
     await fireEvent.press(screen.getByLabelText('Tạo lộ trình mới'));
     expect(toast.warning).toHaveBeenCalledWith('Bạn đang có yêu cầu #2 chờ bác sĩ', expect.objectContaining({ description: expect.stringContaining('bổ sung') }));
   });

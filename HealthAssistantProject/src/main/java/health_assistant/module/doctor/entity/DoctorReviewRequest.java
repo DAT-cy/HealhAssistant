@@ -29,5 +29,15 @@ public class DoctorReviewRequest {
     @Column(name = "created_at", nullable = false) private Instant createdAt = Instant.now();
     @Column(name = "assigned_at") private Instant assignedAt;
     @Column(name = "completed_at") private Instant completedAt;
+    /** 3 phương án AI đề xuất (JSON List<GeminiRoadmapResponse>) để bác sĩ duyệt. */
+    @Column(name = "ai_plan_json", columnDefinition = "LONGTEXT") private String aiPlanJson;
+    /** Lịch tập người dùng chọn lúc gửi yêu cầu (JSON). */
+    @Column(name = "schedule_json", columnDefinition = "LONGTEXT") private String scheduleJson;
+    /** Yêu cầu trước đó bị bác sĩ "yêu cầu sửa" mà yêu cầu này thay thế. */
+    @Column(name = "previous_request_id") private Long previousRequestId;
+    /** Thông tin người dùng bổ sung khi bác sĩ cần thêm thông tin. */
+    @Column(name = "user_reply", columnDefinition = "TEXT") private String userReply;
+    /** Thời điểm phương án đã duyệt được kích hoạt thành lộ trình. */
+    @Column(name = "applied_at") private Instant appliedAt;
     @Version private Long rowVersion;
 }

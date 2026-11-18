@@ -33,7 +33,8 @@ export function doctorStatusLabel(status: string) {
     case 'PENDING_ASSIGNMENT': return 'Chờ phân công';
     case 'ASSIGNED': return 'Đã giao cho bạn';
     case 'IN_REVIEW': return 'Đang kiểm tra';
-    case 'NEED_MORE_INFO': return 'Chờ bổ sung / sửa';
+    case 'NEED_MORE_INFO': return 'Chờ người dùng bổ sung';
+    case 'REVISION_REQUESTED': return 'Đã yêu cầu sửa';
     case 'COMPLETED': return 'Đã duyệt';
     case 'REJECTED': return 'Đã từ chối';
     default: return status;
@@ -41,13 +42,16 @@ export function doctorStatusLabel(status: string) {
 }
 
 /** Nội dung hiển thị cho người dùng theo trạng thái yêu cầu bác sĩ. */
-export function userReviewView(status: string): { title: string; message: string; tone: 'info' | 'warning' | 'success' | 'danger' } {
+export function userReviewView(status: string, appliedAt?: string | null): { title: string; message: string; tone: 'info' | 'warning' | 'success' | 'danger' } {
   switch (status) {
     case 'PENDING_ASSIGNMENT': return { title: 'Đang chờ phân công bác sĩ', message: 'Lộ trình của bạn cần bác sĩ kiểm tra trước khi bắt đầu.', tone: 'info' };
     case 'ASSIGNED': return { title: 'Đã phân công bác sĩ', message: 'Bác sĩ sẽ sớm xem lộ trình của bạn.', tone: 'info' };
     case 'IN_REVIEW': return { title: 'Bác sĩ đang kiểm tra', message: 'Vui lòng chờ kết quả, chưa nên bắt đầu lộ trình.', tone: 'info' };
-    case 'NEED_MORE_INFO': return { title: 'Bác sĩ cần bổ sung / điều chỉnh', message: 'Hãy cập nhật hồ sơ sức khỏe hoặc tạo lại lộ trình theo góp ý của bác sĩ.', tone: 'warning' };
-    case 'COMPLETED': return { title: 'Bác sĩ đã duyệt lộ trình', message: 'Bạn có thể bắt đầu thực hiện lộ trình.', tone: 'success' };
+    case 'NEED_MORE_INFO': return { title: 'Bác sĩ cần thêm thông tin', message: 'Hãy trả lời bác sĩ ở ô bên dưới, yêu cầu sẽ quay lại cho bác sĩ xem tiếp.', tone: 'warning' };
+    case 'REVISION_REQUESTED': return { title: 'Bác sĩ yêu cầu sửa lộ trình', message: 'Bấm "Tạo lộ trình" để AI lập lại phương án theo góp ý của bác sĩ, rồi gửi bác sĩ duyệt lại.', tone: 'warning' };
+    case 'COMPLETED': return appliedAt
+      ? { title: 'Bác sĩ đã duyệt lộ trình', message: 'Phương án đã duyệt đang được áp dụng.', tone: 'success' }
+      : { title: 'Bác sĩ đã duyệt lộ trình', message: 'Bấm "Tạo lộ trình" để chọn một trong các phương án bác sĩ đã duyệt và bắt đầu.', tone: 'success' };
     case 'REJECTED': return { title: 'Bác sĩ chưa duyệt lộ trình', message: 'Bác sĩ khuyên bạn nên đến cơ sở y tế để được khám trực tiếp trước khi tập luyện.', tone: 'danger' };
     default: return { title: status, message: '', tone: 'info' };
   }
@@ -73,7 +77,7 @@ export function pendingRequestBlock<T extends Pick<DoctorReviewRequest, 'id' | '
   return {
     title: `Bạn đang có yêu cầu #${open.id} chờ bác sĩ`,
     description: open.status === 'NEED_MORE_INFO'
-      ? 'Bác sĩ cần bạn bổ sung hoặc điều chỉnh. Hãy cập nhật hồ sơ sức khoẻ và chờ bác sĩ xem lại trước khi tạo lộ trình mới.'
+      ? 'Bác sĩ cần bạn bổ sung thông tin. Hãy trả lời bác sĩ trong thẻ "Theo dõi yêu cầu bác sĩ" rồi chờ kết quả.'
       : 'Hãy chờ bác sĩ có kết quả rồi mới tạo lộ trình mới.',
   };
 }

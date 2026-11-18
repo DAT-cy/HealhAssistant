@@ -57,7 +57,10 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers(WHITE_LIST).permitAll()
                         .requestMatchers("/api/v1/admin/feature-entitlements/**").hasRole(Role.ROLE_ADMIN.getName())
-                        .requestMatchers("/api/v1/admin/knowledge/**").hasRole(Role.ROLE_ADMIN.getName())
+                        // Bác sĩ được tải lên / duyệt tài liệu chuyên môn; chỉ Admin được xoá.
+                        .requestMatchers(org.springframework.http.HttpMethod.DELETE, "/api/v1/admin/knowledge/**").hasRole(Role.ROLE_ADMIN.getName())
+                        .requestMatchers("/api/v1/admin/knowledge/**").hasAnyRole(Role.ROLE_ADMIN.getName(), Role.ROLE_DOCTOR.getName())
+                        .requestMatchers("/api/v1/admin/exercises/**").hasAnyRole(Role.ROLE_ADMIN.getName(), Role.ROLE_DOCTOR.getName())
                         .requestMatchers("/api/v1/admin/users/**").hasRole(Role.ROLE_ADMIN.getName())
                         .requestMatchers("/api/v1/admin/diseases/**").hasRole(Role.ROLE_ADMIN.getName())
                         .requestMatchers("/api/v1/doctor/**").hasRole(Role.ROLE_DOCTOR.getName())

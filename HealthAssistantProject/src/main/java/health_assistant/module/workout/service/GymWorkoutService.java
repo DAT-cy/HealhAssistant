@@ -234,8 +234,7 @@ public class GymWorkoutService {
     }
 
     private ExerciseCatalogResponse toExerciseResponse(ExerciseCatalog exercise) {
-        return new ExerciseCatalogResponse(exercise.getId(), exercise.getCode(), exercise.getName(), exercise.getMuscleGroup(),
-                exercise.getDifficulty(), exercise.getEquipment(), exercise.getInstructions(), exercise.getSafetyNotes());
+        return ExerciseCatalogResponse.from(exercise);
     }
 
     private WorkoutSessionResponse toResponse(WorkoutSession session) {

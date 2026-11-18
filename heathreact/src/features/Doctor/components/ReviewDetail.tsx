@@ -60,7 +60,7 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
         <Text style={styles.muted}>Quyết định hệ thống: {request.decision} · Chính sách {request.policyVersion}</Text>
       </Section>
 
-      {/* Backend hiện lưu riskSummary trùng với reason: chỉ hiện khi có nội dung riêng. */}
+      {/* Yêu cầu cũ có riskSummary trùng reason: chỉ hiện khi có nội dung riêng. */}
       {riskSummary && riskSummary !== (request.reason || '').trim() ? (
         <Section icon="pulse-outline" title="Tóm tắt rủi ro">
           <Text style={styles.body}>{riskSummary}</Text>
@@ -78,6 +78,30 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
             ) : null}
           </>
         ) : <Text style={styles.muted}>Không có nội dung chi tiết.</Text>}
+      </Section>
+
+      {request.userReply ? (
+        <Section icon="chatbubble-ellipses-outline" title="Người dùng bổ sung">
+          <Text style={styles.body}>{request.userReply}</Text>
+        </Section>
+      ) : null}
+
+      {request.doctorNote && request.lastAction ? (
+        <Section icon="clipboard-outline" title="Nhận xét lần trước">
+          <Text style={styles.muted}>{REVIEW_ACTIONS[request.lastAction as ReviewAction]?.label ?? request.lastAction} · {formatDate(request.decidedAt ?? null)}</Text>
+          <Text style={styles.body}>{request.doctorNote}</Text>
+        </Section>
+      ) : null}
+
+      <Section icon="sparkles-outline" title="Phương án AI đề xuất">
+        {request.aiPlan?.length ? request.aiPlan.map((option, index) => (
+          <View key={`${option.title}-${index}`} style={styles.option} testID={`ai-plan-${index}`}>
+            <Text style={styles.optionTitle}>Phương án {index + 1}: {option.title}</Text>
+            {option.overview ? <Text style={styles.body}>{option.overview}</Text> : null}
+            {(option.weeklyPlan ?? []).map((week, weekIndex) => <Text key={weekIndex} style={styles.muted}>Tuần {weekIndex + 1}: {week}</Text>)}
+            {option.safetyNotes?.length ? <Text style={styles.muted}>Lưu ý an toàn: {option.safetyNotes.join(' · ')}</Text> : null}
+          </View>
+        )) : <Text style={styles.muted}>Yêu cầu này chưa kèm phương án AI (tạo trước bản cập nhật). Duyệt xong, người dùng sẽ được AI lập phương án mới.</Text>}
       </Section>
 
       {canStart(request) ? (
@@ -132,6 +156,8 @@ const styles = StyleSheet.create({
   title: { color: palette.text, fontSize: 22, fontWeight: '800' },
   statusPill: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 10, backgroundColor: palette.primarySoft },
   statusText: { color: palette.primary, fontSize: 11, fontWeight: '800' },
+  option: { gap: 4, paddingTop: 8, borderTopWidth: 1, borderTopColor: palette.border },
+  optionTitle: { color: palette.text, fontSize: 13, fontWeight: '800' },
   section: { gap: 8, padding: 13, borderRadius: 12, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { color: palette.text, fontSize: 14, fontWeight: '800' },

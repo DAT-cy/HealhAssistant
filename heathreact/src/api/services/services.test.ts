@@ -74,5 +74,9 @@ describe('diseaseService / doctorRequestService', () => {
   it('yêu cầu bác sĩ của tôi', async () => {
     expect((await call(() => doctorRequestService.mine())).url).toBe(`${API}/doctor-requests`);
     expect((await call(() => doctorRequestService.get(9))).url).toBe(`${API}/doctor-requests/9`);
+    const reply = await call(() => doctorRequestService.reply(9, 'Đang uống thuốc'));
+    expect(reply.url).toBe(`${API}/doctor-requests/9/reply`);
+    expect(reply.method).toBe('POST');
+    expect(reply.body).toEqual({ message: 'Đang uống thuốc' });
   });
 });

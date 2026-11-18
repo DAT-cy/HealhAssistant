@@ -41,7 +41,7 @@ public class ProfileService {
         profile.setPainAreas(blankToNull(request.painAreas()));
         profile.setDiseaseCodes(request.diseaseCodes()); profile.setSymptoms(request.symptoms()); profile.setMedicalHistory(request.medicalHistory()); profile.setFamilyHistory(request.familyHistory()); profile.setAllergies(request.allergies()); profile.setMedications(request.medications()); profile.setLifestyleNotes(request.lifestyleNotes()); profile.setSleepHours(request.sleepHours());
         profile.setHealthMetrics(request.healthMetrics());
-        profile.setConsent(request.consent());
+        if (request.consent() != null) profile.setConsent(request.consent()); // không gửi thì giữ nguyên
         profile.setUpdatedAt(Instant.now());
         UserProfile savedProfile = repository.save(profile);
         if (request.weightKg() != null) {
