@@ -3,7 +3,9 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Stack } from 'expo-router';
 import React, { useState } from 'react';
 import * as SystemUI from 'expo-system-ui';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { Toaster } from 'sonner-native';
 import { useUserStore } from '@/stores/user';
 
 // Keep the file-based root route as the only app entry point. The root route
@@ -25,6 +27,7 @@ export default function RootLayout() {
   }, [init]);
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <QueryClientProvider client={queryClient}>
         <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
@@ -37,7 +40,10 @@ export default function RootLayout() {
           <Stack.Screen name="doctor" />
           <Stack.Screen name="not-found" options={{ animation: 'fade' }} />
         </Stack>
+        {/* Thông báo nổi dùng chung (src/utils/notify.ts) */}
+        <Toaster position="top-center" richColors closeButton duration={3500} />
       </QueryClientProvider>
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }

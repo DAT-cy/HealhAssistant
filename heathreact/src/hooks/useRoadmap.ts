@@ -34,7 +34,7 @@ export function useRoadmap() {
       setRoutingMessage(preview.routingReason ?? '');
       attempts.current = 0;
       setState({ status: 'success', data: null, message: '', canRetry: false, routingDecision: preview.routingDecision ?? 'AUTO_ROADMAP', routingMessage: preview.routingReason ?? '' });
-      return preview.options;
+      return preview;
     } catch (error) {
       const message = error instanceof ApiError ? error.message : 'Không thể tạo lộ trình lúc này.';
       const retryable = error instanceof ApiError

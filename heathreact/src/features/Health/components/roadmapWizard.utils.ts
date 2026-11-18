@@ -51,3 +51,31 @@ export function scheduleError(slots: RoadmapSlotRequest[]) {
 export function weeklyMinutes(slots: RoadmapSlotRequest[]) {
   return slots.reduce((total, slot) => total + Math.max(0, (timeMinutes(slot.endTime) ?? 0) - (timeMinutes(slot.startTime) ?? 0)), 0);
 }
+
+/**
+ * Sau bước "Tạo phương án": quyết định wizard làm gì theo `routingDecision` của backend.
+ * - OPTIONS: hiện các phương án để người dùng chọn (AI tự tạo).
+ * - SENT_TO_DOCTOR: đã gửi bác sĩ kiểm tra -> đóng wizard, báo toast, màn Lộ trình hiện thẻ theo dõi.
+ * - STAY: cần người dùng đọc kỹ (cấp cứu / cần bổ sung) -> giữ màn hình thông báo.
+ */
+export function previewOutcome(decision: string | null | undefined): 'OPTIONS' | 'SENT_TO_DOCTOR' | 'STAY' {
+  if (!decision || decision === 'AUTO_ROADMAP') return 'OPTIONS';
+  if (decision === 'DOCTOR_REVIEW_REQUIRED') return 'SENT_TO_DOCTOR';
+  return 'STAY';
+}
+
+/**
+ * Nội dung toast sau khi lộ trình được chuyển bác sĩ.
+ * Backend dùng lại yêu cầu cũ nếu người dùng còn yêu cầu chưa xong -> phải báo đúng là "vẫn đang xử lý",
+ * không được báo "đã gửi" như thể vừa tạo yêu cầu mới.
+ */
+export function doctorRoutingNotice(reviewRequestId: number | null | undefined, knownRequestIds: number[], reason?: string | null) {
+  if (reviewRequestId != null && knownRequestIds.includes(reviewRequestId)) {
+    return { kind: 'warning' as const, title: `Yêu cầu #${reviewRequestId} vẫn đang được xử lý`, description: 'Chưa tạo yêu cầu mới. Hãy chờ bác sĩ phản hồi yêu cầu hiện tại.' };
+  }
+  return {
+    kind: 'info' as const,
+    title: reviewRequestId != null ? `Đã gửi bác sĩ kiểm tra (yêu cầu #${reviewRequestId})` : 'Đã gửi bác sĩ kiểm tra',
+    description: reason || 'Lộ trình sẽ được áp dụng sau khi bác sĩ duyệt.',
+  };
+}

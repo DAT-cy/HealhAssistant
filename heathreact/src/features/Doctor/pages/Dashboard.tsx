@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { doctorService, type Disease, type DoctorDashboard as DoctorDashboardData, type DoctorReviewRequest } from '@/api/services/doctor.service';
 import { Pressable } from '@/components/ui/Pressable';
@@ -22,6 +22,9 @@ const STATUS_FILTERS: { value: string; label: string }[] = [
   { value: 'REJECTED', label: 'Đã từ chối' },
 ];
 
+/** Chu kỳ tự tải lại danh sách yêu cầu / tổng quan của bác sĩ. */
+export const AUTO_REFRESH_MS = 20_000;
+
 const errorMessage = (error: unknown, fallback: string) => (error instanceof Error && error.message ? error.message : fallback);
 
 export default function DoctorDashboard() {
@@ -36,9 +39,10 @@ export default function DoctorDashboard() {
   const [actionError, setActionError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
 
-  const dashboard = useQuery({ queryKey: ['doctor', 'dashboard'], queryFn: doctorService.dashboard });
+  // Bác sĩ không biết lúc nào có yêu cầu mới -> tự tải lại định kỳ (và kéo xuống để tải ngay).
+  const dashboard = useQuery({ queryKey: ['doctor', 'dashboard'], queryFn: doctorService.dashboard, refetchInterval: AUTO_REFRESH_MS });
   const diseases = useQuery({ queryKey: ['doctor', 'diseases', query], queryFn: () => doctorService.diseases(query), enabled: tab === 'diseases' });
-  const reviews = useQuery({ queryKey: ['doctor', 'reviews', statusFilter], queryFn: () => doctorService.reviews(statusFilter), enabled: tab === 'reviews' });
+  const reviews = useQuery({ queryKey: ['doctor', 'reviews', statusFilter], queryFn: () => doctorService.reviews(statusFilter), enabled: tab === 'reviews', refetchInterval: AUTO_REFRESH_MS, refetchOnMount: 'always' });
   const selected = reviews.data?.find((request) => request.id === selectedId) ?? null;
 
   useEffect(() => {
@@ -84,7 +88,12 @@ export default function DoctorDashboard() {
         <TabButton label="Bệnh lý" icon="list-outline" active={tab === 'diseases'} onPress={() => changeTab('diseases')} />
         <TabButton label="Yêu cầu" icon="clipboard-outline" active={tab === 'reviews'} onPress={() => changeTab('reviews')} />
       </View>
-      <ScrollView contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 22 }]} keyboardShouldPersistTaps="handled">
+      <ScrollView
+        testID="doctor-scroll"
+        contentContainerStyle={[styles.content, { paddingBottom: insets.bottom + 22 }]}
+        keyboardShouldPersistTaps="handled"
+        refreshControl={<RefreshControl refreshing={false} onRefresh={() => void refreshDoctorData()} tintColor={palette.primary} />}
+      >
         {notice ? <Text style={styles.notice} accessibilityLiveRegion="polite">{notice}</Text> : null}
         {tab === 'overview' ? (
           <Overview data={dashboard.data} loading={dashboard.isPending} />

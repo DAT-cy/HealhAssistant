@@ -28,6 +28,7 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
   const diseaseCodes = (request.diseaseCodes || '').split(',').map((code) => code.trim()).filter(Boolean);
   const fullText = request.fullText?.trim() ?? '';
   const longText = fullText.length > 600;
+  const riskSummary = request.riskSummary?.trim() ?? '';
 
   return (
     <View style={styles.container}>
@@ -59,9 +60,12 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
         <Text style={styles.muted}>Quyết định hệ thống: {request.decision} · Chính sách {request.policyVersion}</Text>
       </Section>
 
-      <Section icon="pulse-outline" title="Tóm tắt rủi ro">
-        <Text style={styles.body}>{request.riskSummary?.trim() || 'Chưa có tóm tắt rủi ro.'}</Text>
-      </Section>
+      {/* Backend hiện lưu riskSummary trùng với reason: chỉ hiện khi có nội dung riêng. */}
+      {riskSummary && riskSummary !== (request.reason || '').trim() ? (
+        <Section icon="pulse-outline" title="Tóm tắt rủi ro">
+          <Text style={styles.body}>{riskSummary}</Text>
+        </Section>
+      ) : null}
 
       <Section icon="document-text-outline" title="Nội dung lộ trình / hồ sơ gửi kèm">
         {fullText ? (

@@ -62,3 +62,18 @@ export function pickUserRequest<T extends Pick<DoctorReviewRequest, 'status' | '
   const byNewest = [...requests].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
   return byNewest.find((request) => isOpenReview(request.status)) ?? byNewest[0];
 }
+
+/**
+ * Người dùng còn yêu cầu bác sĩ chưa xong thì chưa cho tạo lộ trình mới (backend sẽ chỉ trả lại yêu cầu cũ).
+ * Trả về nội dung cảnh báo, hoặc null nếu được phép tạo.
+ */
+export function pendingRequestBlock<T extends Pick<DoctorReviewRequest, 'id' | 'status' | 'createdAt'>>(requests: T[] | undefined) {
+  const open = (requests ?? []).filter((request) => isOpenReview(request.status)).sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))[0];
+  if (!open) return null;
+  return {
+    title: `Bạn đang có yêu cầu #${open.id} chờ bác sĩ`,
+    description: open.status === 'NEED_MORE_INFO'
+      ? 'Bác sĩ cần bạn bổ sung hoặc điều chỉnh. Hãy cập nhật hồ sơ sức khoẻ và chờ bác sĩ xem lại trước khi tạo lộ trình mới.'
+      : 'Hãy chờ bác sĩ có kết quả rồi mới tạo lộ trình mới.',
+  };
+}

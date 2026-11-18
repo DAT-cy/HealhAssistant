@@ -14,3 +14,9 @@ jest.mock('expo-secure-store', () => {
     deleteItemAsync: jest.fn(async (key: string) => { store.delete(key); }),
   };
 });
+
+// sonner-native cần native module (gesture handler, reanimated, svg) -> thay bằng hàm giả trong test.
+jest.mock('sonner-native', () => {
+  const toast = Object.assign(jest.fn(), { success: jest.fn(), error: jest.fn(), info: jest.fn(), warning: jest.fn(), loading: jest.fn(), dismiss: jest.fn() });
+  return { toast, Toaster: () => null };
+});

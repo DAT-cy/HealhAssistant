@@ -3,7 +3,7 @@ import React from 'react';
 import { ApiError } from '@/api/client';
 import { doctorService, type Disease, type DoctorReviewRequest } from '@/api/services/doctor.service';
 import { renderScreen } from '@/test-utils/render';
-import DoctorDashboard from './Dashboard';
+import DoctorDashboard, { AUTO_REFRESH_MS } from './Dashboard';
 
 jest.mock('@/api/services/doctor.service', () => ({
   doctorService: { dashboard: jest.fn(), diseases: jest.fn(), reviews: jest.fn(), heartbeat: jest.fn(), decide: jest.fn(), start: jest.fn(), updatePolicy: jest.fn() },
@@ -65,6 +65,21 @@ describe('Doctor Dashboard', () => {
 });
 
 describe('Doctor: danh sách & chi tiết yêu cầu', () => {
+  it('kéo xuống để tải lại: gọi lại API danh sách yêu cầu (thấy yêu cầu mới của người dùng)', async () => {
+    await renderScreen(<DoctorDashboard />);
+    await fireEvent.press(screen.getByText('Yêu cầu'));
+    await screen.findByLabelText('Mở yêu cầu 42');
+    mocked.reviews.mockResolvedValue([review(), review({ id: 43, status: 'ASSIGNED' })]);
+    const { refreshControl } = screen.getByTestId('doctor-scroll').props;
+    await refreshControl.props.onRefresh();
+    expect(await screen.findByLabelText('Mở yêu cầu 43')).toBeTruthy();
+  });
+
+  it('tự tải lại định kỳ trong khoảng hợp lý', () => {
+    expect(AUTO_REFRESH_MS).toBeGreaterThanOrEqual(10_000);
+    expect(AUTO_REFRESH_MS).toBeLessThanOrEqual(60_000);
+  });
+
   it('lọc theo trạng thái truyền status xuống API', async () => {
     await renderScreen(<DoctorDashboard />);
     await fireEvent.press(screen.getByText('Yêu cầu'));
@@ -84,6 +99,13 @@ describe('Doctor: danh sách & chi tiết yêu cầu', () => {
     for (const label of ['Duyệt lộ trình', 'Yêu cầu sửa', 'Cần bổ sung thông tin', 'Từ chối · khuyên đi khám']) {
       expect(screen.getByLabelText(label)).toBeTruthy();
     }
+  });
+
+  it('tóm tắt rủi ro trùng lý do thì không lặp lại', async () => {
+    mocked.reviews.mockResolvedValue([review({ riskSummary: 'Có bệnh tăng huyết áp' })]);
+    await openReview();
+    expect(screen.getAllByText('Có bệnh tăng huyết áp')).toHaveLength(1);
+    expect(screen.queryByText('Tóm tắt rủi ro')).toBeNull();
   });
 
   it('yêu cầu ASSIGNED: có nút "Bắt đầu kiểm tra" gọi start đúng id', async () => {
