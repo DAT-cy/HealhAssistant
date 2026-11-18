@@ -42,16 +42,20 @@ export function doctorStatusLabel(status: string) {
 }
 
 /** Nội dung hiển thị cho người dùng theo trạng thái yêu cầu bác sĩ. */
-export function userReviewView(status: string, appliedAt?: string | null): { title: string; message: string; tone: 'info' | 'warning' | 'success' | 'danger' } {
+export function userReviewView(status: string, appliedAt?: string | null, previousRequestId?: number | null): { title: string; message: string; tone: 'info' | 'warning' | 'success' | 'danger' } {
+  // Phiên bản AI đã điều chỉnh theo góp ý, đang chờ bác sĩ xem lại.
+  if (previousRequestId != null && ['PENDING_ASSIGNMENT', 'ASSIGNED', 'IN_REVIEW'].includes(status)) {
+    return { title: 'Bác sĩ đang xem lại phương án đã điều chỉnh', message: `AI đã điều chỉnh theo góp ý của bác sĩ (từ yêu cầu #${previousRequestId}). Vui lòng chờ bác sĩ duyệt lại.`, tone: 'info' };
+  }
   switch (status) {
     case 'PENDING_ASSIGNMENT': return { title: 'Đang chờ phân công bác sĩ', message: 'Lộ trình của bạn cần bác sĩ kiểm tra trước khi bắt đầu.', tone: 'info' };
     case 'ASSIGNED': return { title: 'Đã phân công bác sĩ', message: 'Bác sĩ sẽ sớm xem lộ trình của bạn.', tone: 'info' };
     case 'IN_REVIEW': return { title: 'Bác sĩ đang kiểm tra', message: 'Vui lòng chờ kết quả, chưa nên bắt đầu lộ trình.', tone: 'info' };
     case 'NEED_MORE_INFO': return { title: 'Bác sĩ cần thêm thông tin', message: 'Hãy trả lời bác sĩ ở ô bên dưới, yêu cầu sẽ quay lại cho bác sĩ xem tiếp.', tone: 'warning' };
-    case 'REVISION_REQUESTED': return { title: 'Bác sĩ yêu cầu sửa lộ trình', message: 'Bấm "Tạo lộ trình" để AI lập lại phương án theo góp ý của bác sĩ, rồi gửi bác sĩ duyệt lại.', tone: 'warning' };
+    case 'REVISION_REQUESTED': return { title: 'Bác sĩ yêu cầu sửa lộ trình', message: 'AI đang tự điều chỉnh phương án theo góp ý của bác sĩ và gửi lại để bác sĩ duyệt. Bạn không cần làm gì thêm.', tone: 'warning' };
     case 'COMPLETED': return appliedAt
       ? { title: 'Bác sĩ đã duyệt lộ trình', message: 'Phương án đã duyệt đang được áp dụng.', tone: 'success' }
-      : { title: 'Bác sĩ đã duyệt lộ trình', message: 'Bấm "Tạo lộ trình" để chọn một trong các phương án bác sĩ đã duyệt và bắt đầu.', tone: 'success' };
+      : { title: 'Bác sĩ đã duyệt lộ trình', message: 'Chọn một trong các phương án bác sĩ đã duyệt để bắt đầu.', tone: 'success' };
     case 'REJECTED': return { title: 'Bác sĩ chưa duyệt lộ trình', message: 'Bác sĩ khuyên bạn nên đến cơ sở y tế để được khám trực tiếp trước khi tập luyện.', tone: 'danger' };
     default: return { title: status, message: '', tone: 'info' };
   }

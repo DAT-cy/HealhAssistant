@@ -107,6 +107,11 @@ export default function RoadmapWizardModal({ visible, onClose, onCompleted, goal
       const notice = doctorRoutingNotice(preview.reviewRequestId, knownRequestIds, preview.routingReason);
       notify[notice.kind](notice.title, notice.description);
       finish();
+      return;
+    }
+    // Phương án lấy từ yêu cầu bác sĩ đã duyệt → nói rõ để người dùng không tưởng AI tự duyệt.
+    if (preview && previewOutcome(preview.routingDecision) === 'OPTIONS' && preview.reviewRequestId != null) {
+      notify.success(`Bác sĩ đã duyệt yêu cầu #${preview.reviewRequestId}`, preview.routingReason ?? 'Hãy chọn một phương án bác sĩ đã duyệt để kích hoạt.');
     }
   };
   const activate = async () => {

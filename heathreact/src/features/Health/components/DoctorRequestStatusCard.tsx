@@ -29,14 +29,17 @@ interface Props {
   /** Gửi thông tin bổ sung khi bác sĩ chọn "Cần thêm thông tin". */
   onReply?: (requestId: number, message: string) => Promise<unknown> | void;
   replying?: boolean;
+  /** Mở các phương án bác sĩ đã duyệt để chọn và kích hoạt. */
+  onOpenApproved?: (requestId: number) => void;
 }
 
-export default function DoctorRequestStatusCard({ requests, onReply, replying = false }: Props) {
+export default function DoctorRequestStatusCard({ requests, onReply, replying = false, onOpenApproved }: Props) {
   const [reply, setReply] = useState('');
   const request = pickUserRequest(requests);
   if (!request) return null;
-  const view = userReviewView(request.status, request.appliedAt);
+  const view = userReviewView(request.status, request.appliedAt, request.previousRequestId);
   const canReply = request.status === 'NEED_MORE_INFO' && !!onReply;
+  const canApply = request.status === 'COMPLETED' && !request.appliedAt && !!request.aiPlan?.length && !!onOpenApproved;
   const submitReply = async () => {
     const message = reply.trim();
     if (!message || !onReply) return;
@@ -80,6 +83,11 @@ export default function DoctorRequestStatusCard({ requests, onReply, replying = 
             {replying ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.replyButtonText}>Gửi bác sĩ</Text>}
           </Pressable>
         </View>
+      ) : null}
+      {canApply ? (
+        <Pressable testID="open-approved-plan" onPress={() => onOpenApproved!(request.id)} accessibilityRole="button" style={styles.replyButton}>
+          <Text style={styles.replyButtonText}>Chọn phương án bác sĩ đã duyệt</Text>
+        </Pressable>
       ) : null}
       {request.reason ? <Text style={styles.meta}>Lý do chuyển bác sĩ: {request.reason}</Text> : null}
       {finishedAt ? <Text style={styles.meta}>Kết luận lúc {finishedAt}</Text> : null}

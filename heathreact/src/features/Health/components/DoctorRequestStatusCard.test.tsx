@@ -69,7 +69,7 @@ describe('DoctorRequestStatusCard (màn Lộ trình của người dùng)', () =
 
   it('đã duyệt: hướng dẫn chọn phương án, hoặc báo đang áp dụng nếu đã kích hoạt', async () => {
     const { rerender } = await render(<DoctorRequestStatusCard requests={[request({ status: 'COMPLETED', completedAt: '2026-11-18T05:00:00Z' })]} />);
-    expect(screen.getByText(/chọn một trong các phương án bác sĩ đã duyệt/)).toBeTruthy();
+    expect(screen.getByText(/Chọn một trong các phương án bác sĩ đã duyệt/)).toBeTruthy();
     await rerender(<DoctorRequestStatusCard requests={[request({ status: 'COMPLETED', completedAt: '2026-11-18T05:00:00Z', appliedAt: '2026-11-18T06:00:00Z' })]} />);
     expect(screen.getByText('Phương án đã duyệt đang được áp dụng.')).toBeTruthy();
   });
@@ -87,5 +87,29 @@ describe('DoctorRequestStatusCard (màn Lộ trình của người dùng)', () =
   it('trạng thái khác -> không có ô trả lời', async () => {
     await render(<DoctorRequestStatusCard requests={[request({ status: 'IN_REVIEW' })]} onReply={jest.fn()} />);
     expect(screen.queryByTestId('doctor-reply-input')).toBeNull();
+  });
+
+  it('yêu cầu sửa: báo AI đang tự điều chỉnh, người dùng không phải làm gì', async () => {
+    await render(<DoctorRequestStatusCard requests={[request({ status: 'REVISION_REQUESTED', completedAt: '2026-11-18T05:00:00Z', doctorNote: 'Giảm cường độ' })]} />);
+    expect(screen.getByText(/Bạn không cần làm gì thêm/)).toBeTruthy();
+  });
+
+  it('phiên bản AI đã điều chỉnh đang chờ bác sĩ xem lại', async () => {
+    await render(<DoctorRequestStatusCard requests={[
+      request({ id: 1, status: 'REVISION_REQUESTED', createdAt: '2026-11-17T00:00:00Z', completedAt: '2026-11-17T01:00:00Z' }),
+      request({ id: 2, status: 'ASSIGNED', previousRequestId: 1, createdAt: '2026-11-17T02:00:00Z' }),
+    ]} />);
+    expect(screen.getByText('Bác sĩ đang xem lại phương án đã điều chỉnh')).toBeTruthy();
+    expect(screen.getByText(/từ yêu cầu #1/)).toBeTruthy();
+  });
+
+  it('đã duyệt + có phương án + chưa kích hoạt -> nút chọn phương án', async () => {
+    const onOpenApproved = jest.fn();
+    const plan = [{ title: 'A', overview: '', weeklyPlan: [], safetyNotes: [] }];
+    const { rerender } = await render(<DoctorRequestStatusCard requests={[request({ id: 6, status: 'COMPLETED', completedAt: '2026-11-18T05:00:00Z', aiPlan: plan })]} onOpenApproved={onOpenApproved} />);
+    await fireEvent.press(screen.getByTestId('open-approved-plan'));
+    expect(onOpenApproved).toHaveBeenCalledWith(6);
+    await rerender(<DoctorRequestStatusCard requests={[request({ id: 6, status: 'COMPLETED', completedAt: '2026-11-18T05:00:00Z', aiPlan: plan, appliedAt: '2026-11-18T06:00:00Z' })]} onOpenApproved={onOpenApproved} />);
+    expect(screen.queryByTestId('open-approved-plan')).toBeNull();
   });
 });

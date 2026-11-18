@@ -21,6 +21,7 @@ import { ApiError } from '@/api/client';
 import { activityTypes, periods } from '@/features/Health/components/roadmapWizard.utils';
 import { doctorRequestService } from '@/api/services/doctor-request.service';
 import DoctorRequestStatusCard from '@/features/Health/components/DoctorRequestStatusCard';
+import ApprovedPlanModal from '@/features/Health/components/ApprovedPlanModal';
 import { useFocusEffect } from 'expo-router';
 import { isOpenReview, pendingRequestBlock } from '@/utils/doctorReview';
 import { notify } from '@/utils/notify';
@@ -118,6 +119,7 @@ export default function RoadmapPage() {
     refetchInterval: (query) => (query.state.data?.some((request) => isOpenReview(request.status)) ? 30_000 : false),
   });
   const refetchDoctorRequests = doctorRequestsQuery.refetch;
+  const [approvedRequestId, setApprovedRequestId] = useState<number | null>(null);
   const replyMutation = useMutation({
     mutationFn: ({ id, message }: { id: number; message: string }) => doctorRequestService.reply(id, message),
     onSuccess: () => {
@@ -427,6 +429,15 @@ export default function RoadmapPage() {
     </Pressable>
   </View>
 </Card>
+    <ApprovedPlanModal
+      requestId={approvedRequestId}
+      onClose={() => setApprovedRequestId(null)}
+      onActivated={() => {
+        setApprovedRequestId(null);
+        void queryClient.invalidateQueries({ queryKey: ['roadmap'] });
+        void queryClient.invalidateQueries({ queryKey: ['doctor-requests'] });
+      }}
+    />
     <RoadmapWizardModal
       key={wizardSession}
       visible={wizardOpen}
@@ -445,6 +456,7 @@ export default function RoadmapPage() {
       requests={doctorRequestsQuery.data}
       replying={replyMutation.isPending}
       onReply={(id, message) => replyMutation.mutateAsync({ id, message })}
+      onOpenApproved={setApprovedRequestId}
     />
     {profileError ? <ErrorState message={profileError} onRetry={() => void profileQuery.refetch()} /> : null}
     {false && historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}

@@ -39,6 +39,7 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
 
       <View style={styles.headerRow}>
         <Text style={styles.title}>Yêu cầu #{request.id}</Text>
+        {request.previousRequestId ? <Text style={styles.muted}>Bản AI điều chỉnh theo nhận xét của yêu cầu #{request.previousRequestId}</Text> : null}
         <View style={styles.statusPill}><Text style={styles.statusText}>{doctorStatusLabel(request.status)}</Text></View>
       </View>
 

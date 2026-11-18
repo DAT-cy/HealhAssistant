@@ -37,4 +37,9 @@ describe('ReviewDetail', () => {
     expect(screen.getByText('Bạn dùng thuốc gì?')).toBeTruthy();
     expect(screen.getByText(/^Cần bổ sung thông tin ·/)).toBeTruthy();
   });
+
+  it('ghi rõ đây là bản AI điều chỉnh của yêu cầu trước', async () => {
+    await renderDetail({ previousRequestId: 3 });
+    expect(screen.getByText('Bản AI điều chỉnh theo nhận xét của yêu cầu #3')).toBeTruthy();
+  });
 });

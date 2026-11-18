@@ -45,7 +45,7 @@ describe('Màn Lộ trình: thẻ theo dõi yêu cầu bác sĩ', () => {
     expect(screen.getByText('Giảm cường độ tuần 1')).toBeTruthy();
   });
 
-  it('"Yêu cầu sửa" không chặn tạo lộ trình mới (để AI lập lại theo góp ý)', async () => {
+  it('"Yêu cầu sửa" không chặn tạo lộ trình mới', async () => {
     mocked.mine.mockResolvedValue([request({ status: 'REVISION_REQUESTED', doctorNote: 'Giảm cường độ' })]);
     await renderScreen(<RoadmapPage />);
     await screen.findByText('Bác sĩ yêu cầu sửa lộ trình');
