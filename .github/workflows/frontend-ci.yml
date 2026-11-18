@@ -1,0 +1,43 @@
+name: Frontend CI
+
+# Chạy mỗi lần push / mở Pull Request có thay đổi trong heathreact.
+# PR có test đỏ hoặc lỗi TypeScript sẽ bị đánh dấu ❌ trên GitHub.
+on:
+  push:
+    branches: [main]
+    paths: ['heathreact/**', '.github/workflows/frontend-ci.yml']
+  pull_request:
+    paths: ['heathreact/**', '.github/workflows/frontend-ci.yml']
+
+concurrency:
+  group: frontend-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: heathreact
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: heathreact/package-lock.json
+
+      - run: npm ci
+
+      - name: TypeScript
+        run: npm run typecheck
+
+      - name: Unit test
+        run: npm run test:ci
+
+      # Lint hiện còn ~84 lỗi cũ trong code có sẵn -> chỉ cảnh báo, không chặn.
+      # Khi đã dọn xong, bỏ dòng continue-on-error để bắt buộc lint sạch.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true

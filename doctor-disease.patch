@@ -1,0 +1,1428 @@
+diff --git a/heathreact/.env.example b/heathreact/.env.example
+index 38339d4..ea0e455 100644
+--- a/heathreact/.env.example
++++ b/heathreact/.env.example
+@@ -6,6 +6,10 @@
+ # Physical device: use the host LAN IP. Web/iOS simulator: use localhost.
+ EXPO_PUBLIC_API_BASE_URL=http://10.0.2.2:8084
+ 
++# Mock cho các API backend CHƯA có (role Doctor, danh mục bệnh lý...).
++# true: dùng dữ liệu mẫu + tài khoản doctor/doctor. Đặt false khi backend đã làm xong.
++EXPO_PUBLIC_USE_MOCK=true
++
+ # Optional: Frappe site URL (không có dấu / cuối)
+ # Chỉ cần cấu hình nếu dùng các service Frappe cũ.
+ EXPO_PUBLIC_FRAPPE_SITE_URL=https://your-site.erpnext.com
+diff --git a/heathreact/app/(user)/_layout.tsx b/heathreact/app/(user)/_layout.tsx
+index 30e0cee..84b8d67 100644
+--- a/heathreact/app/(user)/_layout.tsx
++++ b/heathreact/app/(user)/_layout.tsx
+@@ -1,4 +1,5 @@
+ import { useUserStore } from '@/stores/user';
++import { homeRouteForRole } from '@/utils/roleHome';
+ import { Stack, router } from 'expo-router';
+ import React from 'react';
+ import { ActivityIndicator, View } from 'react-native';
+@@ -12,7 +13,7 @@ export default function UserLayout() {
+   React.useEffect(() => {
+     if (!initialized) return;
+     if (!token) router.replace('/login');
+-    else if (role === 'ROLE_ADMIN') router.replace('/admin/knowledge');
++    else if (role !== 'ROLE_USER') router.replace(homeRouteForRole(role));
+   }, [initialized, role, token]);
+ 
+   if (!initialized || !token || role !== 'ROLE_USER') {
+diff --git a/heathreact/app/_layout.tsx b/heathreact/app/_layout.tsx
+index e3bdc1b..1c2cbff 100644
+--- a/heathreact/app/_layout.tsx
++++ b/heathreact/app/_layout.tsx
+@@ -33,6 +33,7 @@ export default function RootLayout() {
+           <Stack.Screen name="login" options={{ animation: 'fade' }} />
+           <Stack.Screen name="(user)" />
+           <Stack.Screen name="admin" />
++          <Stack.Screen name="doctor" />
+           <Stack.Screen name="not-found" options={{ animation: 'fade' }} />
+         </Stack>
+       </QueryClientProvider>
+diff --git a/heathreact/app/admin/_layout.tsx b/heathreact/app/admin/_layout.tsx
+index 3d6a474..5c6314a 100644
+--- a/heathreact/app/admin/_layout.tsx
++++ b/heathreact/app/admin/_layout.tsx
+@@ -1,4 +1,5 @@
+ import { useUserStore } from '@/stores/user';
++import { homeRouteForRole } from '@/utils/roleHome';
+ import { Stack, router } from 'expo-router';
+ import React from 'react';
+ import { ActivityIndicator, View } from 'react-native';
+@@ -11,7 +12,7 @@ export default function AdminLayout() {
+   React.useEffect(() => {
+     if (!initialized) return;
+     if (!token) router.replace('/login');
+-    else if (role !== 'ROLE_ADMIN') router.replace('/(user)');
++    else if (role !== 'ROLE_ADMIN') router.replace(homeRouteForRole(role));
+   }, [initialized, role, token]);
+ 
+   if (!initialized || !token || role !== 'ROLE_ADMIN') {
+diff --git a/heathreact/app/admin/diseases.tsx b/heathreact/app/admin/diseases.tsx
+new file mode 100644
+index 0000000..dea4b0e
+--- /dev/null
++++ b/heathreact/app/admin/diseases.tsx
+@@ -0,0 +1 @@
++export { default } from '@/features/Admin/pages/Diseases';
+diff --git a/heathreact/app/doctor/_layout.tsx b/heathreact/app/doctor/_layout.tsx
+new file mode 100644
+index 0000000..38a7a07
+--- /dev/null
++++ b/heathreact/app/doctor/_layout.tsx
+@@ -0,0 +1,23 @@
++import { useUserStore } from '@/stores/user';
++import { homeRouteForRole } from '@/utils/roleHome';
++import { Stack, router } from 'expo-router';
++import React from 'react';
++import { ActivityIndicator, View } from 'react-native';
++
++export default function DoctorLayout() {
++  const token = useUserStore((state) => state.token);
++  const role = useUserStore((state) => state.role);
++  const initialized = useUserStore((state) => state.initialized);
++
++  React.useEffect(() => {
++    if (!initialized) return;
++    if (!token) router.replace('/login');
++    else if (role !== 'ROLE_DOCTOR') router.replace(homeRouteForRole(role));
++  }, [initialized, role, token]);
++
++  if (!initialized || !token || role !== 'ROLE_DOCTOR') {
++    return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#080C11' }}><ActivityIndicator color="#22C55E" /></View>;
++  }
++
++  return <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }} />;
++}
+diff --git a/heathreact/app/doctor/index.tsx b/heathreact/app/doctor/index.tsx
+new file mode 100644
+index 0000000..96f17e8
+--- /dev/null
++++ b/heathreact/app/doctor/index.tsx
+@@ -0,0 +1 @@
++export { default } from '@/features/Doctor/pages/DoctorHome';
+diff --git a/heathreact/app/index.tsx b/heathreact/app/index.tsx
+index a50a6b9..c87b200 100644
+--- a/heathreact/app/index.tsx
++++ b/heathreact/app/index.tsx
+@@ -1,4 +1,5 @@
+ import { useUserStore } from '@/stores/user';
++import { homeRouteForRole } from '@/utils/roleHome';
+ import { router } from 'expo-router';
+ import React from 'react';
+ import { ActivityIndicator, View } from 'react-native';
+@@ -12,7 +13,7 @@ export default function IndexRoute() {
+     if (!initialized) return;
+     // Authentication is the only decision at the app entry point. Subscription
+     // status is a feature concern and must never affect the initial destination.
+-    router.replace(!token ? '/login' : role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
++    router.replace(!token ? '/login' : homeRouteForRole(role));
+   }, [initialized, role, token]);
+ 
+   return <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: '#080C11' }}><ActivityIndicator color="#22C55E" /></View>;
+diff --git a/heathreact/app/login.tsx b/heathreact/app/login.tsx
+index d8f0d33..695c4c6 100644
+--- a/heathreact/app/login.tsx
++++ b/heathreact/app/login.tsx
+@@ -1,5 +1,6 @@
+ import LoginPage from '@/features/Auth/pages/Login';
+ import { useUserStore } from '@/stores/user';
++import { homeRouteForRole } from '@/utils/roleHome';
+ import { router } from 'expo-router';
+ import React from 'react';
+ import { ActivityIndicator, View } from 'react-native';
+@@ -10,7 +11,7 @@ export default function LoginRoute() {
+   const initialized = useUserStore((state) => state.initialized);
+ 
+   React.useEffect(() => {
+-    if (initialized && token) router.replace(role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
++    if (initialized && token) router.replace(homeRouteForRole(role));
+   }, [initialized, role, token]);
+ 
+   if (!initialized || token) {
+diff --git a/heathreact/app/welcome.tsx b/heathreact/app/welcome.tsx
+index 288d12c..20ceaaf 100644
+--- a/heathreact/app/welcome.tsx
++++ b/heathreact/app/welcome.tsx
+@@ -1,5 +1,6 @@
+ import { navigationService } from '@/routes';
+ import { useUserStore } from '@/stores/user';
++import { homeRouteForRole } from '@/utils/roleHome';
+ import { Ionicons } from '@expo/vector-icons';
+ import { router } from 'expo-router';
+ import React from 'react';
+@@ -13,7 +14,7 @@ export default function WelcomeRoute() {
+   const initialized = useUserStore((state) => state.initialized);
+ 
+   React.useEffect(() => {
+-    if (initialized && token) router.replace(role === 'ROLE_ADMIN' ? '/admin/knowledge' : '/(user)');
++    if (initialized && token) router.replace(homeRouteForRole(role));
+   }, [initialized, role, token]);
+ 
+   if (!initialized || token) return <View style={styles.loading} />;
+diff --git a/heathreact/docs/api-contract-doctor-disease.md b/heathreact/docs/api-contract-doctor-disease.md
+new file mode 100644
+index 0000000..ca9adb3
+--- /dev/null
++++ b/heathreact/docs/api-contract-doctor-disease.md
+@@ -0,0 +1,84 @@
++# API contract: Role Doctor & Danh mục bệnh lý
++
++Frontend (`heathreact`) đã làm theo contract này và đang chạy bằng mock (`EXPO_PUBLIC_USE_MOCK=true`).
++Khi backend làm xong, đặt `EXPO_PUBLIC_USE_MOCK=false` là frontend gọi API thật, không cần sửa giao diện.
++
++Tất cả response bọc trong envelope hiện có (`DefaultRes`):
++
++```json
++{ "statusCode": 200, "responseCode": "COMMON-SUC-200", "responseMessage": "OK", "data": { } }
++```
++
++Lỗi validate trả `statusCode: 400` và `data` là map `field → message`, ví dụ `{ "code": "Mã bệnh đã tồn tại." }`.
++Frontend sẽ hiện lỗi ngay dưới ô tương ứng.
++
++---
++
++## 1. Role Doctor
++
++| Thay đổi | Chi tiết |
++|---|---|
++| Enum `Role` | Thêm `ROLE_DOCTOR("DOCTOR")` |
++| `POST /api/v1/auth/login` | Không đổi. Trả `role: "ROLE_DOCTOR"` cho tài khoản bác sĩ |
++| `GET /api/v1/auth/profile` | Không đổi. Trả `{ username, role }` |
++| `SecurityConfig` | `/api/v1/doctor/**` → `hasRole("DOCTOR")` |
++| Seed (tuỳ chọn) | Tài khoản `doctor / doctor` giống `admin / admin` để test local |
++
++Frontend điều hướng theo role: `ROLE_ADMIN` → `/admin/knowledge`, `ROLE_DOCTOR` → `/doctor`, `ROLE_USER` → `/(user)`.
++
++## 2. Model `Disease`
++
++```ts
++{
++  id: number,
++  code: string,                 // UNIQUE, [A-Z0-9_], 2–40 ký tự. Ví dụ "HYPERTENSION"
++  name: string,                 // UNIQUE (không phân biệt hoa thường/dấu), tối đa 120
++  group: "CARDIOVASCULAR" | "METABOLIC" | "MUSCULOSKELETAL" | "RESPIRATORY" | "NEUROLOGICAL" | "OTHER",
++  severity: "LOW" | "MEDIUM" | "HIGH",
++  description: string | null,   // tối đa 2000
++  symptoms: string[],           // triệu chứng
++  shouldDo: string[],           // nên làm
++  shouldAvoid: string[],        // cần tránh
++  notes: string | null,         // ghi chú cho AI / bác sĩ, tối đa 2000
++  requiresDoctorReview: boolean,// true → lộ trình của user có bệnh này phải chờ bác sĩ duyệt
++  active: boolean,              // false = ngưng dùng (xoá mềm)
++  documentCount: number,        // số tài liệu Knowledge Base gắn với bệnh (chỉ đọc)
++  createdAt: string,            // ISO-8601
++  updatedAt: string
++}
++```
++
++Ràng buộc: `shouldDo` và `shouldAvoid` không được cùng rỗng.
++
++Gợi ý lưu DB: bảng `diseases`. Các danh sách lưu bảng con (`disease_items(disease_id, type, content, sort_order)`) hoặc cột JSON.
++
++## 3. Admin: quản lý bệnh lý (`hasRole("ADMIN")`)
++
++| Method | Path | Body | Trả về |
++|---|---|---|---|
++| GET | `/api/v1/admin/diseases?q=&group=&review=&includeInactive=` | | `Disease[]` |
++| GET | `/api/v1/admin/diseases/stats` | | `{ total, requiresReview, autoApproved, inactive }` |
++| GET | `/api/v1/admin/diseases/{id}` | | `Disease` |
++| POST | `/api/v1/admin/diseases` | `DiseaseInput` | `Disease` |
++| PUT | `/api/v1/admin/diseases/{id}` | `DiseaseInput` | `Disease` |
++| PATCH | `/api/v1/admin/diseases/{id}/review-requirement` | `{ "requiresDoctorReview": true }` | `Disease` |
++| DELETE | `/api/v1/admin/diseases/{id}` | | `true` (xoá mềm: `active = false`) |
++
++Query params của GET list (đều tuỳ chọn):
++- `q`: tìm theo `name`, `code`, `description`. Không phân biệt hoa thường; nên bỏ dấu tiếng Việt.
++- `group`: một giá trị enum `group`.
++- `review`: `REQUIRED` (chỉ bệnh cần duyệt) hoặc `AUTO` (chỉ bệnh không cần duyệt).
++- `includeInactive=true`: lấy cả bệnh ngưng dùng. Mặc định chỉ lấy `active = true`.
++- Sắp xếp: bệnh đang dùng trước, sau đó theo `name`.
++
++`stats` chỉ đếm bệnh `active`, riêng `inactive` đếm bệnh đã ngưng dùng.
++
++`DiseaseInput` = các field `code, name, group, severity, description, symptoms, shouldDo, shouldAvoid, notes, requiresDoctorReview, active`.
++
++## 4. Sắp dùng ở bước sau (chưa cần làm ngay)
++
++| Method | Path | Ai dùng | Mục đích |
++|---|---|---|---|
++| GET | `/api/v1/diseases` | USER, DOCTOR | Danh sách bệnh `active` (chỉ `id, code, name, group`) để người dùng chọn trong hồ sơ |
++| — | `diseaseIds` trong `UserProfile` + `otherConditions: string` | USER | Hồ sơ chọn bệnh từ danh mục; bệnh "khác" → lộ trình chờ duyệt |
++| — | `/api/v1/doctor/roadmaps/...` | DOCTOR | Hàng chờ duyệt lộ trình. Contract sẽ gửi ở bước tiếp theo |
+diff --git a/heathreact/src/api/client.ts b/heathreact/src/api/client.ts
+index c748048..6cc7ad2 100644
+--- a/heathreact/src/api/client.ts
++++ b/heathreact/src/api/client.ts
+@@ -13,6 +13,7 @@ let onUnauthorized: (() => void) | null = null;
+ 
+ export const apiClient = {
+   setToken(token: string | null) { sessionToken = token; },
++  getToken() { return sessionToken; },
+   setUnauthorizedHandler(handler: (() => void) | null) { onUnauthorized = handler; },
+   async request<T>(path: string, init: RequestInit & { ai?: boolean; timeoutMs?: number } = {}): Promise<T> {
+     const controller = new AbortController();
+diff --git a/heathreact/src/api/mock/disease.mock.ts b/heathreact/src/api/mock/disease.mock.ts
+new file mode 100644
+index 0000000..55ed87a
+--- /dev/null
++++ b/heathreact/src/api/mock/disease.mock.ts
+@@ -0,0 +1,146 @@
++import type {
++  Disease,
++  DiseaseInput,
++  DiseaseListParams,
++  DiseaseStats,
++} from '../services/disease.service';
++import { createMockStore, mockDelay, mockError } from './index';
++
++const now = () => new Date().toISOString();
++
++const seed = (): Disease[] => {
++  const created = now();
++  const base = { createdAt: created, updatedAt: created, active: true, documentCount: 0, notes: null };
++  return [
++    {
++      ...base, id: 1, code: 'HYPERTENSION', name: 'Tăng huyết áp', group: 'CARDIOVASCULAR', severity: 'MEDIUM',
++      description: 'Huyết áp tâm thu ≥ 140 mmHg hoặc tâm trương ≥ 90 mmHg kéo dài.',
++      symptoms: ['Đau đầu', 'Chóng mặt', 'Hồi hộp'],
++      shouldDo: ['Đi bộ nhanh 30 phút/ngày', 'Giảm muối < 5 g/ngày', 'Đo huyết áp trước khi tập'],
++      shouldAvoid: ['Nín thở khi nâng tạ (Valsalva)', 'Tập cường độ rất cao đột ngột'],
++      requiresDoctorReview: true, documentCount: 2,
++    },
++    {
++      ...base, id: 2, code: 'DIABETES_T2', name: 'Đái tháo đường type 2', group: 'METABOLIC', severity: 'MEDIUM',
++      description: 'Rối loạn chuyển hoá glucose do đề kháng insulin.',
++      symptoms: ['Khát nhiều', 'Tiểu nhiều', 'Mệt mỏi'],
++      shouldDo: ['Ăn đúng giờ, chia nhỏ bữa', 'Tập aerobic + kháng lực xen kẽ', 'Mang theo đồ ngọt khi tập'],
++      shouldAvoid: ['Tập khi đường huyết < 5,5 mmol/L chưa ăn', 'Đồ uống có đường'],
++      requiresDoctorReview: true, documentCount: 1,
++    },
++    {
++      ...base, id: 3, code: 'LOW_BACK_PAIN', name: 'Đau thắt lưng mạn tính', group: 'MUSCULOSKELETAL', severity: 'LOW',
++      description: 'Đau vùng thắt lưng kéo dài trên 12 tuần, không có dấu hiệu cảnh báo.',
++      symptoms: ['Đau âm ỉ vùng lưng dưới', 'Cứng lưng buổi sáng'],
++      shouldDo: ['Bài tập cơ lõi (plank, bird-dog)', 'Đi bộ nhẹ', 'Giãn cơ đùi sau'],
++      shouldAvoid: ['Gập lưng nâng vật nặng', 'Ngồi liên tục quá 1 giờ'],
++      requiresDoctorReview: false,
++    },
++    {
++      ...base, id: 4, code: 'ASTHMA', name: 'Hen phế quản', group: 'RESPIRATORY', severity: 'MEDIUM',
++      description: 'Viêm mạn tính đường thở, co thắt phế quản khi gặp tác nhân.',
++      symptoms: ['Khó thở', 'Khò khè', 'Ho về đêm'],
++      shouldDo: ['Khởi động kỹ 10–15 phút', 'Mang thuốc cắt cơn khi tập'],
++      shouldAvoid: ['Tập ngoài trời khi không khí lạnh, ô nhiễm'],
++      requiresDoctorReview: true,
++    },
++    {
++      ...base, id: 5, code: 'OBESITY', name: 'Béo phì', group: 'METABOLIC', severity: 'LOW',
++      description: 'BMI ≥ 25 (chuẩn châu Á).',
++      symptoms: [],
++      shouldDo: ['Tăng vận động dần', 'Thâm hụt năng lượng vừa phải'],
++      shouldAvoid: ['Chạy bật nhảy cường độ cao khi mới bắt đầu'],
++      requiresDoctorReview: false,
++    },
++  ];
++};
++
++const store = createMockStore<Disease>('diseases', seed);
++
++const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/đ/gi, 'd').toLowerCase().trim();
++
++function validate(input: DiseaseInput, items: Disease[], selfId?: number) {
++  const errors: Record<string, string> = {};
++  if (items.some((item) => item.id !== selfId && item.code.toUpperCase() === input.code.toUpperCase())) errors.code = 'Mã bệnh đã tồn tại.';
++  if (items.some((item) => item.id !== selfId && normalize(item.name) === normalize(input.name))) errors.name = 'Tên bệnh đã tồn tại.';
++  if (Object.keys(errors).length) mockError(400, 'Dữ liệu không hợp lệ.', errors);
++}
++
++export const diseaseMock = {
++  async list(params: DiseaseListParams = {}): Promise<Disease[]> {
++    await mockDelay();
++    const q = normalize(params.q ?? '');
++    return (await store.all())
++      .filter((item) => (params.includeInactive ? true : item.active))
++      .filter((item) => !params.group || params.group === 'ALL' || item.group === params.group)
++      .filter((item) => !params.review || params.review === 'ALL' || (params.review === 'REQUIRED') === item.requiresDoctorReview)
++      .filter((item) => !q || normalize(`${item.name} ${item.code} ${item.description ?? ''}`).includes(q))
++      .sort((a, b) => Number(b.active) - Number(a.active) || a.name.localeCompare(b.name, 'vi'));
++  },
++
++  async stats(): Promise<DiseaseStats> {
++    await mockDelay(200);
++    const items = await store.all();
++    const active = items.filter((item) => item.active);
++    return {
++      total: active.length,
++      requiresReview: active.filter((item) => item.requiresDoctorReview).length,
++      autoApproved: active.filter((item) => !item.requiresDoctorReview).length,
++      inactive: items.length - active.length,
++    };
++  },
++
++  async get(id: number): Promise<Disease> {
++    await mockDelay(200);
++    const found = (await store.all()).find((item) => item.id === id);
++    if (!found) mockError(404, 'Không tìm thấy bệnh.');
++    return found;
++  },
++
++  async create(input: DiseaseInput): Promise<Disease> {
++    await mockDelay();
++    const items = await store.all();
++    validate(input, items);
++    const created: Disease = {
++      ...input,
++      code: input.code.toUpperCase(),
++      id: Math.max(0, ...items.map((item) => item.id)) + 1,
++      documentCount: 0,
++      createdAt: now(),
++      updatedAt: now(),
++    };
++    await store.save([...items, created]);
++    return created;
++  },
++
++  async update(id: number, input: DiseaseInput): Promise<Disease> {
++    await mockDelay();
++    const items = await store.all();
++    const current = items.find((item) => item.id === id);
++    if (!current) mockError(404, 'Không tìm thấy bệnh.');
++    validate(input, items, id);
++    const updated: Disease = { ...current, ...input, code: input.code.toUpperCase(), updatedAt: now() };
++    await store.save(items.map((item) => (item.id === id ? updated : item)));
++    return updated;
++  },
++
++  async setReviewRequirement(id: number, requiresDoctorReview: boolean): Promise<Disease> {
++    await mockDelay(200);
++    const items = await store.all();
++    const current = items.find((item) => item.id === id);
++    if (!current) mockError(404, 'Không tìm thấy bệnh.');
++    const updated: Disease = { ...current, requiresDoctorReview, updatedAt: now() };
++    await store.save(items.map((item) => (item.id === id ? updated : item)));
++    return updated;
++  },
++
++  async deactivate(id: number): Promise<boolean> {
++    await mockDelay();
++    const items = await store.all();
++    if (!items.some((item) => item.id === id)) mockError(404, 'Không tìm thấy bệnh.');
++    await store.save(items.map((item) => (item.id === id ? { ...item, active: false, updatedAt: now() } : item)));
++    return true;
++  },
++
++  reset: () => store.reset(),
++};
+diff --git a/heathreact/src/api/mock/index.ts b/heathreact/src/api/mock/index.ts
+new file mode 100644
+index 0000000..347f0d6
+--- /dev/null
++++ b/heathreact/src/api/mock/index.ts
+@@ -0,0 +1,52 @@
++import AsyncStorage from '@react-native-async-storage/async-storage';
++import { ApiError } from '../client';
++
++/**
++ * Mock layer cho các API backend CHƯA có (Doctor, danh mục bệnh lý...).
++ * Bật bằng EXPO_PUBLIC_USE_MOCK=true trong .env. Khi backend xong, đặt false:
++ * service sẽ gọi API thật theo đúng contract trong docs/api-contract-doctor-disease.md.
++ */
++export const mockEnabled = process.env.EXPO_PUBLIC_USE_MOCK === 'true';
++
++/** Token giả cho tài khoản chỉ tồn tại trong mock (ví dụ bác sĩ). */
++export const MOCK_TOKEN_PREFIX = 'mock-';
++
++export function isMockToken(token: string | null | undefined) {
++  return Boolean(token && token.startsWith(MOCK_TOKEN_PREFIX));
++}
++
++/** Giả lập độ trễ mạng để thấy trạng thái loading như khi gọi API thật. */
++export async function mockDelay(ms = 350) {
++  await new Promise((resolve) => setTimeout(resolve, ms));
++}
++
++export function mockError(statusCode: number, message: string, validationErrors: Record<string, string> = {}): never {
++  throw new ApiError(statusCode, 'MOCK-ERR', message, validationErrors);
++}
++
++/** Lưu dữ liệu mock vào AsyncStorage (web dùng localStorage) để reload không mất. */
++export function createMockStore<T>(key: string, seed: () => T[]) {
++  let cache: T[] | null = null;
++  const storageKey = `mock:${key}`;
++
++  return {
++    async all(): Promise<T[]> {
++      if (cache) return cache;
++      try {
++        const raw = await AsyncStorage.getItem(storageKey);
++        cache = raw ? (JSON.parse(raw) as T[]) : seed();
++      } catch {
++        cache = seed();
++      }
++      return cache;
++    },
++    async save(items: T[]) {
++      cache = items;
++      try { await AsyncStorage.setItem(storageKey, JSON.stringify(items)); } catch { /* bỏ qua: vẫn còn trong bộ nhớ */ }
++    },
++    async reset() {
++      cache = seed();
++      try { await AsyncStorage.removeItem(storageKey); } catch { /* bỏ qua */ }
++    },
++  };
++}
+diff --git a/heathreact/src/api/services/auth.service.ts b/heathreact/src/api/services/auth.service.ts
+index 897d5b7..772e91a 100644
+--- a/heathreact/src/api/services/auth.service.ts
++++ b/heathreact/src/api/services/auth.service.ts
+@@ -1,21 +1,43 @@
+ import { apiClient, ApiError } from '../client';
+-import { LoginResponse, ProfileUser } from '../types';
++import { LoginResponse, ProfileUser, Role } from '../types';
+ import { apiVersion } from '@/config/api.config';
++import { isMockToken, mockDelay, mockEnabled, MOCK_TOKEN_PREFIX } from '../mock';
+ 
+ export type OtpPurpose = 'REGISTER' | 'RESET_PASSWORD';
+ export interface OtpChallengeResponse { message: string; expiresInSeconds: number; resendAfterSeconds: number }
+ export interface OtpVerificationResponse { verified: boolean; message: string; login: LoginResponse | null; resetToken: string | null }
+ 
++// Tài khoản chỉ có trong mock khi backend chưa hỗ trợ ROLE_DOCTOR (EXPO_PUBLIC_USE_MOCK=true).
++const MOCK_ACCOUNTS: Record<string, { password: string; role: Role }> = {
++  doctor: { password: 'doctor', role: 'ROLE_DOCTOR' },
++};
++
+ export const authService = {
+-  login: (username: string, password: string) =>
+-    apiClient.request<LoginResponse>(`${apiVersion}/auth/login`, { method: 'POST', body: JSON.stringify({ username, password }) }),
++  login: async (username: string, password: string): Promise<LoginResponse> => {
++    const mockAccount = mockEnabled ? MOCK_ACCOUNTS[username.trim().toLowerCase()] : undefined;
++    if (mockAccount) {
++      await mockDelay();
++      if (mockAccount.password !== password) throw new ApiError(401, 'AUTH-ERR-408', 'Tài khoản hoặc mật khẩu không chính xác.');
++      return { token: `${MOCK_TOKEN_PREFIX}${username.trim().toLowerCase()}`, username: username.trim().toLowerCase(), role: mockAccount.role };
++    }
++    return apiClient.request<LoginResponse>(`${apiVersion}/auth/login`, { method: 'POST', body: JSON.stringify({ username, password }) });
++  },
+   signUp: (email: string, password: string) =>
+     apiClient.request<OtpChallengeResponse>(`${apiVersion}/auth/signup`, { method: 'POST', body: JSON.stringify({ email, password }) }),
+   sendPasswordResetOtp: (email: string) => apiClient.request<OtpChallengeResponse>(`${apiVersion}/auth/forgot-password`, { method: 'POST', body: JSON.stringify({ email }) }),
+   resendOtp: (email: string, purpose: OtpPurpose) => apiClient.request<OtpChallengeResponse>(`${apiVersion}/auth/otp/resend`, { method: 'POST', body: JSON.stringify({ email, purpose }) }),
+   verifyOtp: (email: string, purpose: OtpPurpose, code: string) => apiClient.request<OtpVerificationResponse>(`${apiVersion}/auth/otp/verify`, { method: 'POST', body: JSON.stringify({ email, purpose, code }) }),
+   resetPassword: (email: string, resetToken: string, newPassword: string) => apiClient.request<boolean>(`${apiVersion}/auth/reset-password`, { method: 'POST', body: JSON.stringify({ email, resetToken, newPassword }) }),
+-  profile: () => apiClient.request<ProfileUser>(`${apiVersion}/auth/profile`),
++  profile: async (): Promise<ProfileUser> => {
++    const token = apiClient.getToken();
++    if (mockEnabled && isMockToken(token)) {
++      const username = token!.slice(MOCK_TOKEN_PREFIX.length);
++      const account = MOCK_ACCOUNTS[username];
++      if (!account) throw new ApiError(401, null, 'Phiên đăng nhập đã hết hạn.');
++      return { username, role: account.role };
++    }
++    return apiClient.request<ProfileUser>(`${apiVersion}/auth/profile`);
++  },
+ };
+ 
+ export const isFieldError = (error: unknown, field: string): boolean => error instanceof ApiError && Boolean(error.validationErrors[field]);
+diff --git a/heathreact/src/api/services/disease.service.ts b/heathreact/src/api/services/disease.service.ts
+new file mode 100644
+index 0000000..2db8d47
+--- /dev/null
++++ b/heathreact/src/api/services/disease.service.ts
+@@ -0,0 +1,86 @@
++import { apiClient } from '../client';
++import { apiVersion } from '@/config/api.config';
++import { mockEnabled } from '../mock';
++import { diseaseMock } from '../mock/disease.mock';
++
++// Contract: docs/api-contract-doctor-disease.md (mục 3).
++export type DiseaseGroup = 'CARDIOVASCULAR' | 'METABOLIC' | 'MUSCULOSKELETAL' | 'RESPIRATORY' | 'NEUROLOGICAL' | 'OTHER';
++export type DiseaseSeverity = 'LOW' | 'MEDIUM' | 'HIGH';
++export type DiseaseReviewFilter = 'ALL' | 'REQUIRED' | 'AUTO';
++
++export interface Disease {
++  id: number;
++  code: string;
++  name: string;
++  group: DiseaseGroup;
++  severity: DiseaseSeverity;
++  description: string | null;
++  symptoms: string[];
++  /** Nên làm */
++  shouldDo: string[];
++  /** Cần tránh */
++  shouldAvoid: string[];
++  notes: string | null;
++  /** true: lộ trình của người dùng có bệnh này phải chờ bác sĩ duyệt */
++  requiresDoctorReview: boolean;
++  active: boolean;
++  /** Số tài liệu Knowledge Base gắn với bệnh */
++  documentCount: number;
++  createdAt: string;
++  updatedAt: string;
++}
++
++export type DiseaseInput = Pick<Disease,
++  'code' | 'name' | 'group' | 'severity' | 'description' | 'symptoms' | 'shouldDo' | 'shouldAvoid' | 'notes' | 'requiresDoctorReview' | 'active'>;
++
++export interface DiseaseStats { total: number; requiresReview: number; autoApproved: number; inactive: number }
++
++export interface DiseaseListParams {
++  q?: string;
++  group?: DiseaseGroup | 'ALL';
++  review?: DiseaseReviewFilter;
++  includeInactive?: boolean;
++}
++
++export const DISEASE_GROUPS: { value: DiseaseGroup; label: string }[] = [
++  { value: 'CARDIOVASCULAR', label: 'Tim mạch' },
++  { value: 'METABOLIC', label: 'Chuyển hoá' },
++  { value: 'MUSCULOSKELETAL', label: 'Cơ xương khớp' },
++  { value: 'RESPIRATORY', label: 'Hô hấp' },
++  { value: 'NEUROLOGICAL', label: 'Thần kinh' },
++  { value: 'OTHER', label: 'Khác' },
++];
++
++export const DISEASE_SEVERITIES: { value: DiseaseSeverity; label: string }[] = [
++  { value: 'LOW', label: 'Nhẹ' },
++  { value: 'MEDIUM', label: 'Trung bình' },
++  { value: 'HIGH', label: 'Nặng' },
++];
++
++export const diseaseGroupLabel = (value: string) => DISEASE_GROUPS.find((item) => item.value === value)?.label ?? value;
++export const diseaseSeverityLabel = (value: string) => DISEASE_SEVERITIES.find((item) => item.value === value)?.label ?? value;
++
++const path = `${apiVersion}/admin/diseases`;
++
++function toQuery(params: DiseaseListParams) {
++  const search = new URLSearchParams();
++  if (params.q) search.set('q', params.q);
++  if (params.group && params.group !== 'ALL') search.set('group', params.group);
++  if (params.review && params.review !== 'ALL') search.set('review', params.review);
++  if (params.includeInactive) search.set('includeInactive', 'true');
++  const text = search.toString();
++  return text ? `?${text}` : '';
++}
++
++const api = {
++  list: (params: DiseaseListParams = {}) => apiClient.request<Disease[]>(`${path}${toQuery(params)}`),
++  stats: () => apiClient.request<DiseaseStats>(`${path}/stats`),
++  get: (id: number) => apiClient.request<Disease>(`${path}/${id}`),
++  create: (input: DiseaseInput) => apiClient.request<Disease>(path, { method: 'POST', body: JSON.stringify(input) }),
++  update: (id: number, input: DiseaseInput) => apiClient.request<Disease>(`${path}/${id}`, { method: 'PUT', body: JSON.stringify(input) }),
++  setReviewRequirement: (id: number, requiresDoctorReview: boolean) =>
++    apiClient.request<Disease>(`${path}/${id}/review-requirement`, { method: 'PATCH', body: JSON.stringify({ requiresDoctorReview }) }),
++  deactivate: (id: number) => apiClient.request<boolean>(`${path}/${id}`, { method: 'DELETE' }),
++};
++
++export const diseaseAdminService: typeof api = mockEnabled ? diseaseMock : api;
+diff --git a/heathreact/src/api/types.ts b/heathreact/src/api/types.ts
+index c7bcf16..968a0b6 100644
+--- a/heathreact/src/api/types.ts
++++ b/heathreact/src/api/types.ts
+@@ -6,7 +6,7 @@ export interface ApiEnvelope<T> {
+   data: T | null;
+ }
+ 
+-export type Role = 'ROLE_ADMIN' | 'ROLE_USER';
++export type Role = 'ROLE_ADMIN' | 'ROLE_DOCTOR' | 'ROLE_USER';
+ export interface LoginResponse { token: string; username: string; role: Role }
+ export interface ProfileUser { username: string; role: Role }
+ export interface Point3D { x: number; y: number; z: number; visibility: number }
+diff --git a/heathreact/src/components/ui/AreaShell.tsx b/heathreact/src/components/ui/AreaShell.tsx
+new file mode 100644
+index 0000000..a3b350f
+--- /dev/null
++++ b/heathreact/src/components/ui/AreaShell.tsx
+@@ -0,0 +1,72 @@
++import { Ionicons } from '@expo/vector-icons';
++import { router, usePathname, type Href } from 'expo-router';
++import React from 'react';
++import { Pressable, StyleSheet, Text, View } from 'react-native';
++import { useSafeAreaInsets } from 'react-native-safe-area-context';
++import { palette } from '@/theme/tokens';
++
++type IconName = React.ComponentProps<typeof Ionicons>['name'];
++
++/** Header dùng chung cho khu vực Admin / Doctor. */
++export function AreaHeader({ icon, identity, onLogout }: { icon: IconName; identity: string; onLogout: () => void }) {
++  const insets = useSafeAreaInsets();
++  return (
++    <View style={[styles.header, { paddingTop: insets.top + 8 }]}>
++      <View style={styles.brandIcon}><Ionicons name={icon} size={20} color={palette.primary} /></View>
++      <View style={styles.headerCopy}>
++        <Text style={styles.brand}>HEALTH ASSISTANT</Text>
++        <Text style={styles.identity} numberOfLines={1}>{identity}</Text>
++      </View>
++      <Pressable onPress={onLogout} style={styles.logoutButton} accessibilityRole="button" accessibilityLabel="Đăng xuất">
++        <Ionicons name="log-out-outline" size={20} color="#475569" />
++      </Pressable>
++    </View>
++  );
++}
++
++export interface AreaTab { href: Href; label: string; icon: IconName; activeIcon: IconName }
++
++/** Thanh tab dưới cùng; tab được chọn theo pathname hiện tại. */
++export function AreaTabBar({ tabs, roleLabel }: { tabs: AreaTab[]; roleLabel: string }) {
++  const insets = useSafeAreaInsets();
++  const pathname = usePathname();
++  return (
++    <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 8) }]} accessibilityRole="tablist">
++      {tabs.map((tab) => {
++        const active = pathname === String(tab.href);
++        return (
++          <Pressable
++            key={String(tab.href)}
++            onPress={() => { if (!active) router.replace(tab.href); }}
++            style={styles.tab}
++            accessibilityRole="tab"
++            accessibilityState={{ selected: active }}
++          >
++            <Ionicons name={active ? tab.activeIcon : tab.icon} size={20} color={active ? palette.primary : '#94A3B8'} />
++            <Text style={[styles.tabText, active && styles.tabTextActive]}>{tab.label}</Text>
++          </Pressable>
++        );
++      })}
++      <Text style={styles.role}>{roleLabel}</Text>
++    </View>
++  );
++}
++
++export const ADMIN_TABS: AreaTab[] = [
++  { href: '/admin/knowledge', label: 'Kho tri thức', icon: 'library-outline', activeIcon: 'library' },
++  { href: '/admin/diseases', label: 'Bệnh lý', icon: 'medkit-outline', activeIcon: 'medkit' },
++];
++
++const styles = StyleSheet.create({
++  header: { minHeight: 68, paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#FFFFFF', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DCE4E0' },
++  brandIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primarySoft },
++  headerCopy: { flex: 1 },
++  brand: { color: palette.text, fontSize: 11, fontWeight: '800' },
++  identity: { marginTop: 3, color: palette.textMuted, fontSize: 11 },
++  logoutButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF0F8' },
++  footer: { minHeight: 58, paddingTop: 6, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
++  tab: { minWidth: 76, paddingHorizontal: 8, paddingVertical: 4, alignItems: 'center', gap: 2 },
++  tabText: { color: '#94A3B8', fontSize: 11, fontWeight: '600' },
++  tabTextActive: { color: palette.primary, fontWeight: '700' },
++  role: { marginLeft: 'auto', color: '#64748B', fontSize: 10, fontWeight: '800' },
++});
+diff --git a/heathreact/src/features/Admin/pages/Diseases.tsx b/heathreact/src/features/Admin/pages/Diseases.tsx
+new file mode 100644
+index 0000000..0bd7f38
+--- /dev/null
++++ b/heathreact/src/features/Admin/pages/Diseases.tsx
+@@ -0,0 +1,482 @@
++import { Ionicons } from '@expo/vector-icons';
++import { zodResolver } from '@hookform/resolvers/zod';
++import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
++import React, { useEffect, useState } from 'react';
++import { Controller, useForm, useWatch } from 'react-hook-form';
++import {
++  ActivityIndicator,
++  Pressable,
++  RefreshControl,
++  ScrollView,
++  StatusBar,
++  StyleSheet,
++  Switch,
++  Text,
++  TextInput,
++  View,
++} from 'react-native';
++import { SafeAreaView } from 'react-native-safe-area-context';
++import { z } from 'zod';
++import { ApiError } from '@/api/client';
++import { mockEnabled } from '@/api/mock';
++import {
++  DISEASE_GROUPS,
++  DISEASE_SEVERITIES,
++  diseaseAdminService,
++  diseaseGroupLabel,
++  diseaseSeverityLabel,
++  type Disease,
++  type DiseaseGroup,
++  type DiseaseInput,
++  type DiseaseReviewFilter,
++  type DiseaseSeverity,
++} from '@/api/services/disease.service';
++import AppModal from '@/components/ui/AppModal';
++import { ADMIN_TABS, AreaHeader, AreaTabBar } from '@/components/ui/AreaShell';
++import { useUserStore } from '@/stores/user';
++import { palette } from '@/theme/tokens';
++
++const PRIMARY = palette.primary;
++const QUERY_KEY = ['admin', 'diseases'] as const;
++
++const REVIEW_FILTERS: { value: DiseaseReviewFilter; label: string }[] = [
++  { value: 'ALL', label: 'Tất cả' },
++  { value: 'REQUIRED', label: 'Cần bác sĩ duyệt' },
++  { value: 'AUTO', label: 'Tự động' },
++];
++
++const schema = z.object({
++  code: z.string().trim().min(2, 'Mã tối thiểu 2 ký tự.').max(40, 'Mã tối đa 40 ký tự.')
++    .regex(/^[A-Za-z0-9_]+$/, 'Chỉ dùng chữ không dấu, số và dấu gạch dưới.'),
++  name: z.string().trim().min(2, 'Nhập tên bệnh.').max(120, 'Tên tối đa 120 ký tự.'),
++  group: z.enum(['CARDIOVASCULAR', 'METABOLIC', 'MUSCULOSKELETAL', 'RESPIRATORY', 'NEUROLOGICAL', 'OTHER']),
++  severity: z.enum(['LOW', 'MEDIUM', 'HIGH']),
++  description: z.string().max(2000, 'Mô tả tối đa 2000 ký tự.'),
++  symptoms: z.string().max(2000),
++  shouldDo: z.string().max(4000),
++  shouldAvoid: z.string().max(4000),
++  notes: z.string().max(2000),
++  requiresDoctorReview: z.boolean(),
++  active: z.boolean(),
++}).refine((value) => toLines(value.shouldDo).length + toLines(value.shouldAvoid).length > 0, {
++  path: ['shouldDo'],
++  message: 'Nhập ít nhất một mục “Nên làm” hoặc “Cần tránh” để AI có dữ liệu.',
++});
++type DiseaseForm = z.infer<typeof schema>;
++
++const emptyForm: DiseaseForm = {
++  code: '', name: '', group: 'OTHER', severity: 'LOW', description: '', symptoms: '', shouldDo: '', shouldAvoid: '', notes: '',
++  requiresDoctorReview: false, active: true,
++};
++
++function toLines(text: string) {
++  return text.split('\n').map((line) => line.replace(/^[-•*]\s*/, '').trim()).filter(Boolean);
++}
++function toForm(disease: Disease): DiseaseForm {
++  return {
++    code: disease.code, name: disease.name, group: disease.group, severity: disease.severity,
++    description: disease.description ?? '', symptoms: disease.symptoms.join('\n'), shouldDo: disease.shouldDo.join('\n'),
++    shouldAvoid: disease.shouldAvoid.join('\n'), notes: disease.notes ?? '',
++    requiresDoctorReview: disease.requiresDoctorReview, active: disease.active,
++  };
++}
++function toInput(form: DiseaseForm): DiseaseInput {
++  return {
++    code: form.code.trim().toUpperCase(), name: form.name.trim(), group: form.group, severity: form.severity,
++    description: form.description.trim() || null, symptoms: toLines(form.symptoms), shouldDo: toLines(form.shouldDo),
++    shouldAvoid: toLines(form.shouldAvoid), notes: form.notes.trim() || null,
++    requiresDoctorReview: form.requiresDoctorReview, active: form.active,
++  };
++}
++const errorMessage = (error: unknown, fallback: string) => (error instanceof Error ? error.message : fallback);
++
++export default function DiseasesPage() {
++  const queryClient = useQueryClient();
++  const username = useUserStore((state) => state.username);
++  const logout = useUserStore((state) => state.logout);
++
++  const [searchDraft, setSearchDraft] = useState('');
++  const [query, setQuery] = useState('');
++  const [group, setGroup] = useState<DiseaseGroup | 'ALL'>('ALL');
++  const [review, setReview] = useState<DiseaseReviewFilter>('ALL');
++  const [showInactive, setShowInactive] = useState(false);
++  const [editing, setEditing] = useState<Disease | 'new' | null>(null);
++  const [pageError, setPageError] = useState<string | null>(null);
++
++  // Tìm kiếm tự chạy sau 400 ms ngừng gõ.
++  useEffect(() => {
++    const timer = setTimeout(() => setQuery(searchDraft.trim()), 400);
++    return () => clearTimeout(timer);
++  }, [searchDraft]);
++
++  const listParams = { q: query, group, review, includeInactive: showInactive };
++  const listQuery = useQuery({ queryKey: [...QUERY_KEY, 'list', listParams], queryFn: () => diseaseAdminService.list(listParams) });
++  const statsQuery = useQuery({ queryKey: [...QUERY_KEY, 'stats'], queryFn: diseaseAdminService.stats });
++  const diseases = listQuery.data ?? [];
++  const invalidate = () => queryClient.invalidateQueries({ queryKey: QUERY_KEY });
++
++  const toggleReview = useMutation({
++    mutationFn: ({ id, value }: { id: number; value: boolean }) => diseaseAdminService.setReviewRequirement(id, value),
++    onMutate: () => setPageError(null),
++    onSuccess: () => invalidate(),
++    onError: (error) => setPageError(errorMessage(error, 'Không cập nhật được yêu cầu duyệt.')),
++  });
++
++  const refreshing = (listQuery.isRefetching || statsQuery.isRefetching) && !listQuery.isLoading;
++  const loadError = listQuery.error ?? statsQuery.error;
++
++  return (
++    <View style={styles.screen}>
++      <StatusBar barStyle="dark-content" />
++      <AreaHeader icon="medkit" identity={`Quản trị viên · ${username || 'admin'}`} onLogout={() => void logout()} />
++      <ScrollView
++        style={styles.scroll}
++        contentContainerStyle={styles.content}
++        keyboardShouldPersistTaps="handled"
++        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => void invalidate()} tintColor={PRIMARY} />}
++      >
++        <View style={styles.pageHeading}>
++          <View style={styles.headingCopy}>
++            <Text style={styles.eyebrow}>KHU VỰC QUẢN TRỊ</Text>
++            <Text style={styles.title}>Danh mục bệnh lý</Text>
++            <Text style={styles.subtitle}>Nên làm, cần tránh và quy tắc chuyển bác sĩ duyệt</Text>
++          </View>
++          <Pressable onPress={() => setEditing('new')} style={styles.addButton} accessibilityRole="button" accessibilityLabel="Thêm bệnh">
++            <Ionicons name="add" size={22} color="#FFFFFF" /><Text style={styles.addText}>Thêm</Text>
++          </Pressable>
++        </View>
++
++        <View style={styles.statsRow}>
++          <Stat label="Đang dùng" value={statsQuery.data?.total} color="#0F766E" />
++          <Stat label="Cần BS duyệt" value={statsQuery.data?.requiresReview} color="#B45309" />
++          <Stat label="Tự động" value={statsQuery.data?.autoApproved} color="#15803D" />
++          <Stat label="Ngưng dùng" value={statsQuery.data?.inactive} color="#64748B" />
++        </View>
++
++        <View style={styles.notice}>
++          <Ionicons name="information-circle-outline" size={19} color="#0369A1" />
++          <Text style={styles.noticeText}>
++            Lộ trình của người dùng sẽ chờ bác sĩ duyệt nếu họ có bệnh bật “Cần bác sĩ duyệt”, hoặc khai báo bệnh chưa có trong danh mục.
++            {mockEnabled ? ' · Đang dùng dữ liệu mẫu (mock).' : ''}
++          </Text>
++        </View>
++
++        <View style={styles.searchBox}>
++          <Ionicons name="search-outline" size={18} color="#64748B" />
++          <TextInput value={searchDraft} onChangeText={setSearchDraft} placeholder="Tìm theo tên, mã hoặc mô tả" placeholderTextColor="#94A3B8" style={styles.searchInput} returnKeyType="search" />
++          {searchDraft.length > 0 ? <Pressable onPress={() => setSearchDraft('')} accessibilityLabel="Xoá tìm kiếm"><Ionicons name="close-circle" size={18} color="#94A3B8" /></Pressable> : null}
++        </View>
++
++        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
++          {REVIEW_FILTERS.map((item) => <Chip key={item.value} label={item.label} active={review === item.value} onPress={() => setReview(item.value)} />)}
++        </ScrollView>
++        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
++          <Chip label="Mọi nhóm" active={group === 'ALL'} onPress={() => setGroup('ALL')} />
++          {DISEASE_GROUPS.map((item) => <Chip key={item.value} label={item.label} active={group === item.value} onPress={() => setGroup(item.value)} />)}
++        </ScrollView>
++
++        <View style={styles.listHeader}>
++          <Text style={styles.sectionTitle}>Bệnh ({diseases.length})</Text>
++          <View style={styles.inlineSwitch}>
++            <Text style={styles.switchLabel}>Hiện bệnh ngưng dùng</Text>
++            <Switch value={showInactive} onValueChange={setShowInactive} trackColor={{ true: PRIMARY, false: '#CBD5E1' }} thumbColor="#FFFFFF" />
++          </View>
++        </View>
++
++        {pageError ? <Text style={styles.error}>{pageError}</Text> : null}
++        {loadError ? <Text style={styles.error}>{errorMessage(loadError, 'Không tải được danh mục bệnh.')}</Text> : null}
++
++        {listQuery.isLoading ? (
++          <View style={styles.loadingList}><ActivityIndicator color={PRIMARY} /><Text style={styles.emptyText}>Đang tải danh mục bệnh...</Text></View>
++        ) : diseases.length === 0 ? (
++          <View style={styles.empty}>
++            <Ionicons name="medkit-outline" size={28} color="#94A3B8" />
++            <Text style={styles.emptyTitle}>{query || group !== 'ALL' || review !== 'ALL' ? 'Không có bệnh phù hợp bộ lọc' : 'Chưa có bệnh nào'}</Text>
++            <Text style={styles.emptyText}>Thêm bệnh để AI biết người dùng nên làm gì, cần tránh gì.</Text>
++          </View>
++        ) : diseases.map((disease) => (
++          <DiseaseRow
++            key={disease.id}
++            item={disease}
++            toggling={toggleReview.isPending && toggleReview.variables?.id === disease.id}
++            onPress={() => setEditing(disease)}
++            onToggleReview={(value) => toggleReview.mutate({ id: disease.id, value })}
++          />
++        ))}
++      </ScrollView>
++
++      <AreaTabBar tabs={ADMIN_TABS} roleLabel="ADMIN" />
++
++      <DiseaseFormModal
++        key={editing === null ? 'closed' : editing === 'new' ? 'new' : `edit-${editing.id}`}
++        target={editing}
++        onClose={() => setEditing(null)}
++        onSaved={() => { setEditing(null); void invalidate(); }}
++      />
++    </View>
++  );
++}
++
++function DiseaseRow({ item, toggling, onPress, onToggleReview }: { item: Disease; toggling: boolean; onPress: () => void; onToggleReview: (value: boolean) => void }) {
++  return (
++    <Pressable onPress={onPress} style={({ pressed }) => [styles.row, !item.active && styles.rowInactive, pressed && styles.pressed]} accessibilityRole="button" accessibilityLabel={`Sửa ${item.name}`}>
++      <View style={styles.rowIcon}><Ionicons name="medkit-outline" size={19} color="#0F766E" /></View>
++      <View style={styles.rowInfo}>
++        <Text style={styles.rowTitle} numberOfLines={2}>{item.name}</Text>
++        <Text style={styles.rowMeta} numberOfLines={1}>{item.code} · {diseaseGroupLabel(item.group)}</Text>
++        <View style={styles.badges}>
++          <SeverityBadge severity={item.severity} />
++          {!item.active ? <Badge label="Ngưng dùng" color="#475569" bg="#F1F5F9" /> : null}
++          <Text style={styles.rowMeta}>{item.shouldDo.length} nên làm · {item.shouldAvoid.length} cần tránh · {item.documentCount} tài liệu</Text>
++        </View>
++      </View>
++      <Pressable onPress={(event) => event.stopPropagation()} style={styles.rowSwitch}>
++        {toggling ? <ActivityIndicator color={PRIMARY} /> : (
++          <Switch
++            value={item.requiresDoctorReview}
++            onValueChange={onToggleReview}
++            disabled={!item.active}
++            trackColor={{ true: '#F59E0B', false: '#CBD5E1' }}
++            thumbColor="#FFFFFF"
++            accessibilityLabel={`Cần bác sĩ duyệt: ${item.name}`}
++          />
++        )}
++        <Text style={[styles.switchCaption, item.requiresDoctorReview && styles.switchCaptionOn]}>{item.requiresDoctorReview ? 'Cần BS duyệt' : 'Tự động'}</Text>
++      </Pressable>
++    </Pressable>
++  );
++}
++
++function DiseaseFormModal({ target, onClose, onSaved }: { target: Disease | 'new' | null; onClose: () => void; onSaved: () => void }) {
++  const isEdit = target !== null && target !== 'new';
++  const [formError, setFormError] = useState<string | null>(null);
++  const [confirmDeactivate, setConfirmDeactivate] = useState(false);
++  const { control, handleSubmit, setValue, setError, formState: { errors } } = useForm<DiseaseForm>({
++    resolver: zodResolver(schema),
++    // Component được remount theo `key` mỗi lần mở, nên giá trị mặc định lấy thẳng từ target.
++    defaultValues: target && target !== 'new' ? toForm(target) : emptyForm,
++  });
++  const group = useWatch({ control, name: 'group' });
++  const severity = useWatch({ control, name: 'severity' });
++
++  const save = useMutation({
++    mutationFn: (input: DiseaseInput) => (isEdit ? diseaseAdminService.update(target.id, input) : diseaseAdminService.create(input)),
++    onSuccess: onSaved,
++    onError: (error) => {
++      if (error instanceof ApiError) {
++        Object.entries(error.validationErrors).forEach(([field, message]) => {
++          if (field in emptyForm) setError(field as keyof DiseaseForm, { message });
++        });
++      }
++      setFormError(errorMessage(error, 'Không lưu được bệnh.'));
++    },
++  });
++
++  const deactivate = useMutation({
++    mutationFn: () => diseaseAdminService.deactivate((target as Disease).id),
++    onSuccess: onSaved,
++    onError: (error) => setFormError(errorMessage(error, 'Không ngưng dùng được bệnh.')),
++  });
++
++  const submit = handleSubmit((form) => { setFormError(null); save.mutate(toInput(form)); });
++  const busy = save.isPending || deactivate.isPending;
++
++  return (
++    <AppModal visible={target !== null} animationType="slide" onRequestClose={onClose}>
++      <SafeAreaView style={styles.modalScreen}>
++        <View style={styles.modalHeader}>
++          <Pressable onPress={onClose} style={styles.iconButton} accessibilityLabel="Đóng"><Ionicons name="close" size={22} color="#17212B" /></Pressable>
++          <Text style={styles.modalTitle}>{isEdit ? 'Sửa bệnh' : 'Thêm bệnh'}</Text>
++          <View style={styles.iconButton} />
++        </View>
++        <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
++          <FormField label="Tên bệnh *" error={errors.name?.message}>
++            <Controller control={control} name="name" render={({ field }) => <Field value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} placeholder="Ví dụ: Tăng huyết áp" />} />
++          </FormField>
++          <FormField label="Mã bệnh *" hint="Dùng để AI và backend nhận diện, ví dụ HYPERTENSION" error={errors.code?.message}>
++            <Controller control={control} name="code" render={({ field }) => <Field value={field.value} onChangeText={(text) => field.onChange(text.toUpperCase())} onBlur={field.onBlur} placeholder="HYPERTENSION" autoCapitalize="characters" autoCorrect={false} />} />
++          </FormField>
++
++          <Text style={styles.fieldLabel}>Nhóm bệnh</Text>
++          <View style={styles.wrapChips}>
++            {DISEASE_GROUPS.map((item) => <Chip key={item.value} label={item.label} active={group === item.value} onPress={() => setValue('group', item.value, { shouldDirty: true })} />)}
++          </View>
++          <Text style={styles.fieldLabel}>Mức độ</Text>
++          <View style={styles.wrapChips}>
++            {DISEASE_SEVERITIES.map((item) => <Chip key={item.value} label={item.label} active={severity === item.value} onPress={() => setValue('severity', item.value as DiseaseSeverity, { shouldDirty: true })} />)}
++          </View>
++
++          <FormField label="Mô tả" error={errors.description?.message}>
++            <Controller control={control} name="description" render={({ field }) => <Field value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} placeholder="Định nghĩa ngắn, tiêu chí chẩn đoán" multiline />} />
++          </FormField>
++          <FormField label="Triệu chứng" hint="Mỗi dòng một triệu chứng">
++            <Controller control={control} name="symptoms" render={({ field }) => <Field value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} placeholder={'Đau đầu\nChóng mặt'} multiline />} />
++          </FormField>
++          <FormField label="Nên làm" hint="Mỗi dòng một mục" error={errors.shouldDo?.message} tone="good">
++            <Controller control={control} name="shouldDo" render={({ field }) => <Field value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} placeholder={'Đi bộ nhanh 30 phút/ngày\nGiảm muối'} multiline />} />
++          </FormField>
++          <FormField label="Cần tránh" hint="Mỗi dòng một mục" tone="bad">
++            <Controller control={control} name="shouldAvoid" render={({ field }) => <Field value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} placeholder={'Nín thở khi nâng tạ\nTập cường độ cao đột ngột'} multiline />} />
++          </FormField>
++          <FormField label="Ghi chú cho AI / bác sĩ">
++            <Controller control={control} name="notes" render={({ field }) => <Field value={field.value} onChangeText={field.onChange} onBlur={field.onBlur} placeholder="Lưu ý thêm khi lập lộ trình" multiline />} />
++          </FormField>
++
++          <Controller control={control} name="requiresDoctorReview" render={({ field }) => (
++            <SwitchRow
++              title="Cần bác sĩ duyệt"
++              description="Lộ trình của người dùng có bệnh này sẽ ở trạng thái chờ duyệt cho đến khi bác sĩ xử lý."
++              value={field.value}
++              onChange={field.onChange}
++              activeColor="#F59E0B"
++            />
++          )} />
++          {isEdit ? <Controller control={control} name="active" render={({ field }) => (
++            <SwitchRow title="Đang sử dụng" description="Tắt để ẩn bệnh khỏi danh sách người dùng chọn. Dữ liệu cũ vẫn được giữ." value={field.value} onChange={field.onChange} activeColor={PRIMARY} />
++          )} /> : null}
++
++          {formError ? <Text style={styles.error}>{formError}</Text> : null}
++
++          <Pressable disabled={busy} onPress={() => void submit()} style={[styles.primaryButton, busy && styles.disabled]} accessibilityRole="button">
++            {save.isPending ? <ActivityIndicator color="#FFF" /> : <><Ionicons name="save-outline" size={18} color="#FFF" /><Text style={styles.primaryButtonText}>{isEdit ? 'Lưu thay đổi' : 'Thêm bệnh'}</Text></>}
++          </Pressable>
++
++          {isEdit && target.active ? (
++            confirmDeactivate ? (
++              <View style={styles.confirmBox}>
++                <Text style={styles.confirmText}>Ngưng dùng “{target.name}”? Người dùng sẽ không chọn được bệnh này nữa.</Text>
++                <View style={styles.confirmActions}>
++                  <Pressable onPress={() => setConfirmDeactivate(false)} style={styles.secondaryButton}><Text style={styles.secondaryText}>Huỷ</Text></Pressable>
++                  <Pressable disabled={busy} onPress={() => deactivate.mutate()} style={styles.dangerButton}>
++                    {deactivate.isPending ? <ActivityIndicator color="#B91C1C" /> : <Text style={styles.dangerText}>Ngưng dùng</Text>}
++                  </Pressable>
++                </View>
++              </View>
++            ) : (
++              <Pressable onPress={() => setConfirmDeactivate(true)} style={styles.archiveButton}>
++                <Ionicons name="archive-outline" size={17} color="#475569" /><Text style={styles.archiveText}>Ngưng dùng bệnh này</Text>
++              </Pressable>
++            )
++          ) : null}
++        </ScrollView>
++      </SafeAreaView>
++    </AppModal>
++  );
++}
++
++function Stat({ label, value, color }: { label: string; value: number | undefined; color: string }) {
++  return <View style={styles.stat}><Text style={[styles.statValue, { color }]}>{value ?? '—'}</Text><Text style={styles.statLabel}>{label}</Text></View>;
++}
++function Chip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
++  return <Pressable onPress={onPress} style={[styles.chip, active && styles.chipActive]} accessibilityRole="button" accessibilityState={{ selected: active }}><Text style={[styles.chipText, active && styles.chipTextActive]}>{label}</Text></Pressable>;
++}
++function Badge({ label, color, bg }: { label: string; color: string; bg: string }) {
++  return <View style={[styles.badge, { backgroundColor: bg }]}><Text style={[styles.badgeText, { color }]}>{label}</Text></View>;
++}
++function SeverityBadge({ severity }: { severity: DiseaseSeverity }) {
++  const config = severity === 'HIGH' ? { color: '#B91C1C', bg: '#FEE2E2' } : severity === 'MEDIUM' ? { color: '#B45309', bg: '#FEF3C7' } : { color: '#15803D', bg: '#DCFCE7' };
++  return <Badge label={diseaseSeverityLabel(severity)} {...config} />;
++}
++function Field(props: React.ComponentProps<typeof TextInput>) {
++  return <TextInput {...props} placeholderTextColor="#94A3B8" style={[styles.input, props.multiline && styles.multiline]} />;
++}
++function FormField({ label, hint, error, tone, children }: { label: string; hint?: string; error?: string; tone?: 'good' | 'bad'; children: React.ReactNode }) {
++  return (
++    <View style={styles.formField}>
++      <View style={styles.labelRow}>
++        {tone ? <Ionicons name={tone === 'good' ? 'checkmark-circle' : 'close-circle'} size={15} color={tone === 'good' ? '#15803D' : '#B91C1C'} /> : null}
++        <Text style={styles.fieldLabel}>{label}</Text>
++        {hint ? <Text style={styles.hint}>· {hint}</Text> : null}
++      </View>
++      {children}
++      {error ? <Text style={styles.fieldError}>{error}</Text> : null}
++    </View>
++  );
++}
++function SwitchRow({ title, description, value, onChange, activeColor }: { title: string; description: string; value: boolean; onChange: (value: boolean) => void; activeColor: string }) {
++  return (
++    <View style={styles.switchRow}>
++      <View style={{ flex: 1 }}>
++        <Text style={styles.switchTitle}>{title}</Text>
++        <Text style={styles.switchDescription}>{description}</Text>
++      </View>
++      <Switch value={value} onValueChange={onChange} trackColor={{ true: activeColor, false: '#CBD5E1' }} thumbColor="#FFFFFF" />
++    </View>
++  );
++}
++
++const styles = StyleSheet.create({
++  screen: { flex: 1, backgroundColor: palette.bg },
++  scroll: { flex: 1 },
++  content: { paddingHorizontal: 16, paddingBottom: 28, gap: 14 },
++  pageHeading: { minHeight: 76, marginTop: 16, marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10 },
++  headingCopy: { flex: 1 },
++  eyebrow: { color: PRIMARY, fontSize: 10, fontWeight: '800', marginBottom: 5 },
++  title: { fontSize: 19, fontWeight: '700', color: palette.text },
++  subtitle: { marginTop: 2, fontSize: 12, color: palette.textMuted },
++  addButton: { height: 38, paddingHorizontal: 12, borderRadius: 10, backgroundColor: PRIMARY, flexDirection: 'row', alignItems: 'center', gap: 5 },
++  addText: { color: '#FFFFFF', fontSize: 13, fontWeight: '700' },
++  statsRow: { flexDirection: 'row', gap: 8 },
++  stat: { flex: 1, minWidth: 0, paddingVertical: 12, paddingHorizontal: 6, backgroundColor: '#FFFFFF', borderColor: palette.border, borderWidth: 1, borderRadius: 14, alignItems: 'center' },
++  statValue: { fontSize: 21, fontWeight: '700' },
++  statLabel: { marginTop: 4, color: palette.textMuted, fontSize: 10, textAlign: 'center' },
++  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 12, borderRadius: 14, backgroundColor: '#EAF8FF', borderColor: '#CDEFFF', borderWidth: 1 },
++  noticeText: { flex: 1, color: '#315C7A', fontSize: 12, lineHeight: 18 },
++  searchBox: { height: 46, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: palette.border },
++  searchInput: { flex: 1, color: palette.text, fontSize: 14 },
++  chips: { gap: 8, paddingRight: 12 },
++  wrapChips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
++  chip: { paddingHorizontal: 12, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: palette.border },
++  chipActive: { backgroundColor: palette.primarySoft, borderColor: '#D8D4FF' },
++  chipText: { fontSize: 12, color: '#656B87', fontWeight: '600' },
++  chipTextActive: { color: palette.primaryDark },
++  listHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
++  sectionTitle: { color: palette.text, fontSize: 16, fontWeight: '700' },
++  inlineSwitch: { flexDirection: 'row', alignItems: 'center', gap: 6 },
++  switchLabel: { color: palette.textMuted, fontSize: 11 },
++  error: { padding: 12, color: '#B91C1C', backgroundColor: '#FEE2E2', borderRadius: 8, fontSize: 12 },
++  loadingList: { minHeight: 120, alignItems: 'center', justifyContent: 'center', gap: 10, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: palette.border },
++  empty: { alignItems: 'center', paddingVertical: 36, gap: 8, backgroundColor: '#FFFFFF', borderRadius: 16, borderWidth: 1, borderColor: palette.border },
++  emptyTitle: { color: '#363955', fontWeight: '700', fontSize: 14 },
++  emptyText: { color: palette.textMuted, fontSize: 12, textAlign: 'center', paddingHorizontal: 18 },
++  row: { padding: 12, flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: palette.border, borderRadius: 14 },
++  rowInactive: { opacity: 0.6 },
++  pressed: { opacity: 0.82 },
++  rowIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#E6F7F4' },
++  rowInfo: { flex: 1, gap: 4 },
++  rowTitle: { color: palette.text, fontSize: 14, lineHeight: 19, fontWeight: '700' },
++  rowMeta: { color: palette.textMuted, fontSize: 11 },
++  badges: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, marginTop: 2 },
++  badge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10 },
++  badgeText: { fontSize: 10, fontWeight: '700' },
++  rowSwitch: { alignItems: 'center', gap: 2, minWidth: 74 },
++  switchCaption: { color: '#64748B', fontSize: 10, fontWeight: '600' },
++  switchCaptionOn: { color: '#B45309' },
++  modalScreen: { flex: 1, backgroundColor: palette.bg },
++  modalHeader: { minHeight: 56, paddingHorizontal: 10, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: '#FFFFFF', borderBottomWidth: StyleSheet.hairlineWidth, borderColor: '#DCE4E0' },
++  modalTitle: { color: '#17212B', fontSize: 16, fontWeight: '700' },
++  iconButton: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
++  modalContent: { padding: 16, paddingBottom: 40, gap: 10 },
++  formField: { gap: 6 },
++  labelRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 6 },
++  fieldLabel: { color: '#334155', fontSize: 12, fontWeight: '700' },
++  hint: { color: '#94A3B8', fontSize: 11 },
++  fieldError: { color: '#B91C1C', fontSize: 11 },
++  input: { minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, color: '#17212B', fontSize: 14, backgroundColor: '#FFFFFF', borderWidth: 1, borderColor: '#DCE4E0', borderRadius: 8 },
++  multiline: { minHeight: 84, textAlignVertical: 'top' },
++  switchRow: { marginTop: 6, padding: 12, flexDirection: 'row', alignItems: 'center', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 12, borderWidth: 1, borderColor: palette.border },
++  switchTitle: { color: palette.text, fontSize: 13, fontWeight: '700' },
++  switchDescription: { marginTop: 3, color: palette.textMuted, fontSize: 11, lineHeight: 16 },
++  primaryButton: { minHeight: 46, marginTop: 8, borderRadius: 12, backgroundColor: PRIMARY, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
++  primaryButtonText: { color: '#FFFFFF', fontSize: 14, fontWeight: '700' },
++  disabled: { opacity: 0.65 },
++  archiveButton: { minHeight: 42, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 7, borderWidth: 1, borderColor: '#CBD5E1', borderRadius: 8 },
++  archiveText: { color: '#475569', fontSize: 13, fontWeight: '600' },
++  confirmBox: { padding: 12, gap: 10, borderRadius: 10, backgroundColor: '#FFF7F7', borderWidth: 1, borderColor: '#FECACA' },
++  confirmText: { color: '#7F1D1D', fontSize: 12, lineHeight: 18 },
++  confirmActions: { flexDirection: 'row', gap: 10 },
++  secondaryButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 8, borderWidth: 1, borderColor: '#CBD5E1', backgroundColor: '#FFFFFF' },
++  secondaryText: { color: '#475569', fontWeight: '600', fontSize: 13 },
++  dangerButton: { flex: 1, minHeight: 40, alignItems: 'center', justifyContent: 'center', borderRadius: 8, backgroundColor: '#FEE2E2' },
++  dangerText: { color: '#B91C1C', fontWeight: '700', fontSize: 13 },
++});
+diff --git a/heathreact/src/features/Admin/pages/KnowledgeBase.tsx b/heathreact/src/features/Admin/pages/KnowledgeBase.tsx
+index 2513705..9f32cbf 100644
+--- a/heathreact/src/features/Admin/pages/KnowledgeBase.tsx
++++ b/heathreact/src/features/Admin/pages/KnowledgeBase.tsx
+@@ -14,13 +14,14 @@ import {
+   TextInput,
+   View,
+ } from 'react-native';
+-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
++import { SafeAreaView } from 'react-native-safe-area-context';
+ import { useQuery } from '@tanstack/react-query';
+ import { Controller, useForm, useWatch } from 'react-hook-form';
+ import { zodResolver } from '@hookform/resolvers/zod';
+ import { z } from 'zod';
+ import { palette } from '@/theme/tokens';
+ import AppModal from '@/components/ui/AppModal';
++import { ADMIN_TABS, AreaHeader, AreaTabBar } from '@/components/ui/AreaShell';
+ import { navigationService } from '@/routes';
+ import { useUserStore } from '@/stores/user';
+ import {
+@@ -61,7 +62,6 @@ const emptyForm: UploadForm = {
+ };
+ 
+ export default function KnowledgeBasePage() {
+-  const insets = useSafeAreaInsets();
+   const role = useUserStore((state) => state.role);
+   const username = useUserStore((state) => state.username);
+   const logout = useUserStore((state) => state.logout);
+@@ -229,16 +229,7 @@ export default function KnowledgeBasePage() {
+   return (
+     <View style={styles.screen}>
+       <StatusBar barStyle="dark-content" />
+-      <View style={[styles.adminHeader, { paddingTop: insets.top + 8 }]}>
+-        <View style={styles.adminBrandIcon}><Ionicons name="library" size={20} color={PRIMARY} /></View>
+-        <View style={styles.adminHeaderCopy}>
+-          <Text style={styles.adminBrand}>HEALTH ASSISTANT</Text>
+-          <Text style={styles.adminIdentity} numberOfLines={1}>Quản trị viên · {username || 'admin'}</Text>
+-        </View>
+-        <Pressable onPress={() => void logout()} style={styles.logoutButton} accessibilityRole="button" accessibilityLabel="Đăng xuất">
+-          <Ionicons name="log-out-outline" size={20} color="#475569" />
+-        </Pressable>
+-      </View>
++      <AreaHeader icon="library" identity={`Quản trị viên · ${username || 'admin'}`} onLogout={() => void logout()} />
+       <ScrollView
+         style={styles.adminScroll}
+         contentContainerStyle={[styles.content, { paddingBottom: 28 }]}
+@@ -291,12 +282,7 @@ export default function KnowledgeBasePage() {
+         </View> : documents.map((document) => <DocumentRow key={document.id} item={document} onPress={() => void openDetails(document)} onArchive={() => archive(document)} />)}
+       </ScrollView>
+ 
+-      <View style={[styles.adminFooter, { paddingBottom: Math.max(insets.bottom, 8) }]}>
+-        <View style={styles.footerActiveIcon}><Ionicons name="library" size={19} color={PRIMARY} /></View>
+-        <Text style={styles.footerActiveText}>Kho tri thức</Text>
+-        <View style={styles.footerDivider} />
+-        <Text style={styles.footerRole}>ADMIN</Text>
+-      </View>
++      <AreaTabBar tabs={ADMIN_TABS} roleLabel="ADMIN" />
+ 
+       <AppModal visible={uploadOpen} animationType="slide" onRequestClose={() => setUploadOpen(false)}>
+         <SafeAreaView style={styles.modalScreen}>
+@@ -425,18 +411,7 @@ function typeLabel(value: string) { return TYPES.find((type) => type.value === v
+ const styles = StyleSheet.create({
+   screen: { flex: 1, backgroundColor: '#F7F8FC' },
+   modalScreen: { flex: 1, backgroundColor: '#F7F8FC' },
+-  adminHeader: { minHeight: 68, paddingHorizontal: 16, paddingBottom: 10, flexDirection: 'row', alignItems: 'center', gap: 11, backgroundColor: '#FFFFFF', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#DCE4E0' },
+-  adminBrandIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EFEEFF' },
+-  adminHeaderCopy: { flex: 1 },
+-  adminBrand: { color: '#20213A', fontSize: 11, fontWeight: '800' },
+-  adminIdentity: { marginTop: 3, color: '#7A8099', fontSize: 11 },
+-  logoutButton: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: '#EEF0F8' },
+   adminScroll: { flex: 1 },
+-  adminFooter: { minHeight: 54, paddingTop: 8, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: '#FFFFFF', borderTopWidth: 1, borderTopColor: '#E2E8F0' },
+-  footerActiveIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
+-  footerActiveText: { color: PRIMARY, fontSize: 12, fontWeight: '700' },
+-  footerDivider: { flex: 1 },
+-  footerRole: { color: '#64748B', fontSize: 10, fontWeight: '800' },
+   pageHeading: { minHeight: 76, marginTop: 16, marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10 },
+   headingCopy: { flex: 1 },
+   eyebrow: { color: PRIMARY, fontSize: 10, fontWeight: '800', marginBottom: 5 },
+diff --git a/heathreact/src/features/Doctor/pages/DoctorHome.tsx b/heathreact/src/features/Doctor/pages/DoctorHome.tsx
+new file mode 100644
+index 0000000..009710c
+--- /dev/null
++++ b/heathreact/src/features/Doctor/pages/DoctorHome.tsx
+@@ -0,0 +1,102 @@
++import { Ionicons } from '@expo/vector-icons';
++import React from 'react';
++import { ScrollView, StatusBar, StyleSheet, Text, View } from 'react-native';
++import { AreaHeader, AreaTabBar, type AreaTab } from '@/components/ui/AreaShell';
++import { mockEnabled } from '@/api/mock';
++import { useUserStore } from '@/stores/user';
++import { palette } from '@/theme/tokens';
++
++const DOCTOR_TABS: AreaTab[] = [
++  { href: '/doctor', label: 'Tổng quan', icon: 'grid-outline', activeIcon: 'grid' },
++];
++
++type IconName = React.ComponentProps<typeof Ionicons>['name'];
++
++const UPCOMING: { icon: IconName; title: string; description: string }[] = [
++  {
++    icon: 'git-pull-request-outline',
++    title: 'Duyệt lộ trình',
++    description: 'Nhận lộ trình của người dùng có bệnh cần bác sĩ duyệt hoặc bệnh chưa có trong danh mục. Duyệt, yêu cầu AI chỉnh sửa hoặc khuyên đi khám.',
++  },
++  {
++    icon: 'document-text-outline',
++    title: 'Tài liệu chuyên môn',
++    description: 'Tải lên tài liệu bệnh lý và tài liệu tập luyện, gắn với bệnh trong danh mục để AI ưu tiên sử dụng.',
++  },
++];
++
++export default function DoctorHomePage() {
++  const username = useUserStore((state) => state.username);
++  const logout = useUserStore((state) => state.logout);
++
++  return (
++    <View style={styles.screen}>
++      <StatusBar barStyle="dark-content" />
++      <AreaHeader icon="medical" identity={`Bác sĩ · ${username || 'doctor'}`} onLogout={() => void logout()} />
++      <ScrollView style={styles.scroll} contentContainerStyle={styles.content}>
++        <View style={styles.heading}>
++          <Text style={styles.eyebrow}>KHU VỰC BÁC SĨ</Text>
++          <Text style={styles.title}>Xin chào, {username || 'bác sĩ'}</Text>
++          <Text style={styles.subtitle}>Kiểm duyệt chuyên môn cho lộ trình do AI đề xuất</Text>
++        </View>
++
++        {mockEnabled ? (
++          <View style={styles.notice}>
++            <Ionicons name="flask-outline" size={19} color="#0369A1" />
++            <Text style={styles.noticeText}>Đang chạy dữ liệu mẫu (EXPO_PUBLIC_USE_MOCK=true). Backend chưa hỗ trợ role bác sĩ.</Text>
++          </View>
++        ) : null}
++
++        <View style={styles.statsRow}>
++          <Stat label="Chờ duyệt" value="—" color="#B45309" />
++          <Stat label="Yêu cầu sửa" value="—" color={palette.primaryDark} />
++          <Stat label="Đã duyệt" value="—" color="#15803D" />
++        </View>
++
++        <Text style={styles.sectionTitle}>Chức năng</Text>
++        {UPCOMING.map((item) => (
++          <View key={item.title} style={styles.card}>
++            <View style={styles.cardIcon}><Ionicons name={item.icon} size={20} color={palette.primary} /></View>
++            <View style={styles.cardBody}>
++              <View style={styles.cardTitleRow}>
++                <Text style={styles.cardTitle}>{item.title}</Text>
++                <View style={styles.soonBadge}><Text style={styles.soonText}>Sắp có</Text></View>
++              </View>
++              <Text style={styles.cardText}>{item.description}</Text>
++            </View>
++          </View>
++        ))}
++      </ScrollView>
++      <AreaTabBar tabs={DOCTOR_TABS} roleLabel="DOCTOR" />
++    </View>
++  );
++}
++
++function Stat({ label, value, color }: { label: string; value: string; color: string }) {
++  return <View style={styles.stat}><Text style={[styles.statValue, { color }]}>{value}</Text><Text style={styles.statLabel}>{label}</Text></View>;
++}
++
++const styles = StyleSheet.create({
++  screen: { flex: 1, backgroundColor: palette.bg },
++  scroll: { flex: 1 },
++  content: { paddingHorizontal: 16, paddingBottom: 28, gap: 14 },
++  heading: { marginTop: 16 },
++  eyebrow: { color: palette.primary, fontSize: 10, fontWeight: '800', marginBottom: 5 },
++  title: { fontSize: 19, fontWeight: '700', color: palette.text },
++  subtitle: { marginTop: 2, fontSize: 12, color: palette.textMuted },
++  notice: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, padding: 12, borderRadius: 14, backgroundColor: '#EAF8FF', borderColor: '#CDEFFF', borderWidth: 1 },
++  noticeText: { flex: 1, color: '#315C7A', fontSize: 12, lineHeight: 18 },
++  statsRow: { flexDirection: 'row', gap: 8 },
++  stat: { flex: 1, paddingVertical: 12, backgroundColor: '#FFFFFF', borderColor: palette.border, borderWidth: 1, borderRadius: 14, alignItems: 'center' },
++  statValue: { fontSize: 21, fontWeight: '700' },
++  statLabel: { marginTop: 4, color: palette.textMuted, fontSize: 10 },
++  sectionTitle: { marginTop: 4, color: palette.text, fontSize: 16, fontWeight: '700' },
++  card: { padding: 14, flexDirection: 'row', gap: 12, backgroundColor: '#FFFFFF', borderRadius: 14, borderWidth: 1, borderColor: palette.border },
++  cardIcon: { width: 38, height: 38, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primarySoft },
++  cardBody: { flex: 1, gap: 5 },
++  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
++  cardTitle: { color: palette.text, fontSize: 14, fontWeight: '700' },
++  cardText: { color: palette.textMuted, fontSize: 12, lineHeight: 18 },
++  soonBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 10, backgroundColor: '#F1F5F9' },
++  soonText: { color: '#64748B', fontSize: 10, fontWeight: '700' },
++});
+diff --git a/heathreact/src/routes/index.ts b/heathreact/src/routes/index.ts
+index c464b74..9f03319 100644
+--- a/heathreact/src/routes/index.ts
++++ b/heathreact/src/routes/index.ts
+@@ -17,7 +17,9 @@ export type AppRoute =
+   | 'Progress'
+   | 'Nutrition'
+   | 'Coach'
+-  | 'AdminKnowledge';
++  | 'AdminKnowledge'
++  | 'AdminDiseases'
++  | 'DoctorHome';
+ 
+ const routePaths: Record<AppRoute, Href> = {
+   Index: '/',
+@@ -37,6 +39,8 @@ const routePaths: Record<AppRoute, Href> = {
+   Nutrition: '/(user)/nutrition',
+   Coach: '/(user)/coach',
+   AdminKnowledge: '/admin/knowledge',
++  AdminDiseases: '/admin/diseases',
++  DoctorHome: '/doctor',
+ };
+ 
+ function navigate(name: AppRoute) {
+diff --git a/heathreact/src/utils/roleHome.ts b/heathreact/src/utils/roleHome.ts
+new file mode 100644
+index 0000000..548db73
+--- /dev/null
++++ b/heathreact/src/utils/roleHome.ts
+@@ -0,0 +1,9 @@
++import type { Href } from 'expo-router';
++import type { Role } from '@/api/types';
++
++/** Trang chủ theo role. Dùng chung cho index, login, welcome và các layout guard. */
++export function homeRouteForRole(role: Role | null): Href {
++  if (role === 'ROLE_ADMIN') return '/admin/knowledge';
++  if (role === 'ROLE_DOCTOR') return '/doctor';
++  return '/(user)';
++}

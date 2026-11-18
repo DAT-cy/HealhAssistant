@@ -12,7 +12,12 @@
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo start --android",
     "ios": "expo start --ios",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "typecheck": "tsc --noEmit",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:ci": "jest --ci --coverage",
+    "check": "npm run typecheck && npm test -- --ci"
   },
   "dependencies": {
     "@expo/ui": "~58.0.28",
@@ -60,13 +65,41 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^14.1.0",
+    "@types/jest": "^30.0.0",
     "@types/node": "^26.6.5",
     "@types/react": "~19.3.0",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~58.0.4",
+    "jest": "^30.5.2",
+    "jest-expo": "~58.0.14",
     "nativewind": "^4.2.3",
     "tailwindcss": "^3.4.17",
+    "test-renderer": "^1.3.1",
     "typescript": "~6.0.3"
   },
-  "private": true
+  "private": true,
+  "jest": {
+    "preset": "jest-expo",
+    "setupFiles": [
+      "<rootDir>/jest.setup.ts"
+    ],
+    "testMatch": [
+      "<rootDir>/src/**/*.test.ts?(x)",
+      "<rootDir>/__tests__/**/*.test.ts?(x)"
+    ],
+    "testPathIgnorePatterns": [
+      "/node_modules/",
+      "/.expo/"
+    ],
+    "clearMocks": true,
+    "collectCoverageFrom": [
+      "src/api/**/*.ts",
+      "src/stores/**/*.ts",
+      "src/utils/**/*.ts",
+      "app/**/_layout.tsx",
+      "app/index.tsx",
+      "!**/*.d.ts"
+    ]
+  }
 }
