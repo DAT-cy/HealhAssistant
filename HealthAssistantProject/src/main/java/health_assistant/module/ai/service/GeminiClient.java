@@ -49,6 +49,11 @@ public class GeminiClient {
         public static final Options DEFAULT = new Options(8192, null, 0);
         /** Chat: câu trả lời ngắn, chờ tối đa 40s, thử lại 1 lần. */
         public static final Options CHAT = new Options(1024, java.time.Duration.ofSeconds(40), 1);
+        /**
+         * Lộ trình: bình thường 2–10s, nhưng proxy thỉnh thoảng treo không trả gì.
+         * Chờ tối đa 35s/lần, thử lại 2 lần (tối đa ~105s, dưới mức chờ 150s của app).
+         */
+        public static final Options ROADMAP = new Options(4096, java.time.Duration.ofSeconds(35), 2);
     }
 
     public String generateJson(String prompt, JsonNode schema) {
