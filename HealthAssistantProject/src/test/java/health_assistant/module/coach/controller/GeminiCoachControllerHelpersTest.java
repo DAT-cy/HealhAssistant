@@ -20,4 +20,15 @@ class GeminiCoachControllerHelpersTest {
         assertThat(GeminiCoachController.joinNonBlank("; ", null, " a ", "", "b")).isEqualTo("a; b");
         assertThat(GeminiCoachController.joinNonBlank("; ")).isEmpty();
     }
+
+    @Test
+    void mergesProfileDiseasesEvenWhenAppSendsNone() {
+        assertThat(GeminiCoachController.mergeDiseaseCodes(java.util.List.of(), "HYPERTENSION:MONITORING:uống thuốc,ASTHMA"))
+                .containsExactly("HYPERTENSION", "ASTHMA");
+        assertThat(GeminiCoachController.mergeDiseaseCodes(java.util.List.of("DIABETES"), "HYPERTENSION"))
+                .containsExactly("DIABETES", "HYPERTENSION");
+        assertThat(GeminiCoachController.mergeDiseaseCodes(null, null)).isEmpty();
+        // Ghi chú tự do (có dấu cách, tiếng Việt) không bị coi là mã bệnh
+        assertThat(GeminiCoachController.mergeDiseaseCodes(null, "Đau lưng nhẹ")).isEmpty();
+    }
 }

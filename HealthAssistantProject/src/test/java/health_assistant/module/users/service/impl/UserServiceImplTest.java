@@ -26,8 +26,11 @@ class UserServiceImplTest {
         service.initAdminUser();
 
         ArgumentCaptor<User> inserted = ArgumentCaptor.forClass(User.class);
-        verify(userMapper, times(2)).insertUser(inserted.capture());
+        // admin, user và doctor mặc định
+        verify(userMapper, times(3)).insertUser(inserted.capture());
         assertThat(inserted.getAllValues()).allMatch(User::isEmailVerified);
+        assertThat(inserted.getAllValues()).extracting(User::getUsername).containsExactly("admin", "user", "doctor");
+        verify(passwordEncoder, never()).encode("doctor");
         verifyNoInteractions(authenticationManager);
     }
 }

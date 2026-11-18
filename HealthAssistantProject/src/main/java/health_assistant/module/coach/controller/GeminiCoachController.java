@@ -59,10 +59,13 @@ public class GeminiCoachController {
         String restrictions = profile == null ? request.restrictions() : joinNonBlank("; ", profile.getRestrictions(), profile.getPainAreas());
         String fullText = joinNonBlank("\n", measurements, restrictions);
         Instant profileVersion = profile == null ? Instant.EPOCH : profile.getUpdatedAt();
-        var assessment = riskAssessmentService.assess(request.diseaseCodes());
+        // Không tin danh sách bệnh từ app: luôn gộp thêm bệnh đã khai trong Hồ sơ sức khoẻ,
+        // để người dùng không thể bỏ tick bệnh trong wizard rồi đi thẳng luồng AI tự động.
+        List<String> diseaseCodes = mergeDiseaseCodes(request.diseaseCodes(), profile == null ? null : profile.getDiseaseCodes());
+        var assessment = riskAssessmentService.assess(diseaseCodes);
 
         if (assessment.auto()) {
-            var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), request.diseaseCodes());
+            var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), diseaseCodes);
             return ok(roadmapPreviewService.create(userId, profileVersion, generateOptions(serverRequest, goal), request.schedule()));
         }
         if (assessment.urgent()) {
@@ -74,7 +77,7 @@ public class GeminiCoachController {
         if (approved.isPresent()) {
             var approvedRequest = approved.get();
             List<GeminiRoadmapResponse> options = approvedRequest.getAiPlanJson() == null || approvedRequest.getAiPlanJson().isBlank()
-                    ? generateOptions(new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), request.diseaseCodes()), goal)
+                    ? generateOptions(new GeminiRoadmapRequest(goal, request.weeks(), measurements, restrictions, request.schedule(), diseaseCodes), goal)
                     : roadmapPreviewService.readOptions(approvedRequest.getAiPlanJson());
             return ok(roadmapPreviewService.create(userId, profileVersion, options, request.schedule(), approvedRequest.getId(),
                     "Bác sĩ đã duyệt phương án. Hãy chọn một phương án để kích hoạt."));
@@ -90,7 +93,7 @@ public class GeminiCoachController {
                 .map(review -> review.getNote()).filter(note -> note != null && !note.isBlank())
                 .map(note -> "Bác sĩ yêu cầu điều chỉnh phương án trước: " + note.trim()).orElse(null);
         String aiRestrictions = joinNonBlank("; ", doctorFeedback, restrictions); // nhận xét bác sĩ đặt trước vì prompt cắt ở 500 ký tự
-        var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, aiRestrictions, request.schedule(), request.diseaseCodes());
+        var serverRequest = new GeminiRoadmapRequest(goal, request.weeks(), measurements, aiRestrictions, request.schedule(), diseaseCodes);
         List<GeminiRoadmapResponse> options = generateOptions(serverRequest, goal);
         RiskRoutingDecision routing = riskAssessmentService.submit(userId, null, assessment, fullText,
                 roadmapPreviewService.toJson(options), roadmapPreviewService.toJson(request.schedule() == null ? List.of() : request.schedule()),
@@ -98,25 +101,8 @@ public class GeminiCoachController {
         return ok(routed(routing));
     }
 
-    /** Gọi AI 3 phương án song song (trước đây chạy lần lượt nên dễ quá thời gian chờ của app). */
     private List<GeminiRoadmapResponse> generateOptions(GeminiRoadmapRequest serverRequest, String goal) {
-        List<String> focuses = List.of(
-                "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. ",
-                "Ưu tiên linh hoạt, tư thế và phục hồi. ",
-                "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. ");
-        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
-            var futures = focuses.stream()
-                    .map(focus -> java.util.concurrent.CompletableFuture.supplyAsync(
-                            () -> geminiCoachService.plan(withGoal(serverRequest, focus + goal)), executor))
-                    .toList();
-            return futures.stream().map(future -> {
-                try { return future.join(); }
-                catch (java.util.concurrent.CompletionException exception) {
-                    if (exception.getCause() instanceof RuntimeException runtime) throw runtime;
-                    throw exception;
-                }
-            }).toList();
-        }
+        return geminiCoachService.planOptions(withGoal(serverRequest, goal));
     }
 
     private static RoadmapPreviewResponse routed(RiskRoutingDecision routing) {
@@ -128,7 +114,7 @@ public class GeminiCoachController {
     }
 
     /** Tóm tắt chỉ số, bỏ qua trường chưa nhập (tránh "Tuổi: null"). */
-    static String measurements(health_assistant.module.profile.entity.UserProfile profile) {
+    public static String measurements(health_assistant.module.profile.entity.UserProfile profile) {
         List<String> parts = new java.util.ArrayList<>();
         parts.add("Tuổi: " + (profile.getAge() == null ? "chưa cập nhật" : profile.getAge()));
         if (profile.getHeightCm() != null) parts.add("chiều cao cm: " + profile.getHeightCm());
@@ -138,8 +124,35 @@ public class GeminiCoachController {
         return String.join(", ", parts);
     }
 
-    static String joinNonBlank(String separator, String... values) {
+    /** Gộp mã bệnh app gửi với mã bệnh trong hồ sơ (dạng "CODE" hoặc "CODE:TRẠNG_THÁI:ghi chú", cách nhau dấu phẩy). */
+    static List<String> mergeDiseaseCodes(List<String> requested, String profileCodes) {
+        java.util.LinkedHashSet<String> codes = new java.util.LinkedHashSet<>();
+        if (requested != null) requested.stream().filter(java.util.Objects::nonNull).map(String::trim).filter(c -> !c.isEmpty()).forEach(codes::add);
+        if (profileCodes != null) {
+            for (String item : profileCodes.split("[,;\\n]")) {
+                String code = item.split(":")[0].trim();
+                if (!code.isEmpty() && code.matches("[A-Za-z0-9_.-]{1,40}")) codes.add(code);
+            }
+        }
+        return List.copyOf(codes);
+    }
+
+    public static String joinNonBlank(String separator, String... values) {
         return java.util.Arrays.stream(values).filter(v -> v != null && !v.isBlank()).map(String::trim).collect(java.util.stream.Collectors.joining(separator));
+    }
+
+    /** Người dùng mở phương án bác sĩ đã duyệt ngay từ thẻ yêu cầu (không phải đi lại wizard). */
+    @PostMapping("/roadmap/approved/{requestId}/preview")
+    public ResponseEntity<DefaultRes<RoadmapPreviewResponse>> approvedPreview(@PathVariable Long requestId) {
+        Long userId = SecurityUtils.getCurrentUserId();
+        var approved = riskAssessmentService.approvedRequestOf(userId, requestId);
+        if (approved.getAiPlanJson() == null || approved.getAiPlanJson().isBlank())
+            throw new IllegalArgumentException("Yêu cầu này được tạo trước khi có phương án AI. Hãy bấm \"Tạo lộ trình\" để AI lập phương án theo kết quả duyệt.");
+        var profile = profileRepository.findByUserId(userId).orElse(null);
+        Instant profileVersion = profile == null ? Instant.EPOCH : profile.getUpdatedAt();
+        return ok(roadmapPreviewService.create(userId, profileVersion, roadmapPreviewService.readOptions(approved.getAiPlanJson()),
+                roadmapPreviewService.readScheduleJson(approved.getScheduleJson()), approved.getId(),
+                "Bác sĩ đã duyệt phương án. Hãy chọn một phương án để kích hoạt."));
     }
 
     @PostMapping("/roadmap/activate")

@@ -26,6 +26,29 @@ public class GeminiCoachService {
     private final GeminiClient geminiClient;
     private final ObjectMapper objectMapper;
 
+    /** Ba hướng phương án; AI gọi song song để không quá thời gian chờ. */
+    public static final List<String> OPTION_FOCUSES = List.of(
+            "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. ",
+            "Ưu tiên linh hoạt, tư thế và phục hồi. ",
+            "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. ");
+
+    public List<GeminiRoadmapResponse> planOptions(GeminiRoadmapRequest request) {
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = OPTION_FOCUSES.stream()
+                    .map(focus -> java.util.concurrent.CompletableFuture.supplyAsync(() -> plan(new GeminiRoadmapRequest(
+                            focus + request.goal(), request.weeks(), request.postureSummary(), request.restrictions(),
+                            request.schedule(), request.diseaseCodes())), executor))
+                    .toList();
+            return futures.stream().map(future -> {
+                try { return future.join(); }
+                catch (java.util.concurrent.CompletionException exception) {
+                    if (exception.getCause() instanceof RuntimeException runtime) throw runtime;
+                    throw exception;
+                }
+            }).toList();
+        }
+    }
+
     public GeminiRoadmapResponse plan(GeminiRoadmapRequest request) {
         try {
             String prompt = prompt(request);

@@ -59,6 +59,10 @@ public class RoadmapPreviewService {
         catch (JsonProcessingException exception) { throw new IllegalStateException("Không thể lưu phương án.", exception); }
     }
 
+    public List<RoadmapSlotRequest> readScheduleJson(String json) {
+        return readSchedule(json);
+    }
+
     public List<GeminiRoadmapResponse> readOptions(String json) {
         return read(json);
     }

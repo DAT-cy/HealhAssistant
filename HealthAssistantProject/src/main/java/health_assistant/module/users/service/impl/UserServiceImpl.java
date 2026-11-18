@@ -106,7 +106,7 @@ public class UserServiceImpl implements UserService {
         if (existingDoctor == null) {
             User doctor = new User();
             doctor.setUsername("doctor");
-            doctor.setPassword(passwordEncoder.encode("doctor"));
+            doctor.setPassword(passwordEncoder.encode("password")); // khớp với bước reset mật khẩu bên dưới
             doctor.setEnable(true);
             doctor.setIsDeleted(false);
             doctor.setEmailVerified(true);

@@ -23,8 +23,9 @@ class DoctorPortalServiceTest {
     private final DoctorReviewRequestRepository requests = mock(DoctorReviewRequestRepository.class);
     private final DoctorReviewRepository reviews = mock(DoctorReviewRepository.class);
     private final ObjectMapper objectMapper = new ObjectMapper();
+    private final org.springframework.context.ApplicationEventPublisher events = mock(org.springframework.context.ApplicationEventPublisher.class);
     private final DoctorPortalService service = new DoctorPortalService(doctors, diseases, audits, requests, reviews, objectMapper,
-            new DoctorReviewResponseMapper(reviews, objectMapper));
+            new DoctorReviewResponseMapper(reviews, objectMapper), events);
 
     private DoctorReviewRequest request(String status) {
         var r = new DoctorReviewRequest();
@@ -47,6 +48,9 @@ class DoctorPortalServiceTest {
         assertThat(response.aiPlan().get(0).get("title").asText()).isEqualTo("A");
         if ("NEED_MORE_INFO".equals(expectedStatus)) assertThat(response.completedAt()).isNull();
         else assertThat(response.completedAt()).isNotNull();
+        // Chỉ "Yêu cầu sửa" mới kích hoạt AI tính lại
+        if ("REVISION_REQUESTED".equals(expectedStatus)) verify(events).publishEvent(new health_assistant.module.doctor.dto.RevisionRequestedEvent(1L));
+        else verify(events, never()).publishEvent(any(Object.class));
     }
 
     @ParameterizedTest

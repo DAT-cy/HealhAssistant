@@ -57,16 +57,19 @@ public class DiseaseRiskAssessmentService {
         }
         List<Disease> knownDiseases = List.copyOf(known.values());
         String policyVersion = knownDiseases.stream().map(d -> d.getCode() + "@" + d.getUpdatedAt()).collect(Collectors.joining(","));
-        String unknownNotice = unknownCodes.isEmpty() ? "" : " Bệnh lý ngoài danh mục được giữ ở trạng thái chưa xác thực; AI chỉ đưa khuyến nghị thận trọng và người dùng có thể gửi bác sĩ kiểm tra.";
-        if (knownDiseases.isEmpty()) return new Assessment(AUTO_ROADMAP, "Không tìm thấy bệnh lý này trong kho nội bộ." + unknownNotice, codes, "UNKNOWN_INPUT", null);
+        if (!unknownCodes.isEmpty()) policyVersion = (policyVersion.isBlank() ? "" : policyVersion + ",") + "UNKNOWN:" + String.join("+", unknownCodes);
         boolean critical = knownDiseases.stream().anyMatch(d -> "CRITICAL".equals(d.getSeverity()));
         boolean requiresDoctor = knownDiseases.stream().anyMatch(d -> d.isDoctorRequired() || d.isRoadmapConfirmationRequired() || "HIGH".equals(d.getSeverity()));
         boolean combinedRisk = knownDiseases.size() > 1 && knownDiseases.stream().filter(d -> Set.of("MODERATE", "HIGH", "CRITICAL").contains(d.getSeverity())).count() >= 2;
         String summary = riskSummary(knownDiseases, unknownCodes, combinedRisk);
+        // Bệnh không có trong danh mục của Admin luôn cần bác sĩ kiểm tra (theo nghiệp vụ).
+        boolean unknown = !unknownCodes.isEmpty();
+        if (policyVersion.length() > 80) policyVersion = policyVersion.substring(0, 80); // cột policy_version dài 80
         if (critical) return new Assessment(URGENT_MEDICAL_ATTENTION, "Có bệnh lý được cấu hình mức CRITICAL; cần liên hệ cơ sở y tế, không chờ bác sĩ online.", codes, policyVersion, summary);
+        if (unknown) return new Assessment(DOCTOR_REVIEW_REQUIRED, "Bệnh lý chưa có trong danh mục (" + String.join(", ", unknownCodes) + "); cần bác sĩ kiểm tra trước khi áp dụng lộ trình.", codes, policyVersion, summary);
         if (requiresDoctor || combinedRisk) return new Assessment(DOCTOR_REVIEW_REQUIRED, combinedRisk ? "Nhiều bệnh lý trung bình hoặc nặng xuất hiện đồng thời." : "Chính sách bệnh lý yêu cầu bác sĩ kiểm tra trước khi áp dụng lộ trình.", codes, policyVersion, summary);
         if (knownDiseases.stream().anyMatch(d -> !d.isAiAllowed())) return new Assessment(DOCTOR_REVIEW_REQUIRED, "Bệnh lý chưa được cho phép để AI tự xây dựng lộ trình.", codes, policyVersion, summary);
-        return new Assessment(AUTO_ROADMAP, "Không kích hoạt điều kiện chuyển bác sĩ." + unknownNotice, codes, policyVersion.isBlank() ? "UNKNOWN_INPUT" : policyVersion, summary);
+        return new Assessment(AUTO_ROADMAP, "Không kích hoạt điều kiện chuyển bác sĩ.", codes, policyVersion, summary);
     }
 
     /** Yêu cầu đang mở cùng loại quyết định (chặn gửi trùng). */
@@ -80,6 +83,16 @@ public class DiseaseRiskAssessmentService {
     public Optional<DoctorReviewRequest> findApprovedRequest(Long userId, Assessment assessment) {
         return requestRepository.findFirstByUserIdAndDiseaseCodesAndStatusAndAppliedAtIsNullOrderByCompletedAtDesc(userId, assessment.codesKey(), "COMPLETED")
                 .filter(r -> Objects.equals(r.getPolicyVersion(), assessment.policyVersion()));
+    }
+
+    /** Yêu cầu của chính người dùng đã được bác sĩ duyệt và chưa kích hoạt. */
+    @Transactional(readOnly = true)
+    public DoctorReviewRequest approvedRequestOf(Long userId, Long requestId) {
+        DoctorReviewRequest request = requestRepository.findById(requestId).filter(r -> userId.equals(r.getUserId()))
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu bác sĩ."));
+        if (!"COMPLETED".equals(request.getStatus())) throw new IllegalArgumentException("Yêu cầu này chưa được bác sĩ duyệt.");
+        if (request.getAppliedAt() != null) throw new IllegalArgumentException("Phương án đã duyệt này đã được kích hoạt.");
+        return request;
     }
 
     /** Yêu cầu gần nhất bị bác sĩ "yêu cầu sửa" với cùng bộ bệnh. */

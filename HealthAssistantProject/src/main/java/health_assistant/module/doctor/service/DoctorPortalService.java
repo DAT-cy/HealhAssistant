@@ -24,6 +24,7 @@ public class DoctorPortalService {
     private final DoctorReviewRepository reviewRepository;
     private final ObjectMapper objectMapper;
     private final DoctorReviewResponseMapper responseMapper;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     /** Trạng thái bác sĩ còn được ra quyết định. */
     static final List<String> DECIDABLE_STATUSES = List.of("ASSIGNED", "IN_REVIEW", "NEED_MORE_INFO");
@@ -90,6 +91,8 @@ public class DoctorPortalService {
         // NEED_MORE_INFO vẫn đang mở (chờ người dùng bổ sung) nên chưa có thời điểm kết thúc.
         request.setCompletedAt("NEED_MORE_INFO".equals(status) ? null : Instant.now());
         requestRepository.save(request); reviewRepository.saveAndFlush(new DoctorReview(requestId, doctorId, action, command.note(), request.getPolicyVersion()));
+        // Theo nghiệp vụ: yêu cầu sửa → AI tự tính lại theo nhận xét và gửi lại bác sĩ, người dùng không phải tạo lại.
+        if ("REVISION_REQUESTED".equals(status)) eventPublisher.publishEvent(new RevisionRequestedEvent(requestId));
         return responseMapper.toResponse(request);
     }
 

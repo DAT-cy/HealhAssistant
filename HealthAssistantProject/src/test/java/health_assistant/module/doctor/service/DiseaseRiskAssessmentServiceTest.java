@@ -30,12 +30,14 @@ class DiseaseRiskAssessmentServiceTest {
     }
 
     @Test
-    void unknownDiseaseStaysAutomaticButMarkedUnverified() {
+    void unknownDiseaseGoesToDoctor() {
         when(diseases.findByCodeAndActiveTrue("UNKNOWN")).thenReturn(Optional.empty());
+        when(requests.saveAndFlush(any(DoctorReviewRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
         var result = service.evaluate(7L, null, List.of("UNKNOWN"), "profile");
-        assertThat(result.decision()).isEqualTo("AUTO_ROADMAP");
-        assertThat(result.policyVersion()).isEqualTo("UNKNOWN_INPUT");
-        verify(requests, never()).saveAndFlush(any());
+        assertThat(result.decision()).isEqualTo("DOCTOR_REVIEW_REQUIRED");
+        assertThat(result.reason()).contains("chưa có trong danh mục");
+        assertThat(result.policyVersion()).isEqualTo("UNKNOWN:UNKNOWN");
+        verify(requests).saveAndFlush(argThat(r -> "DOCTOR_REVIEW_REQUIRED".equals(r.getDecision())));
     }
 
     @Test
@@ -136,5 +138,17 @@ class DiseaseRiskAssessmentServiceTest {
         var request = new DoctorReviewRequest(); request.setId(9L); request.setUserId(7L); request.setStatus("IN_REVIEW");
         when(requests.findByIdForUpdate(9L)).thenReturn(Optional.of(request));
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.reply(7L, 9L, "x")).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void approvedRequestOfOnlyReturnsOwnApprovedUnappliedRequest() {
+        var r = new DoctorReviewRequest(); r.setId(6L); r.setUserId(7L); r.setStatus("COMPLETED");
+        when(requests.findById(6L)).thenReturn(Optional.of(r));
+        assertThat(service.approvedRequestOf(7L, 6L)).isSameAs(r);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.approvedRequestOf(8L, 6L)).isInstanceOf(IllegalArgumentException.class);
+        r.setAppliedAt(java.time.Instant.now());
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.approvedRequestOf(7L, 6L)).hasMessageContaining("đã được kích hoạt");
+        r.setAppliedAt(null); r.setStatus("IN_REVIEW");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.approvedRequestOf(7L, 6L)).hasMessageContaining("chưa được bác sĩ duyệt");
     }
 }
