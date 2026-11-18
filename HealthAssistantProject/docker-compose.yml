@@ -33,6 +33,8 @@ services:
     restart: unless-stopped
     environment:
       SPRING_PROFILES_ACTIVE: dev
+      # Dev: trả chi tiết lỗi (vd. lỗi AI) về app. Đặt false khi deploy thật.
+      APP_DEBUG_ERRORS: ${APP_DEBUG_ERRORS:-true}
       DB_URL: jdbc:mysql://mysql:3306/health_assistant?useSSL=false&serverTimezone=UTC&allowPublicKeyRetrieval=true
       DB_USERNAME: root
       MAIL_HOST: ${MAIL_HOST:-smtp.gmail.com}
@@ -47,9 +49,10 @@ services:
       # AI (Gemini). Dùng ShopAIKey: GEMINI_BASE_URL=https://api.shopaikey.com/v1beta
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       GEMINI_BASE_URL: ${GEMINI_BASE_URL:-https://generativelanguage.googleapis.com/v1beta}
-      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-3.5-flash-lite}
       GEMINI_TIMEOUT: ${GEMINI_TIMEOUT:-60s}
       CLOUDINARY_ENABLED: ${CLOUDINARY_ENABLED:-false}
+      # Key Cloudinary chỉ để trong .env (không commit).
       CLOUDINARY_CLOUD_NAME: ${CLOUDINARY_CLOUD_NAME:-}
       CLOUDINARY_API_KEY: ${CLOUDINARY_API_KEY:-}
       CLOUDINARY_API_SECRET: ${CLOUDINARY_API_SECRET:-}

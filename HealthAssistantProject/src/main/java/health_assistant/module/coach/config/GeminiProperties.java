@@ -10,7 +10,7 @@ import java.time.Duration;
 public class GeminiProperties {
     private String apiKey;
     private String baseUrl = "https://generativelanguage.googleapis.com/v1beta";
-    private String model = "gemini-2.5-flash";
+    private String model = "gemini-3.5-flash-lite";
     private Duration timeout = Duration.ofSeconds(30);
 
     public String getApiKey() { return apiKey; }

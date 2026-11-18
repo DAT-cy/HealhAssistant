@@ -2,10 +2,22 @@ import { ApiEnvelope } from './types';
 import { baseURL } from '@/config/api.config';
 
 const TIMEOUT = 10000;
-const AI_TIMEOUT = 100000;
+const AI_TIMEOUT = 150000; // AI tạo 3 phương án có thể mất 1-2 phút
 
 export class ApiError extends Error {
   constructor(public status: number, public code: string | null, message: string, public validationErrors: Record<string, string> = {}) { super(message); this.name = 'ApiError'; }
+}
+
+/** Dev: in mọi lỗi API ra console (thấy trong terminal Expo và React Native DevTools). */
+function logApiError(method: string, path: string, status: number, code: string | null, message: string, data?: unknown) {
+  if (typeof __DEV__ === 'undefined' || !__DEV__ || process.env.NODE_ENV === 'test') return;
+  console.warn(`[API] ${method} ${path} -> ${status} ${code ?? ''} ${message}`, data ?? '');
+}
+
+/** Dev: ghép chi tiết kỹ thuật (backend trả khi APP_DEBUG_ERRORS=true) vào thông báo lỗi để thấy ngay trên app. */
+function withDebugDetail(message: string, code: string | null, errors: Record<string, string>) {
+  if (typeof __DEV__ === 'undefined' || !__DEV__ || !errors.detail) return message;
+  return `${message}\n[${code ?? 'ERR'}] ${errors.detail}`;
 }
 
 let sessionToken: string | null = null;
@@ -25,10 +37,14 @@ export const apiClient = {
     try {
       response = await fetch(`${baseURL}${path}`, { ...init, headers, signal: controller.signal });
     } catch (error) {
+      logApiError(init.method ?? 'GET', path, 0, 'NETWORK', error instanceof Error ? `${error.name}: ${error.message}` : String(error));
       throw new ApiError(0, 'NETWORK', error instanceof Error && error.name === 'AbortError' ? 'Yêu cầu quá thời gian chờ.' : 'Không thể kết nối máy chủ. Vui lòng kiểm tra mạng.');
     } finally { clearTimeout(timeout); }
     let envelope: ApiEnvelope<T>;
-    try { envelope = (await response.json()) as ApiEnvelope<T>; } catch { throw new ApiError(response.status, null, 'Phản hồi máy chủ không hợp lệ.'); }
+    try { envelope = (await response.json()) as ApiEnvelope<T>; } catch {
+      logApiError(init.method ?? 'GET', path, response.status, null, 'Response không phải JSON');
+      throw new ApiError(response.status, null, 'Phản hồi máy chủ không hợp lệ.');
+    }
     if (envelope.statusCode === 401) {
       const isAuthenticationAttempt = /(?:^|\/)auth\/(?:login|signup)(?:\?|$)/.test(path);
       if (!isAuthenticationAttempt && onUnauthorized) onUnauthorized();
@@ -44,7 +60,8 @@ export const apiClient = {
     }
     if (envelope.statusCode >= 400 || !response.ok) {
       const errors = envelope.data && typeof envelope.data === 'object' && !Array.isArray(envelope.data) ? (envelope.data as Record<string, string>) : {};
-      throw new ApiError(envelope.statusCode, envelope.responseCode, envelope.responseMessage || 'Yêu cầu thất bại.', errors);
+      logApiError(init.method ?? 'GET', path, envelope.statusCode, envelope.responseCode, envelope.responseMessage, envelope.data);
+      throw new ApiError(envelope.statusCode, envelope.responseCode, withDebugDetail(envelope.responseMessage || 'Yêu cầu thất bại.', envelope.responseCode, errors), errors);
     }
     if (envelope.data === null || envelope.data === undefined) throw new ApiError(envelope.statusCode, envelope.responseCode, 'Không có dữ liệu để hiển thị.');
     return envelope.data;

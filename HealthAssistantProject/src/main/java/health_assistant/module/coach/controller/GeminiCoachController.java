@@ -98,11 +98,25 @@ public class GeminiCoachController {
         return ok(routed(routing));
     }
 
+    /** Gọi AI 3 phương án song song (trước đây chạy lần lượt nên dễ quá thời gian chờ của app). */
     private List<GeminiRoadmapResponse> generateOptions(GeminiRoadmapRequest serverRequest, String goal) {
-        return List.of(
-                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. " + goal)),
-                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên linh hoạt, tư thế và phục hồi. " + goal)),
-                geminiCoachService.plan(withGoal(serverRequest, "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. " + goal)));
+        List<String> focuses = List.of(
+                "Ưu tiên vận động nhẹ, tăng sức bền nền tảng. ",
+                "Ưu tiên linh hoạt, tư thế và phục hồi. ",
+                "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. ");
+        try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
+            var futures = focuses.stream()
+                    .map(focus -> java.util.concurrent.CompletableFuture.supplyAsync(
+                            () -> geminiCoachService.plan(withGoal(serverRequest, focus + goal)), executor))
+                    .toList();
+            return futures.stream().map(future -> {
+                try { return future.join(); }
+                catch (java.util.concurrent.CompletionException exception) {
+                    if (exception.getCause() instanceof RuntimeException runtime) throw runtime;
+                    throw exception;
+                }
+            }).toList();
+        }
     }
 
     private static RoadmapPreviewResponse routed(RiskRoutingDecision routing) {

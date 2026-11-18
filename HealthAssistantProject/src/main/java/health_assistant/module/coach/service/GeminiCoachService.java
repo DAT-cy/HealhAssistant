@@ -34,8 +34,8 @@ public class GeminiCoachService {
         } catch (GeminiException exception) {
             throw exception;
         } catch (JsonProcessingException | IllegalArgumentException exception) {
-            log.warn("Gemini roadmap response failed validation ({})", exception.getClass().getSimpleName());
-            throw new GeminiException(GeminiException.Kind.INVALID_RESPONSE, "Gemini returned invalid roadmap data.", exception);
+            log.warn("Gemini roadmap response failed validation ({}: {})", exception.getClass().getSimpleName(), exception.getMessage());
+            throw new GeminiException(GeminiException.Kind.INVALID_RESPONSE, "Gemini returned invalid roadmap data: " + exception.getMessage(), exception);
         }
     }
 

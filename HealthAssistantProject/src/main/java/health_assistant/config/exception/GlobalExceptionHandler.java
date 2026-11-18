@@ -31,6 +31,10 @@ import java.util.Map;
 @Slf4j
 public class GlobalExceptionHandler {
 
+    /** Bật (APP_DEBUG_ERRORS=true) để trả kèm chi tiết lỗi kỹ thuật cho app khi dev. Production để false. */
+    @org.springframework.beans.factory.annotation.Value("${app.debug-errors:false}")
+    private boolean debugErrors;
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<DefaultRes<Map<String, String>>> handleValidationExceptions(MethodArgumentNotValidException ex) {
         Map<String, String> errors = new HashMap<>();
@@ -92,6 +96,9 @@ public class GlobalExceptionHandler {
         Map<String, String> errors = new HashMap<>();
         String message = friendlyGeminiMessage(ex.getKind());
         errors.put("message", message);
+        String detail = rootCauseChain(ex);
+        log.warn("AI request failed [{}]: {}", ex.getKind(), detail);
+        if (debugErrors) errors.put("detail", detail);
         String code = switch (ex.getKind()) {
             case CONFIGURATION -> "AI-ERR-CONFIG";
             case AUTHENTICATION -> "AI-ERR-AUTH";
@@ -105,6 +112,20 @@ public class GlobalExceptionHandler {
                 ? HttpStatus.BAD_GATEWAY.value() : HttpStatus.SERVICE_UNAVAILABLE.value();
         return ResponseEntity.status(status).body(DefaultRes.<Map<String, String>>builder()
                 .statusCode(status).responseCode(code).responseMessage(message).data(errors).build());
+    }
+
+    /** Chuỗi message của exception và các nguyên nhân, cắt ngắn để log / trả về khi debug. */
+    static String rootCauseChain(Throwable ex) {
+        StringBuilder out = new StringBuilder();
+        java.util.Set<Throwable> seen = java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+        for (Throwable t = ex; t != null && seen.add(t); t = t.getCause()) {
+            if (out.length() > 0) out.append(" <- ");
+            out.append(t.getClass().getSimpleName());
+            if (t.getMessage() != null) out.append(": ").append(t.getMessage());
+        }
+        // Che API key nếu URL dạng ...?key=xxx lọt vào message.
+        String masked = out.toString().replaceAll("([?&]key=)[^&\\s\"']+", "$1***");
+        return masked.length() > 1500 ? masked.substring(0, 1500) + "…" : masked;
     }
 
     private String friendlyGeminiMessage(GeminiException.Kind kind) {

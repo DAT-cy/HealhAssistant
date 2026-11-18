@@ -24,6 +24,8 @@ spring:
             enable: true
 
 app:
+  # Trả chi tiết lỗi kỹ thuật (vd. lỗi AI) về app để debug. Chỉ bật ở môi trường dev.
+  debug-errors: ${APP_DEBUG_ERRORS:false}
   otp:
     expiry-minutes: ${OTP_EXPIRY_MINUTES:5}
     resend-cooldown-seconds: ${OTP_RESEND_COOLDOWN_SECONDS:60}
@@ -33,7 +35,7 @@ app:
 
 gemini:
   api-key: ${GEMINI_API_KEY:}
-  model: ${GEMINI_MODEL:gemini-2.5-flash}
+  model: ${GEMINI_MODEL:gemini-3.5-flash-lite}
   base-url: ${GEMINI_BASE_URL:https://generativelanguage.googleapis.com/v1beta}
   timeout: ${GEMINI_TIMEOUT:30s}
 

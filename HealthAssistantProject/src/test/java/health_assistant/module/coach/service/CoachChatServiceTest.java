@@ -34,14 +34,14 @@ class CoachChatServiceTest {
 
         assertThat(response.source()).isEqualTo("fallback");
         assertThat(response.safetyEscalation()).isFalse();
-        verify(client, never()).generateJson(anyString(), any());
+        verify(client, never()).generateJson(anyString(), any(), any(GeminiClient.Options.class));
     }
 
     @Test
     void returnsValidatedVietnameseAnswerWhenGeminiIsConfigured() {
         when(client.isConfigured()).thenReturn(true);
         when(retriever.retrieve(anyString())).thenReturn(java.util.List.of());
-        when(client.generateJson(anyString(), any())).thenReturn("""
+        when(client.generateJson(anyString(), any(), any(GeminiClient.Options.class))).thenReturn("""
                 {"message":"Hãy bắt đầu với thời lượng ngắn và tăng dần khi cảm thấy thoải mái.","safetyEscalation":false}
                 """);
         UserProfile profile = new UserProfile();
@@ -61,7 +61,7 @@ class CoachChatServiceTest {
     void usesGeneralKnowledgeWhenNoApprovedKnowledgeMatches() {
         when(client.isConfigured()).thenReturn(true);
         when(retriever.retrieve(anyString())).thenReturn(java.util.List.of());
-        when(client.generateJson(anyString(), any())).thenAnswer(invocation -> {
+        when(client.generateJson(anyString(), any(), any(GeminiClient.Options.class))).thenAnswer(invocation -> {
             assertThat(invocation.getArgument(0, String.class)).contains("Không tìm thấy đoạn Knowledge Base");
             return "{\"message\":\"Vận động đều đặn có thể hỗ trợ sức khỏe tổng thể.\",\"safetyEscalation\":false}";
         });
@@ -70,5 +70,17 @@ class CoachChatServiceTest {
 
         assertThat(response.source()).isEqualTo("gemini");
         assertThat(response.references()).isEmpty();
+    }
+
+    @Test
+    void chatUsesShortAnswerOptionsWithRetry() {
+        when(client.isConfigured()).thenReturn(true);
+        when(retriever.retrieve(anyString())).thenReturn(java.util.List.of());
+        when(client.generateJson(anyString(), any(), any(GeminiClient.Options.class)))
+                .thenReturn("{\"message\":\"Ok.\",\"safetyEscalation\":false}");
+        service.reply("Câu hỏi thứ hai về lịch tập?", null, "user: câu đầu\nassistant: trả lời đầu");
+        verify(client).generateJson(anyString(), any(), org.mockito.ArgumentMatchers.eq(GeminiClient.Options.CHAT));
+        assertThat(GeminiClient.Options.CHAT.maxOutputTokens()).isLessThanOrEqualTo(1024);
+        assertThat(GeminiClient.Options.CHAT.retries()).isEqualTo(1);
     }
 }
