@@ -555,3 +555,4 @@ const styles = StyleSheet.create({
   flowMessage: { color: palette.success, lineHeight: 20 },
   flowError: { color: palette.danger, lineHeight: 20 },
 });
+
