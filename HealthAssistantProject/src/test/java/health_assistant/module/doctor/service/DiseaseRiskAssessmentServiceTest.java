@@ -151,4 +151,13 @@ class DiseaseRiskAssessmentServiceTest {
         r.setAppliedAt(null); r.setStatus("IN_REVIEW");
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.approvedRequestOf(7L, 6L)).hasMessageContaining("chưa được bác sĩ duyệt");
     }
+
+    @Test
+    void customDiseaseFromProfileGoesToDoctorWithReadableName() {
+        when(diseases.findByCodeAndActiveTrue("CUSTOM:GOUT")).thenReturn(Optional.empty());
+        var assessment = service.assess(List.of("CUSTOM:Gout"));
+        assertThat(assessment.decision()).isEqualTo("DOCTOR_REVIEW_REQUIRED");
+        assertThat(assessment.reason()).contains("GOUT (người dùng tự khai)");
+        assertThat(assessment.riskSummary()).contains("Ngoài danh mục: GOUT (người dùng tự khai)");
+    }
 }

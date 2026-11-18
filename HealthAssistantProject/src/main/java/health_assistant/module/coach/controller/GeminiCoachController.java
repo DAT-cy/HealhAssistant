@@ -124,14 +124,24 @@ public class GeminiCoachController {
         return String.join(", ", parts);
     }
 
-    /** Gộp mã bệnh app gửi với mã bệnh trong hồ sơ (dạng "CODE" hoặc "CODE:TRẠNG_THÁI:ghi chú", cách nhau dấu phẩy). */
+    /**
+     * Gộp mã bệnh app gửi với bệnh trong hồ sơ. Hồ sơ lưu dạng "CODE", "CODE:TRẠNG_THÁI:ghi chú"
+     * hoặc bệnh ngoài danh mục "CUSTOM:Tên bệnh[:TRẠNG_THÁI]" → giữ thành "CUSTOM:Tên bệnh" để bác sĩ thấy tên.
+     */
     static List<String> mergeDiseaseCodes(List<String> requested, String profileCodes) {
         java.util.LinkedHashSet<String> codes = new java.util.LinkedHashSet<>();
-        if (requested != null) requested.stream().filter(java.util.Objects::nonNull).map(String::trim).filter(c -> !c.isEmpty()).forEach(codes::add);
+        if (requested != null) requested.stream().filter(java.util.Objects::nonNull).map(String::trim)
+                .filter(c -> !c.isEmpty() && !c.equalsIgnoreCase("CUSTOM")).forEach(codes::add);
         if (profileCodes != null) {
             for (String item : profileCodes.split("[,;\\n]")) {
-                String code = item.split(":")[0].trim();
-                if (!code.isEmpty() && code.matches("[A-Za-z0-9_.-]{1,40}")) codes.add(code);
+                String[] parts = item.trim().split(":");
+                String code = parts[0].trim();
+                if (code.equalsIgnoreCase("CUSTOM")) {
+                    String name = parts.length > 1 ? parts[1].trim() : "";
+                    if (!name.isEmpty()) codes.add("CUSTOM:" + (name.length() > 60 ? name.substring(0, 60) : name));
+                } else if (!code.isEmpty() && code.matches("[A-Za-z0-9_.-]{1,40}")) {
+                    codes.add(code);
+                }
             }
         }
         return List.copyOf(codes);

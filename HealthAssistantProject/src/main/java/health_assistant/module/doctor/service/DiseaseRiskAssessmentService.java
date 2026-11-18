@@ -66,7 +66,7 @@ public class DiseaseRiskAssessmentService {
         boolean unknown = !unknownCodes.isEmpty();
         if (policyVersion.length() > 80) policyVersion = policyVersion.substring(0, 80); // cột policy_version dài 80
         if (critical) return new Assessment(URGENT_MEDICAL_ATTENTION, "Có bệnh lý được cấu hình mức CRITICAL; cần liên hệ cơ sở y tế, không chờ bác sĩ online.", codes, policyVersion, summary);
-        if (unknown) return new Assessment(DOCTOR_REVIEW_REQUIRED, "Bệnh lý chưa có trong danh mục (" + String.join(", ", unknownCodes) + "); cần bác sĩ kiểm tra trước khi áp dụng lộ trình.", codes, policyVersion, summary);
+        if (unknown) return new Assessment(DOCTOR_REVIEW_REQUIRED, "Bệnh lý chưa có trong danh mục (" + unknownCodes.stream().map(DiseaseRiskAssessmentService::displayName).collect(Collectors.joining(", ")) + "); cần bác sĩ kiểm tra trước khi áp dụng lộ trình.", codes, policyVersion, summary);
         if (requiresDoctor || combinedRisk) return new Assessment(DOCTOR_REVIEW_REQUIRED, combinedRisk ? "Nhiều bệnh lý trung bình hoặc nặng xuất hiện đồng thời." : "Chính sách bệnh lý yêu cầu bác sĩ kiểm tra trước khi áp dụng lộ trình.", codes, policyVersion, summary);
         if (knownDiseases.stream().anyMatch(d -> !d.isAiAllowed())) return new Assessment(DOCTOR_REVIEW_REQUIRED, "Bệnh lý chưa được cho phép để AI tự xây dựng lộ trình.", codes, policyVersion, summary);
         return new Assessment(AUTO_ROADMAP, "Không kích hoạt điều kiện chuyển bác sĩ.", codes, policyVersion, summary);
@@ -208,6 +208,11 @@ public class DiseaseRiskAssessmentService {
         return requestedCodes.stream().filter(Objects::nonNull).map(code -> code.trim().toUpperCase(Locale.ROOT)).filter(code -> !code.isBlank()).distinct().sorted().toList();
     }
 
+    /** "CUSTOM:GOUT" → "GOUT (người dùng tự khai)". */
+    static String displayName(String code) {
+        return code.toUpperCase(Locale.ROOT).startsWith("CUSTOM:") ? code.substring(7) + " (người dùng tự khai)" : code;
+    }
+
     /** Tóm tắt rủi ro riêng cho bác sĩ (không lặp lại lý do chuyển). */
     static String riskSummary(List<Disease> known, List<String> unknownCodes, boolean combinedRisk) {
         List<String> parts = new ArrayList<>();
@@ -220,7 +225,7 @@ public class DiseaseRiskAssessmentService {
             if (!d.isAiAllowed()) line.append(", AI không được tự lập lộ trình");
             parts.add(line.toString());
         }
-        if (!unknownCodes.isEmpty()) parts.add("Ngoài danh mục: " + String.join(", ", unknownCodes));
+        if (!unknownCodes.isEmpty()) parts.add("Ngoài danh mục: " + unknownCodes.stream().map(DiseaseRiskAssessmentService::displayName).collect(Collectors.joining(", ")));
         if (combinedRisk) parts.add("Có từ 2 bệnh mức trung bình trở lên cùng lúc");
         return String.join("; ", parts);
     }

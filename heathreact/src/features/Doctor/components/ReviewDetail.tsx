@@ -52,7 +52,7 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
 
       <Section icon="medkit-outline" title="Bệnh lý khai báo">
         {diseaseCodes.length ? (
-          <View style={styles.chips}>{diseaseCodes.map((code) => <View key={code} style={styles.chip}><Text style={styles.chipText}>{code}</Text></View>)}</View>
+          <View style={styles.chips}>{diseaseCodes.map((code) => <View key={code} style={styles.chip}><Text style={styles.chipText}>{code.toUpperCase().startsWith('CUSTOM:') ? `${code.slice(7)} · ngoài danh mục` : code}</Text></View>)}</View>
         ) : <Text style={styles.muted}>Không có mã bệnh.</Text>}
       </Section>
 
