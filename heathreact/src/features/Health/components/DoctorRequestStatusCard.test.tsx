@@ -42,6 +42,7 @@ describe('DoctorRequestStatusCard (màn Lộ trình của người dùng)', () =
     ['IN_REVIEW', 'Bác sĩ đang kiểm tra'],
     ['NEED_MORE_INFO', 'Bác sĩ cần thêm thông tin'],
     ['REVISION_REQUESTED', 'Bác sĩ yêu cầu sửa lộ trình'],
+    ['REFERRED', 'Cần đến cơ sở y tế'],
     ['COMPLETED', 'Bác sĩ đã duyệt lộ trình'],
     ['REJECTED', 'Bác sĩ chưa duyệt lộ trình'],
   ])('trạng thái %s -> "%s"', async (status, title) => {

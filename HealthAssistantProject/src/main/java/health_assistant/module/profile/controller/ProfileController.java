@@ -28,6 +28,11 @@ public class ProfileController {
         return ResponseEntity.status(StatusCode.CREATED).body(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED, profileService.save(request)));
     }
 
+    @PatchMapping("/me/consent")
+    public ResponseEntity<DefaultRes<ProfileResponse>> updateConsent(@Valid @RequestBody health_assistant.module.profile.dto.ConsentRequest request) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.UPDATED, profileService.updateConsent(request.consent())));
+    }
+
     @GetMapping("/me")
     public ResponseEntity<DefaultRes<ProfileResponse>> getMine() {
         ProfileResponse profile = profileService.getMine();

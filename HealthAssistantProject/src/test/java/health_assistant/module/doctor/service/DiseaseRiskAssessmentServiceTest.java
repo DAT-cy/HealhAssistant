@@ -160,4 +160,15 @@ class DiseaseRiskAssessmentServiceTest {
         assertThat(assessment.reason()).contains("GOUT (người dùng tự khai)");
         assertThat(assessment.riskSummary()).contains("Ngoài danh mục: GOUT (người dùng tự khai)");
     }
+
+    @Test
+    void criticalRequestIsClosedImmediatelyAndDoesNotBlockUser() {
+        var disease = new health_assistant.module.doctor.entity.Disease();
+        disease.setCode("HEART_FAIL"); disease.setSeverity("CRITICAL");
+        when(diseases.findByCodeAndActiveTrue("HEART_FAIL")).thenReturn(Optional.of(disease));
+        when(requests.saveAndFlush(any(DoctorReviewRequest.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        service.evaluate(7L, null, List.of("HEART_FAIL"), "profile");
+        verify(requests).saveAndFlush(argThat(r -> "REFERRED".equals(r.getStatus()) && r.getCompletedAt() != null && r.getAssignedDoctorId() == null));
+        assertThat(DiseaseRiskAssessmentService.OPEN_STATUSES).doesNotContain("REFERRED");
+    }
 }

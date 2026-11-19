@@ -24,6 +24,9 @@ public class DiseaseRiskAssessmentService {
     public static final String URGENT_MEDICAL_ATTENTION = "URGENT_MEDICAL_ATTENTION";
 
     /** Trạng thái còn đang chờ bác sĩ xử lý (chưa cho tạo yêu cầu mới). */
+    /** Ca khẩn cấp đã khuyên người dùng đến cơ sở y tế (đã kết thúc). */
+    public static final String REFERRED = "REFERRED";
+
     public static final List<String> OPEN_STATUSES = List.of("PENDING_ASSIGNMENT", "ASSIGNED", "IN_REVIEW", "NEED_MORE_INFO");
 
     private final DiseaseRepository diseaseRepository;
@@ -114,7 +117,10 @@ public class DiseaseRiskAssessmentService {
         request.setRiskSummary(assessment.riskSummary());
         request.setAiPlanJson(aiPlanJson); request.setScheduleJson(scheduleJson);
         if (previous != null) request.setPreviousRequestId(previous.getId());
-        if (!assessment.urgent()) {
+        if (assessment.urgent()) {
+            // Ca CRITICAL: không cần bác sĩ. Đóng ngay (REFERRED) để không nằm "chờ phân công" và chặn người dùng.
+            request.setStatus(REFERRED); request.setCompletedAt(Instant.now());
+        } else {
             Long sameDoctor = previous == null ? null : previous.getAssignedDoctorId();
             boolean sameDoctorActive = sameDoctor != null && doctorRepository.findByUserId(sameDoctor).map(DoctorProfile::isActive).orElse(false);
             if (sameDoctorActive) assignTo(request, sameDoctor); else assign(request);

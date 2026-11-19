@@ -46,6 +46,8 @@ export interface ProfileResponse extends Omit<ProfileRequest, 'goal' | 'activity
 
 export const profileService = {
   getMine: () => apiClient.request<ProfileResponse>(`${apiVersion}/profiles/me`),
+  /** Chỉ bật/tắt đồng ý sử dụng dữ liệu hồ sơ. */
+  updateConsent: (consent: boolean) => apiClient.request<ProfileResponse>(`${apiVersion}/profiles/me/consent`, { method: 'PATCH', body: JSON.stringify({ consent }) }),
   save: (body: ProfileRequest) => apiClient.request<ProfileResponse>(`${apiVersion}/profiles`, { method: 'POST', body: JSON.stringify(body) }),
   uploadAvatar: async (asset: ImagePickerAsset) => {
     const form = new FormData();

@@ -57,6 +57,16 @@ public class ProfileService {
                 .orElseThrow(() -> new EntityNotFoundException("Chưa có hồ sơ tập luyện."));
     }
 
+    /** Chỉ cập nhật đồng ý sử dụng dữ liệu, giữ nguyên các trường khác. */
+    @Transactional
+    public ProfileResponse updateConsent(boolean consent) {
+        UserProfile profile = repository.findByUserId(SecurityUtils.getCurrentUserId())
+                .orElseThrow(() -> new EntityNotFoundException("Chưa có hồ sơ sức khoẻ. Hãy nhập hồ sơ trước."));
+        profile.setConsent(consent);
+        profile.setUpdatedAt(Instant.now());
+        return toResponse(repository.save(profile));
+    }
+
     @Transactional
     public ProfileResponse updateAvatar(String avatarUrl, String avatarPublicId) {
         Long userId = SecurityUtils.getCurrentUserId();

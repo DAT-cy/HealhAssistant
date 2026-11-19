@@ -79,4 +79,12 @@ describe('diseaseService / doctorRequestService', () => {
     expect(reply.method).toBe('POST');
     expect(reply.body).toEqual({ message: 'Đang uống thuốc' });
   });
+
+  it('profile: chỉ bật đồng ý sử dụng dữ liệu bằng PATCH riêng', async () => {
+    const { profileService } = jest.requireActual('./profile.service');
+    const req = await call(() => profileService.updateConsent(true));
+    expect(req.url).toBe(`${API}/profiles/me/consent`);
+    expect(req.method).toBe('PATCH');
+    expect(req.body).toEqual({ consent: true });
+  });
 });

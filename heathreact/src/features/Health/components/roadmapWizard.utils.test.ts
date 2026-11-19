@@ -54,3 +54,13 @@ describe('pendingRequestBlock: chặn tạo lộ trình khi còn yêu cầu chư
     expect(pendingRequestBlock([r(5, 'ASSIGNED', '2026-11-18T00:00:00Z'), r(6, 'IN_REVIEW', '2026-11-18T02:00:00Z')])?.title).toContain('#6');
   });
 });
+
+import { needsConsent } from './roadmapWizard.utils';
+
+describe('needsConsent', () => {
+  it('nhận ra lỗi chưa đồng ý dữ liệu', () => {
+    expect(needsConsent('Cần đồng ý sử dụng dữ liệu hồ sơ trước.')).toBe(true);
+    expect(needsConsent('Hệ thống AI đang bận.')).toBe(false);
+    expect(needsConsent(null)).toBe(false);
+  });
+});

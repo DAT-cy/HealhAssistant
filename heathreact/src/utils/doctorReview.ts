@@ -37,6 +37,7 @@ export function doctorStatusLabel(status: string) {
     case 'REVISION_REQUESTED': return 'Đã yêu cầu sửa';
     case 'COMPLETED': return 'Đã duyệt';
     case 'REJECTED': return 'Đã từ chối';
+    case 'REFERRED': return 'Chuyển cơ sở y tế';
     default: return status;
   }
 }
@@ -56,6 +57,7 @@ export function userReviewView(status: string, appliedAt?: string | null, previo
     case 'COMPLETED': return appliedAt
       ? { title: 'Bác sĩ đã duyệt lộ trình', message: 'Phương án đã duyệt đang được áp dụng.', tone: 'success' }
       : { title: 'Bác sĩ đã duyệt lộ trình', message: 'Chọn một trong các phương án bác sĩ đã duyệt để bắt đầu.', tone: 'success' };
+    case 'REFERRED': return { title: 'Cần đến cơ sở y tế', message: 'Bệnh lý bạn khai báo cần được khám trực tiếp. Hãy liên hệ cơ sở y tế, hoặc gọi 115 nếu có dấu hiệu nguy hiểm.', tone: 'danger' };
     case 'REJECTED': return { title: 'Bác sĩ chưa duyệt lộ trình', message: 'Bác sĩ khuyên bạn nên đến cơ sở y tế để được khám trực tiếp trước khi tập luyện.', tone: 'danger' };
     default: return { title: status, message: '', tone: 'info' };
   }

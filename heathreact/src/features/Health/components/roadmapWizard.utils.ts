@@ -79,3 +79,8 @@ export function doctorRoutingNotice(reviewRequestId: number | null | undefined, 
     description: reason || 'Lộ trình sẽ được áp dụng sau khi bác sĩ duyệt.',
   };
 }
+
+/** Backend báo chưa đồng ý sử dụng dữ liệu hồ sơ → hiện nút đồng ý ngay tại màn lỗi. */
+export function needsConsent(message: string | null | undefined) {
+  return !!message && message.toLowerCase().includes('đồng ý sử dụng dữ liệu');
+}

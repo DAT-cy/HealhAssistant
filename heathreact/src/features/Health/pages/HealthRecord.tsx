@@ -1,7 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { ApiError } from '@/api/client';
 import { profileService, type ProfileResponse } from '@/api/services/profile.service';
 import { diseaseService } from '@/api/services/disease.service';
@@ -28,6 +28,7 @@ export default function HealthRecordPage() {
   const [values, setValues] = useState<Values>(emptyValues);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [consent, setConsent] = useState(false);
   const [messageKind, setMessageKind] = useState<'success' | 'error'>('success');
   const [diseasePickerOpen, setDiseasePickerOpen] = useState(false);
   const [diseaseSearch, setDiseaseSearch] = useState('');
@@ -42,6 +43,7 @@ export default function HealthRecordPage() {
       diseaseCodes: data.diseaseCodes || '', medicalHistory: data.medicalHistory || '', allergies: data.allergies || '',
       painAreas: data.painAreas || '', restrictions: data.restrictions || '', healthMetrics: data.healthMetrics || '',
     });
+    setConsent(!!data.consent);
   }, [profile.data]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
@@ -67,7 +69,7 @@ export default function HealthRecordPage() {
       const saved = await profileService.save({
         goal: current?.goal, activityLevel: current?.activityLevel, gender: current?.gender, age: current?.age,
         heightCm: height, weightKg: weight, restrictions: values.restrictions.trim() || undefined, painAreas: values.painAreas.trim() || undefined,
-        consent: current?.consent ?? false, diseaseCodes: values.diseaseCodes.trim(), medicalHistory: values.medicalHistory.trim(),
+        consent, diseaseCodes: values.diseaseCodes.trim(), medicalHistory: values.medicalHistory.trim(),
         allergies: values.allergies.trim(), healthMetrics: values.healthMetrics.trim(),
       });
       queryClient.setQueryData(['profile', 'health-record'], saved);
@@ -95,6 +97,13 @@ export default function HealthRecordPage() {
       </View>
       {profile.isPending ? <View style={styles.status}><ActivityIndicator size="small" color={palette.primary} /><Text style={styles.statusText}>Đang tải dữ liệu đã lưu...</Text></View> : data ? <View style={styles.status}><Ionicons name="checkmark-circle-outline" size={17} color={palette.success} /><Text style={styles.statusText}>Đã có hồ sơ. Bạn đang chỉnh sửa dữ liệu hiện tại.</Text></View> : <View style={styles.status}><Ionicons name="create-outline" size={17} color={palette.primary} /><Text style={styles.statusText}>Chưa có dữ liệu. Nhập thông tin bên dưới để tạo hồ sơ.</Text></View>}
       <Section title="Chỉ số cơ thể" hint="Cập nhật định kỳ để trợ lý đưa ra gợi ý phù hợp hơn."><View style={styles.inlineFields}><View style={styles.inlineField}><Field label="Chiều cao (cm)" value={values.heightCm} onChangeText={(value) => update('heightCm', value)} placeholder="170" keyboardType="decimal-pad" /></View><View style={styles.inlineField}><Field label="Cân nặng (kg)" value={values.weightKg} onChangeText={(value) => update('weightKg', value)} placeholder="65" keyboardType="decimal-pad" /></View></View></Section>
+      <View style={styles.consentRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.consentTitle}>Đồng ý sử dụng dữ liệu hồ sơ</Text>
+          <Text style={styles.consentHint}>Cho phép AI và bác sĩ dùng hồ sơ này để lập và duyệt lộ trình. Bắt buộc khi tạo lộ trình.</Text>
+        </View>
+        <Switch testID="consent-switch" value={consent} onValueChange={setConsent} trackColor={{ true: palette.primary, false: palette.border }} accessibilityLabel="Đồng ý sử dụng dữ liệu hồ sơ" />
+      </View>
       <Section title="Bệnh lý" hint="Chọn các bệnh đã được chẩn đoán hoặc đang theo dõi. Bạn có thể thêm bệnh chưa có trong danh mục.">
         {selectedDiseases.length ? <View style={styles.chosenChips}>{selectedDiseases.map((code) => <View key={code} style={styles.chosenChip}><Text style={styles.chosenChipText}>{diseaseQuery.data?.find((item) => item.code === code)?.name || code.replace('CUSTOM:', '')}</Text><Pressable onPress={() => toggleDisease(code)} accessibilityLabel="Xóa bệnh lý"><Ionicons name="close-circle" size={17} color={palette.primary} /></Pressable></View>)}</View> : null}
         <View style={styles.diseasePicker}><Ionicons name="search-outline" size={18} color={palette.textMuted} /><TextInput value={diseaseSearch} onFocus={() => setDiseasePickerOpen(true)} onChangeText={(value) => { setDiseaseSearch(value); setDiseasePickerOpen(true); }} placeholder="Chọn hoặc tìm bệnh lý" placeholderTextColor={palette.textMuted} style={styles.diseaseSearchInput} /><Pressable onPress={() => setDiseasePickerOpen((open) => !open)} accessibilityLabel="Mở danh sách bệnh lý"><Ionicons name={diseasePickerOpen ? 'chevron-up' : 'chevron-down'} size={19} color={palette.textMuted} /></Pressable></View>
@@ -113,6 +122,9 @@ export default function HealthRecordPage() {
 }
 
 const styles = StyleSheet.create({
+  consentRow: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, borderRadius: 14, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
+  consentTitle: { color: palette.text, fontSize: 14, fontWeight: '800' },
+  consentHint: { marginTop: 3, color: palette.textMuted, fontSize: 12, lineHeight: 17 },
   flex: { flex: 1 }, body: { paddingBottom: spacing.xl, gap: 12 },
   notice: { flexDirection: 'row', gap: 8, padding: 12, borderRadius: 12, backgroundColor: palette.primarySoft }, noticeText: { flex: 1, color: palette.textMuted, fontSize: 11, lineHeight: 16 },
   overview: { padding: 16, borderRadius: 16, backgroundColor: palette.text }, overviewHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }, overline: { color: '#B8B9D5', fontSize: 10, fontWeight: '800', letterSpacing: 1 }, overviewTitle: { marginTop: 5, color: palette.textInverse, fontSize: 20, fontWeight: '800' }, progressCircle: { width: 48, height: 48, borderRadius: 24, alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: palette.accent }, progressText: { color: palette.textInverse, fontSize: 12, fontWeight: '800' }, progressTrack: { height: 6, marginTop: 14, overflow: 'hidden', borderRadius: 3, backgroundColor: '#3B3D61' }, progressFill: { height: '100%', borderRadius: 3, backgroundColor: palette.accent }, metricsRow: { flexDirection: 'row', alignItems: 'center', marginTop: 18 }, metric: { flex: 1, gap: 3 }, metricDivider: { width: 1, height: 38, backgroundColor: '#45476C' }, metricValue: { color: palette.textInverse, fontSize: 17, fontWeight: '800' }, metricUnit: { color: '#B8B9D5', fontSize: 10, fontWeight: '600' }, metricLabel: { color: '#B8B9D5', fontSize: 10 },
