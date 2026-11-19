@@ -292,18 +292,23 @@ function DiseaseForm({ existing, onClose, onCreated }: { existing: Disease[]; on
             <TextInput testID="disease-description" value={form.description} onChangeText={(v) => set('description', v)} multiline maxLength={5000} placeholder="Nên: đi bộ nhanh 30 phút/ngày… Tránh: nín thở khi nâng tạ…" placeholderTextColor={palette.textMuted} style={[styles.input, styles.multiline]} />
           </Field>
 
-          <Text style={styles.fieldLabel}>Mức độ rủi ro</Text>
-          <View style={styles.filterRow}>
-            {SEVERITIES.map((severity) => (
-              <Pressable key={severity} onPress={() => set('severity', severity)} style={[styles.filter, form.severity === severity && styles.filterActive]} accessibilityRole="button" accessibilityState={{ selected: form.severity === severity }}>
-                <Text style={[styles.filterText, form.severity === severity && styles.filterTextActive]}>{SEVERITY_LABELS[severity]}</Text>
-              </Pressable>
-            ))}
+          <View style={styles.field}>
+            <Text style={styles.fieldLabel}>Mức độ rủi ro</Text>
+            <View style={styles.filterRow}>
+              {SEVERITIES.map((severity) => (
+                <Pressable key={severity} onPress={() => set('severity', severity)} style={[styles.filter, form.severity === severity && styles.filterActive]} accessibilityRole="button" accessibilityState={{ selected: form.severity === severity }}>
+                  <Text style={[styles.filterText, form.severity === severity && styles.filterTextActive]}>{SEVERITY_LABELS[severity]}</Text>
+                </Pressable>
+              ))}
+            </View>
           </View>
 
-          <SwitchRow testID="switch-doctor-required" title="Cần bác sĩ duyệt" description="Lộ trình của người dùng có bệnh này phải chờ bác sĩ duyệt." value={form.doctorRequired} onChange={(v) => set('doctorRequired', v)} />
-          <SwitchRow testID="switch-roadmap-confirmation" title="Bác sĩ xác nhận lộ trình" description="Bác sĩ phải xác nhận lộ trình trước khi người dùng bắt đầu." value={form.roadmapConfirmationRequired} onChange={(v) => set('roadmapConfirmationRequired', v)} />
-          <SwitchRow testID="switch-ai-allowed" title="Cho phép AI tự tạo lộ trình" description="Tắt nếu bệnh này không được để AI tự lập kế hoạch." value={form.aiAllowed} onChange={(v) => set('aiAllowed', v)} />
+          <View style={styles.switchGroup}>
+            <Text style={styles.fieldLabel}>Quy định duyệt</Text>
+            <SwitchRow testID="switch-doctor-required" title="Cần bác sĩ duyệt" description="Lộ trình của người dùng có bệnh này phải chờ bác sĩ duyệt." value={form.doctorRequired} onChange={(v) => set('doctorRequired', v)} />
+            <SwitchRow testID="switch-roadmap-confirmation" title="Bác sĩ xác nhận lộ trình" description="Bác sĩ phải xác nhận lộ trình trước khi người dùng bắt đầu." value={form.roadmapConfirmationRequired} onChange={(v) => set('roadmapConfirmationRequired', v)} />
+            <SwitchRow testID="switch-ai-allowed" title="Cho phép AI tự tạo lộ trình" description="Tắt nếu bệnh này không được để AI tự lập kế hoạch." value={form.aiAllowed} onChange={(v) => set('aiAllowed', v)} />
+          </View>
 
           <Field label="Mức ưu tiên (0–100)" error={errors.priority}>
             <TextInput testID="disease-priority" value={form.priority} onChangeText={(v) => set('priority', v.replace(/[^0-9]/g, ''))} keyboardType="number-pad" maxLength={3} style={styles.input} />
@@ -322,7 +327,10 @@ function DiseaseForm({ existing, onClose, onCreated }: { existing: Disease[]; on
 function Field({ label, hint, error, children }: { label: string; hint?: string; error?: string; children: React.ReactNode }) {
   return (
     <View style={styles.field}>
-      <Text style={styles.fieldLabel}>{label}{hint ? <Text style={styles.hint}>  · {hint}</Text> : null}</Text>
+      <View style={styles.labelBlock}>
+        <Text style={styles.fieldLabel}>{label}</Text>
+        {hint ? <Text style={styles.hint}>{hint}</Text> : null}
+      </View>
       {children}
       {error ? <Text style={styles.fieldError}>{error}</Text> : null}
     </View>
@@ -396,17 +404,19 @@ const styles = StyleSheet.create({
   modalScreen: { flex: 1, backgroundColor: palette.bg },
   modalHeader: { minHeight: 56, paddingHorizontal: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: palette.surface, borderBottomWidth: 1, borderColor: palette.border },
   modalTitle: { color: palette.text, fontSize: 16, fontWeight: '800' },
-  modalContent: { padding: 18, gap: 12, paddingBottom: 40 },
-  field: { gap: 6 },
-  fieldLabel: { color: palette.text, fontSize: 12, fontWeight: '700' },
-  hint: { color: palette.textMuted, fontWeight: '400' },
-  fieldError: { color: palette.danger, fontSize: 11 },
+  modalContent: { padding: 20, gap: 22, paddingBottom: 48 },
+  field: { gap: 8 },
+  labelBlock: { gap: 3 },
+  fieldLabel: { color: palette.text, fontSize: 13, fontWeight: '700' },
+  hint: { color: palette.textMuted, fontSize: 11, lineHeight: 15 },
+  fieldError: { marginTop: 2, color: palette.danger, fontSize: 11 },
+  switchGroup: { gap: 10 },
   input: { minHeight: 44, paddingHorizontal: 12, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface, color: palette.text, fontSize: 14 },
   multiline: { minHeight: 90, textAlignVertical: 'top' },
   switchRow: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12, borderRadius: 10, borderWidth: 1, borderColor: palette.border, backgroundColor: palette.surface },
   switchTitle: { color: palette.text, fontSize: 13, fontWeight: '700' },
   switchDescription: { marginTop: 2, color: palette.textMuted, fontSize: 11, lineHeight: 15 },
-  primaryButton: { minHeight: 48, marginTop: 6, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: palette.primary },
+  primaryButton: { minHeight: 48, marginTop: 8, alignItems: 'center', justifyContent: 'center', borderRadius: 12, backgroundColor: palette.primary },
   primaryText: { color: '#FFFFFF', fontWeight: '800', fontSize: 14 },
   dim: { opacity: 0.6 },
 });

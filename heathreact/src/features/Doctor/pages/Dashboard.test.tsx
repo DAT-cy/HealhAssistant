@@ -40,7 +40,8 @@ describe('Doctor Dashboard', () => {
     await renderScreen(<DoctorDashboard />);
     expect(await screen.findByText('8')).toBeTruthy();
     expect(screen.getByText('11')).toBeTruthy();
-    expect(screen.getByText('Đang online · heartbeat đang hoạt động')).toBeTruthy();
+    expect(screen.getByText('Đang trực · hệ thống ưu tiên giao yêu cầu cho bạn')).toBeTruthy();
+    expect(screen.getByText('Đang trực')).toBeTruthy();
     expect(mocked.heartbeat).toHaveBeenCalled();
   });
 
