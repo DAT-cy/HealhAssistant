@@ -37,12 +37,14 @@ class PersonalAssistantServiceTest {
     @InjectMocks PersonalAssistantService service;
 
     @Test
-    void premiumIsRequiredBeforeProfileIsRead() {
-        doThrow(new AccessDeniedException("premium required")).when(featureAccessService)
-                .requireFeature(41L, PersonalAssistantService.PREMIUM_FEATURE);
+    void personalSettingsProfileIsAvailableWithoutPremium() {
+        // Cài đặt cá nhân là bước bắt buộc trước khi tạo lộ trình → không cần Premium.
+        when(profileRepository.findByUserId(41L)).thenReturn(Optional.empty());
 
-        assertThrows(AccessDeniedException.class, () -> service.profile(41L));
-        verifyNoInteractions(profileRepository);
+        var profile = service.profile(41L);
+
+        assertNull(profile.id());
+        verify(featureAccessService, never()).requireFeature(41L, PersonalAssistantService.PREMIUM_FEATURE);
     }
 
     @Test

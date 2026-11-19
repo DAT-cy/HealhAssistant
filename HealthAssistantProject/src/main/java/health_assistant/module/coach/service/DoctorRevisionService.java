@@ -42,12 +42,29 @@ public class DoctorRevisionService {
     @TransactionalEventListener(phase = TransactionPhase.AFTER_COMMIT)
     public void onRevisionRequested(RevisionRequestedEvent event) {
         log.info("Bác sĩ yêu cầu sửa #{} → AI bắt đầu tính lại", event.requestId());
-        Thread.ofVirtual().name("doctor-revision-" + event.requestId()).start(() -> {
+        startAsync(event.requestId());
+    }
+
+    /**
+     * Người dùng bấm "Thử lại" khi AI chưa tính lại được (vd. proxy AI lỗi).
+     * Chỉ cho yêu cầu của chính họ, đang "yêu cầu sửa" và chưa có phiên bản mới.
+     */
+    public void retry(Long userId, Long requestId) {
+        DoctorReviewRequest request = requestRepository.findById(requestId).filter(r -> userId.equals(r.getUserId()))
+                .orElseThrow(() -> new IllegalArgumentException("Không tìm thấy yêu cầu bác sĩ."));
+        if (!"REVISION_REQUESTED".equals(request.getStatus())) throw new IllegalArgumentException("Yêu cầu này không ở trạng thái chờ điều chỉnh.");
+        if (requestRepository.existsByPreviousRequestId(requestId)) throw new IllegalArgumentException("Phương án đã được điều chỉnh, vui lòng tải lại.");
+        log.info("Người dùng thử lại tính lại yêu cầu #{}", requestId);
+        startAsync(requestId);
+    }
+
+    private void startAsync(Long requestId) {
+        Thread.ofVirtual().name("doctor-revision-" + requestId).start(() -> {
             try {
-                regenerate(event.requestId());
+                regenerate(requestId);
             } catch (Throwable exception) {
-                log.warn("AI chưa tính lại được yêu cầu #{} ({}: {}). Người dùng có thể tạo lại lộ trình để thử lại.",
-                        event.requestId(), exception.getClass().getSimpleName(), exception.getMessage());
+                log.warn("AI chưa tính lại được yêu cầu #{} ({}: {}). Người dùng có thể bấm Thử lại.",
+                        requestId, exception.getClass().getSimpleName(), exception.getMessage());
             }
         });
     }
@@ -57,6 +74,11 @@ public class DoctorRevisionService {
         DoctorReviewRequest previous = requestRepository.findById(requestId).orElse(null);
         if (previous == null || !"REVISION_REQUESTED".equals(previous.getStatus())) {
             log.info("Bỏ qua tính lại #{}: trạng thái hiện tại {}", requestId, previous == null ? "không tồn tại" : previous.getStatus());
+            return Optional.empty();
+        }
+        // Đã có phiên bản điều chỉnh (vd. bấm Thử lại 2 lần) → không tạo trùng.
+        if (requestRepository.existsByPreviousRequestId(requestId)) {
+            log.info("Bỏ qua tính lại #{}: đã có phiên bản điều chỉnh", requestId);
             return Optional.empty();
         }
         String note = reviewRepository.findFirstByRequestIdOrderByCreatedAtDescIdDesc(requestId)

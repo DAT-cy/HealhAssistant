@@ -90,6 +90,20 @@ class GeminiCoachServiceTest {
         assertThat(prompt.getValue()).contains("Không tự thêm ngày, buổi hoặc giờ tập");
     }
 
+    @Test
+    void retriesOnceWhenModelReturnsTruncatedJson() {
+        when(client.generateJson(anyString(), any(), any(GeminiClient.Options.class)))
+                .thenReturn("{\"title\":\"Lộ trình\",\"overview\":\"Mô")
+                .thenReturn("""
+                        {"title":"Lộ trình","overview":"Mô tả.","weeklyPlan":["Tuần 1"],"safetyNotes":["Dừng nếu đau."]}
+                        """);
+
+        GeminiRoadmapResponse response = service.plan(new GeminiRoadmapRequest("Tập nhẹ", 1, null, null));
+
+        assertThat(response.title()).isEqualTo("Lộ trình");
+        verify(client, times(2)).generateJson(anyString(), any(), any(GeminiClient.Options.class));
+    }
+
     private void verifyNoInteractionsAfterConfigurationCheck() {
         verify(client, never()).generateJson(anyString(), any(), any(GeminiClient.Options.class));
     }

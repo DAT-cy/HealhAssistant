@@ -87,4 +87,11 @@ describe('diseaseService / doctorRequestService', () => {
     expect(req.method).toBe('PATCH');
     expect(req.body).toEqual({ consent: true });
   });
+
+  it('coach: thử lại tính lại phương án sau "Yêu cầu sửa"', async () => {
+    const { coachService } = jest.requireActual('./coach.service');
+    const req = await call(() => coachService.retryRevision(11));
+    expect(req.url).toBe(`${API}/coach/roadmap/revisions/11/retry`);
+    expect(req.method).toBe('POST');
+  });
 });

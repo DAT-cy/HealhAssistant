@@ -49,7 +49,21 @@ public class GeminiCoachService {
         }
     }
 
+    /**
+     * Model qua proxy thỉnh thoảng trả JSON bị cắt / sai định dạng dù đã "ok".
+     * Thử lại thêm 1 lần trước khi báo lỗi để không làm hỏng cả lượt tạo 3 phương án.
+     */
     public GeminiRoadmapResponse plan(GeminiRoadmapRequest request) {
+        try {
+            return planOnce(request);
+        } catch (GeminiException exception) {
+            if (exception.getKind() != GeminiException.Kind.INVALID_RESPONSE) throw exception;
+            log.warn("Gemini roadmap trả dữ liệu lỗi – thử lại 1 lần");
+            return planOnce(request);
+        }
+    }
+
+    private GeminiRoadmapResponse planOnce(GeminiRoadmapRequest request) {
         try {
             String prompt = prompt(request);
             JsonNode output = objectMapper.readTree(geminiClient.generateJson(prompt, responseSchema(), GeminiClient.Options.ROADMAP));

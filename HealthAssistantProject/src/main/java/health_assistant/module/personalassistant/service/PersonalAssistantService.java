@@ -67,14 +67,13 @@ public class PersonalAssistantService {
 
     @Transactional(readOnly = true)
     public PersonalAssistantProfileResponse profile(Long userId) {
-        requirePremium(userId);
+        // Cài đặt cá nhân là bước bắt buộc trước khi tạo lộ trình → mọi tài khoản đều dùng được (không cần Premium).
         return profileRepository.findByUserId(userId).map(this::profileResponse)
                 .orElseGet(() -> new PersonalAssistantProfileResponse(null, null, null, null, null, null, null, null, null, null, null, null));
     }
 
     @Transactional
     public PersonalAssistantProfileResponse saveProfile(Long userId, PersonalAssistantProfileRequest request) {
-        requirePremium(userId);
         PersonalAssistantProfile profile = profileRepository.findByUserId(userId).orElseGet(PersonalAssistantProfile::new);
         profile.setUserId(userId);
         profile.setFitnessGoal(request.fitnessGoal().trim());

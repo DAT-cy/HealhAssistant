@@ -206,6 +206,8 @@ export interface PlanReschedulePreview {
 export const coachService = {
   roadmap: (body: RoadmapRequest) => apiClient.request<GeminiRoadmapResponse>(`${apiVersion}/coach/roadmap`, { method: 'POST', body: JSON.stringify(body), ai: true }),
   /** Mở các phương án bác sĩ đã duyệt (từ thẻ yêu cầu bác sĩ). */
+  /** Thử lại khi AI chưa điều chỉnh xong phương án sau "Yêu cầu sửa". */
+  retryRevision: (requestId: number) => apiClient.request<boolean>(`${apiVersion}/coach/roadmap/revisions/${requestId}/retry`, { method: 'POST' }),
   approvedPreview: (requestId: number) => apiClient.request<RoadmapPreview>(`${apiVersion}/coach/roadmap/approved/${requestId}/preview`, { method: 'POST' }),
   preview: (body: RoadmapPreviewRequest) => apiClient.request<RoadmapPreview>(`${apiVersion}/coach/roadmap/preview`, { method: 'POST', body: JSON.stringify(body), ai: true }),
   activate: (previewId: string, optionIndex: number, title?: string, draftId?: number | null, startDate?: string) => apiClient.request<ActiveRoadmap>(`${apiVersion}/coach/roadmap/activate`, { method: 'POST', body: JSON.stringify({ previewId, optionIndex, title, draftId, startDate }) }),

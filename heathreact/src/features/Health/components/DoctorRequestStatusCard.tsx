@@ -5,7 +5,7 @@ import type { DoctorReviewRequest } from '@/api/services/doctor.service';
 import Card from '@/components/ui/Card';
 import { Pressable } from '@/components/ui/Pressable';
 import { palette } from '@/theme/tokens';
-import { isOpenReview, pickUserRequest, userReviewView } from '@/utils/doctorReview';
+import { isOpenReview, pickUserRequest, revisionStalled, userReviewView } from '@/utils/doctorReview';
 
 const TONES = {
   info: { color: palette.primary, bg: palette.primarySoft, icon: 'time-outline' },
@@ -31,13 +31,18 @@ interface Props {
   replying?: boolean;
   /** Mở các phương án bác sĩ đã duyệt để chọn và kích hoạt. */
   onOpenApproved?: (requestId: number) => void;
+  /** AI chưa điều chỉnh xong sau "Yêu cầu sửa" → người dùng bấm thử lại. */
+  onRetryRevision?: (requestId: number) => void;
+  retryingRevision?: boolean;
 }
 
-export default function DoctorRequestStatusCard({ requests, onReply, replying = false, onOpenApproved }: Props) {
+export default function DoctorRequestStatusCard({ requests, onReply, replying = false, onOpenApproved, onRetryRevision, retryingRevision = false }: Props) {
   const [reply, setReply] = useState('');
   const request = pickUserRequest(requests);
   if (!request) return null;
-  const view = userReviewView(request.status, request.appliedAt, request.previousRequestId);
+  const stalled = revisionStalled(request) && !!onRetryRevision;
+  const baseView = userReviewView(request.status, request.appliedAt, request.previousRequestId);
+  const view = stalled ? { ...baseView, message: 'AI chưa điều chỉnh xong phương án theo góp ý của bác sĩ (có thể do hệ thống AI đang bận). Bấm "Thử lại" để AI tính lại.' } : baseView;
   const canReply = request.status === 'NEED_MORE_INFO' && !!onReply;
   const canApply = request.status === 'COMPLETED' && !request.appliedAt && !!request.aiPlan?.length && !!onOpenApproved;
   const submitReply = async () => {
@@ -83,6 +88,11 @@ export default function DoctorRequestStatusCard({ requests, onReply, replying = 
             {replying ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.replyButtonText}>Gửi bác sĩ</Text>}
           </Pressable>
         </View>
+      ) : null}
+      {stalled ? (
+        <Pressable testID="retry-revision" onPress={() => onRetryRevision!(request.id)} disabled={retryingRevision} accessibilityRole="button" style={[styles.replyButton, retryingRevision && styles.dim]}>
+          {retryingRevision ? <ActivityIndicator color="#FFFFFF" /> : <Text style={styles.replyButtonText}>Thử lại</Text>}
+        </Pressable>
       ) : null}
       {canApply ? (
         <Pressable testID="open-approved-plan" onPress={() => onOpenApproved!(request.id)} accessibilityRole="button" style={styles.replyButton}>

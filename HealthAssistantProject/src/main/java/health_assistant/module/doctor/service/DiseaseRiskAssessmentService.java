@@ -101,7 +101,10 @@ public class DiseaseRiskAssessmentService {
     /** Yêu cầu gần nhất bị bác sĩ "yêu cầu sửa" với cùng bộ bệnh. */
     @Transactional(readOnly = true)
     public Optional<DoctorReviewRequest> findLatestRevision(Long userId, Assessment assessment) {
-        return requestRepository.findFirstByUserIdAndDiseaseCodesAndStatusOrderByCreatedAtDesc(userId, assessment.codesKey(), "REVISION_REQUESTED");
+        // Yêu cầu sửa đã có bản điều chỉnh (vd. #11 → #12 đã được duyệt) thì coi như đã xử lý xong:
+        // lần tạo sau là lộ trình mới, không gắn lại vào #11 và không dùng lại nhận xét cũ.
+        return requestRepository.findFirstByUserIdAndDiseaseCodesAndStatusOrderByCreatedAtDesc(userId, assessment.codesKey(), "REVISION_REQUESTED")
+                .filter(revision -> !requestRepository.existsByPreviousRequestId(revision.getId()));
     }
 
     /** Tạo yêu cầu bác sĩ kiểm tra, kèm phương án AI (nếu có). Không tạo trùng khi còn yêu cầu đang mở. */

@@ -14,6 +14,7 @@ public interface DoctorReviewRequestRepository extends JpaRepository<DoctorRevie
     List<DoctorReviewRequest> findAllByStatus(String status, Sort sort);
     List<DoctorReviewRequest> findAllByUserIdOrderByCreatedAtDesc(Long userId);
     long countByStatus(String status);
+    boolean existsByPreviousRequestId(Long previousRequestId);
     long countByAssignedDoctorId(Long doctorId);
     long countByAssignedDoctorIdAndStatusIn(Long doctorId, Collection<String> statuses);
     Optional<DoctorReviewRequest> findFirstByUserIdAndDecisionAndStatusInOrderByCreatedAtDesc(Long userId, String decision, List<String> statuses);

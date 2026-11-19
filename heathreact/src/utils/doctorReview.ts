@@ -87,3 +87,13 @@ export function pendingRequestBlock<T extends Pick<DoctorReviewRequest, 'id' | '
       : 'Hãy chờ bác sĩ có kết quả rồi mới tạo lộ trình mới.',
   };
 }
+
+/** Sau bao lâu kể từ khi bác sĩ yêu cầu sửa mà chưa có phiên bản mới thì cho người dùng bấm Thử lại. */
+export const REVISION_STALE_MS = 2 * 60 * 1000;
+
+/** AI chưa tạo được phiên bản điều chỉnh sau "Yêu cầu sửa" (quá thời gian chờ). */
+export function revisionStalled(request: { status: string; completedAt: string | null } | null | undefined, now = Date.now()) {
+  if (!request || request.status !== 'REVISION_REQUESTED' || !request.completedAt) return false;
+  const finished = Date.parse(request.completedAt);
+  return Number.isFinite(finished) && now - finished >= REVISION_STALE_MS;
+}

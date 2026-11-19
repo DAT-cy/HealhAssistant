@@ -74,4 +74,20 @@ class DoctorRevisionServiceTest {
         assertThat(service.weeksOf(null)).isEqualTo(4);
         assertThat(service.weeksOf("not json")).isEqualTo(4);
     }
+
+    @Test
+    void retryRejectsOtherUsersAndAlreadyRevisedRequests() {
+        previous("REVISION_REQUESTED");
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.retry(99L, 5L)).isInstanceOf(IllegalArgumentException.class);
+        when(requests.existsByPreviousRequestId(5L)).thenReturn(true);
+        org.assertj.core.api.Assertions.assertThatThrownBy(() -> service.retry(7L, 5L)).hasMessageContaining("đã được điều chỉnh");
+    }
+
+    @Test
+    void regenerateSkipsWhenAdjustedVersionAlreadyExists() {
+        previous("REVISION_REQUESTED");
+        when(requests.existsByPreviousRequestId(5L)).thenReturn(true);
+        assertThat(service.regenerate(5L)).isEmpty();
+        verifyNoInteractions(coach);
+    }
 }

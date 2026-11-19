@@ -71,6 +71,9 @@ export default function HealthRecordPage() {
         heightCm: height, weightKg: weight, restrictions: values.restrictions.trim() || undefined, painAreas: values.painAreas.trim() || undefined,
         consent, diseaseCodes: values.diseaseCodes.trim(), medicalHistory: values.medicalHistory.trim(),
         allergies: values.allergies.trim(), healthMetrics: values.healthMetrics.trim(),
+        // Giữ nguyên các trường nhập ở onboarding mà màn này không hiển thị (tránh bị xoá khi lưu).
+        symptoms: current?.symptoms, familyHistory: current?.familyHistory, medications: current?.medications,
+        lifestyleNotes: current?.lifestyleNotes, sleepHours: current?.sleepHours,
       });
       queryClient.setQueryData(['profile', 'health-record'], saved);
       await queryClient.invalidateQueries({ queryKey: ['profile'] });

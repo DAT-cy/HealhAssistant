@@ -1,10 +1,12 @@
-import { fireEvent, screen } from '@testing-library/react-native';
+import { fireEvent, screen, waitFor } from '@testing-library/react-native';
 import { toast } from 'sonner-native';
 import React from 'react';
 import { doctorRequestService } from '@/api/services/doctor-request.service';
 import type { DoctorReviewRequest } from '@/api/services/doctor.service';
 import { renderScreen } from '@/test-utils/render';
-import RoadmapPage from './Roadmap';
+import { profileService } from '@/api/services/profile.service';
+import { personalAssistantService } from '@/api/services/personal-assistant.service';
+import RoadmapPage, { profileDiseaseCodes } from './Roadmap';
 
 jest.mock('expo-router', () => {
   const ReactActual = jest.requireActual('react');
@@ -22,7 +24,9 @@ jest.mock('@/features/Health/components/ReschedulePlanner', () => () => null);
 jest.mock('@/features/Health/components/MealScheduleCard', () => () => null);
 jest.mock('@/routes', () => ({ navigationService: { navigate: jest.fn(), replace: jest.fn(), goBack: jest.fn() } }));
 jest.mock('@/api/services/doctor-request.service', () => ({ doctorRequestService: { mine: jest.fn(), get: jest.fn(), reply: jest.fn() } }));
-jest.mock('@/api/services/profile.service', () => ({ profileService: { getMine: jest.fn().mockResolvedValue(null) } }));
+// Người dùng đã thiết lập đủ hồ sơ sức khỏe + cài đặt cá nhân (trừ các test kiểm tra phần chặn).
+jest.mock('@/api/services/profile.service', () => ({ profileService: { getMine: jest.fn().mockResolvedValue({ heightCm: 170, weightKg: 65, consent: true, diseaseCodes: '' }) } }));
+jest.mock('@/api/services/personal-assistant.service', () => ({ personalAssistantService: { getProfile: jest.fn().mockResolvedValue({ id: 1 }) } }));
 jest.mock('@/api/services/coach.service', () => ({
   // Người dùng chưa có lộ trình nào: mọi API danh sách trả rỗng, lộ trình đang chạy = null.
   coachService: new Proxy({}, {
@@ -85,5 +89,41 @@ describe('Màn Lộ trình: thẻ theo dõi yêu cầu bác sĩ', () => {
     await screen.findByText('Bác sĩ đã duyệt lộ trình');
     await fireEvent.press(screen.getByLabelText('Tạo lộ trình mới'));
     expect(toast.warning).not.toHaveBeenCalled();
+  });
+});
+
+describe('Màn Lộ trình: bắt buộc thiết lập hồ sơ trước', () => {
+  beforeEach(() => { jest.clearAllMocks(); (doctorRequestService.mine as jest.Mock).mockResolvedValue([]); });
+
+  it('chưa có Cài đặt cá nhân → hiện thẻ nhắc và chặn tạo lộ trình', async () => {
+    (personalAssistantService.getProfile as jest.Mock).mockResolvedValueOnce({ id: null });
+    await renderScreen(<RoadmapPage />);
+    expect(await screen.findByTestId('roadmap-setup-card')).toBeTruthy();
+    expect(screen.getByLabelText('Cài đặt cá nhân: chưa xong')).toBeTruthy();
+    expect(screen.getByLabelText('Hồ sơ sức khỏe: đã xong')).toBeTruthy();
+    // Nút "+" bị khoá cho tới khi hoàn thành hồ sơ
+    expect(screen.getByTestId('create-roadmap').props.accessibilityState).toEqual(expect.objectContaining({ disabled: true }));
+  });
+
+  it('chưa có Hồ sơ sức khỏe → thẻ nhắc dẫn tới trang hồ sơ', async () => {
+    const { navigationService } = jest.requireMock('@/routes');
+    (profileService.getMine as jest.Mock).mockRejectedValueOnce(new Error('404'));
+    await renderScreen(<RoadmapPage />);
+    await fireEvent.press(await screen.findByTestId('setup-health'));
+    expect(navigationService.navigate).toHaveBeenCalledWith('HealthRecord');
+  });
+
+  it('đã thiết lập đủ → không hiện thẻ nhắc', async () => {
+    await renderScreen(<RoadmapPage />);
+    // Lúc đầu đang tải → khoá; tải xong và đủ hồ sơ → mở.
+    await waitFor(() => expect(screen.getByTestId('create-roadmap').props.accessibilityState).toEqual(expect.objectContaining({ disabled: false })));
+    expect(screen.queryByTestId('roadmap-setup-card')).toBeNull();
+  });
+});
+
+describe('profileDiseaseCodes', () => {
+  it('giữ tên bệnh tự khai, bỏ trạng thái', () => {
+    expect(profileDiseaseCodes('HTN:MONITORING, CUSTOM:Gout:SUSPECTED, CUSTOM')).toEqual(['HTN', 'CUSTOM:Gout']);
+    expect(profileDiseaseCodes(null)).toEqual([]);
   });
 });

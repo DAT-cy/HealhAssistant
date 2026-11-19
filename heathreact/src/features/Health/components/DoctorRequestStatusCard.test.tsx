@@ -113,4 +113,19 @@ describe('DoctorRequestStatusCard (màn Lộ trình của người dùng)', () =
     await rerender(<DoctorRequestStatusCard requests={[request({ id: 6, status: 'COMPLETED', completedAt: '2026-11-18T05:00:00Z', aiPlan: plan, appliedAt: '2026-11-18T06:00:00Z' })]} onOpenApproved={onOpenApproved} />);
     expect(screen.queryByTestId('open-approved-plan')).toBeNull();
   });
+
+  it('yêu cầu sửa quá 2 phút chưa có phiên bản mới → hiện nút Thử lại', async () => {
+    const onRetryRevision = jest.fn();
+    const old = new Date(Date.now() - 3 * 60 * 1000).toISOString();
+    await render(<DoctorRequestStatusCard requests={[request({ id: 11, status: 'REVISION_REQUESTED', completedAt: old, doctorNote: 'Sửa lại' })]} onRetryRevision={onRetryRevision} />);
+    expect(screen.getByText(/AI chưa điều chỉnh xong/)).toBeTruthy();
+    await fireEvent.press(screen.getByTestId('retry-revision'));
+    expect(onRetryRevision).toHaveBeenCalledWith(11);
+  });
+
+  it('vừa yêu cầu sửa (chưa tới 2 phút) → chưa hiện Thử lại', async () => {
+    await render(<DoctorRequestStatusCard requests={[request({ status: 'REVISION_REQUESTED', completedAt: new Date().toISOString() })]} onRetryRevision={jest.fn()} />);
+    expect(screen.queryByTestId('retry-revision')).toBeNull();
+    expect(screen.getByText(/Bạn không cần làm gì thêm/)).toBeTruthy();
+  });
 });

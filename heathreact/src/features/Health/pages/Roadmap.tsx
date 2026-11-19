@@ -25,6 +25,9 @@ import ApprovedPlanModal from '@/features/Health/components/ApprovedPlanModal';
 import { useFocusEffect } from 'expo-router';
 import { isOpenReview, pendingRequestBlock } from '@/utils/doctorReview';
 import { notify } from '@/utils/notify';
+import { personalAssistantService } from '@/api/services/personal-assistant.service';
+import { roadmapReadiness } from '@/utils/roadmapReadiness';
+import RoadmapSetupCard from '@/features/Health/components/RoadmapSetupCard';
 
 function localDateIso() {
   const today = new Date();
@@ -52,6 +55,11 @@ const dayStatusLabels: Record<RoadmapDay['status'], string> = {
   REST: 'Ngày nghỉ', UPCOMING: 'Chưa bắt đầu', IN_PROGRESS: 'Đang thực hiện', COMPLETED: 'Hoàn thành', SKIPPED: 'Đã bỏ qua', CANCELLED: 'Đã hủy',
 };
 
+/** Bệnh trong hồ sơ: "CODE:TRẠNG_THÁI" → CODE; bệnh tự khai "CUSTOM:Tên[:…]" → "CUSTOM:Tên" để giữ tên. */
+export function profileDiseaseCodes(raw: string | null | undefined) {
+  return (raw ?? '').split(',').map((item) => item.trim()).filter(Boolean).map((item) => { const parts = item.split(':'); return parts[0].toUpperCase() === 'CUSTOM' ? (parts[1] ? `CUSTOM:${parts[1].trim()}` : '') : parts[0].trim(); }).filter(Boolean);
+}
+
 export default function RoadmapPage() {
   const queryClient = useQueryClient();
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -78,6 +86,7 @@ export default function RoadmapPage() {
   const [selectedDraft, setSelectedDraft] = useState<{ id: number; title: string } | null>(null);
 
   const profileQuery = useQuery({ queryKey: ['profile', 'me'], queryFn: profileService.getMine });
+  const personalQuery = useQuery({ queryKey: ['personal-assistant', 'profile'], queryFn: personalAssistantService.getProfile });
   const activeQuery = useQuery({
     queryKey: ['roadmap', 'active'],
     queryFn: async () => {
@@ -116,10 +125,19 @@ export default function RoadmapPage() {
     queryKey: ['doctor-requests', 'mine'],
     queryFn: doctorRequestService.mine,
     // Đang chờ bác sĩ thì tự kiểm tra lại mỗi 30 giây để người dùng thấy kết quả mà không cần thoát ra vào lại.
-    refetchInterval: (query) => (query.state.data?.some((request) => isOpenReview(request.status)) ? 30_000 : false),
+    // Cũng kiểm tra khi đang chờ AI điều chỉnh sau "Yêu cầu sửa" để thấy phiên bản mới / nút Thử lại.
+    refetchInterval: (query) => (query.state.data?.some((request) => isOpenReview(request.status) || request.status === 'REVISION_REQUESTED') ? 30_000 : false),
   });
   const refetchDoctorRequests = doctorRequestsQuery.refetch;
   const [approvedRequestId, setApprovedRequestId] = useState<number | null>(null);
+  const retryRevisionMutation = useMutation({
+    mutationFn: (id: number) => coachService.retryRevision(id),
+    onSuccess: () => {
+      notify.success('Đang điều chỉnh lại', 'AI đang tính lại phương án theo góp ý của bác sĩ. Kết quả sẽ hiện sau ít phút.');
+      void queryClient.invalidateQueries({ queryKey: ['doctor-requests', 'mine'] });
+    },
+    onError: (error) => notify.error('Chưa thử lại được', error instanceof ApiError ? error.message : 'Vui lòng thử lại.'),
+  });
   const replyMutation = useMutation({
     mutationFn: ({ id, message }: { id: number; message: string }) => doctorRequestService.reply(id, message),
     onSuccess: () => {
@@ -135,7 +153,16 @@ export default function RoadmapPage() {
     ? profileQuery.error instanceof ApiError ? profileQuery.error.message : 'Không thể tải hồ sơ.'
     : '';
   const goal = profileQuery.data?.goal ?? '';
+  // Phải hoàn thành Hồ sơ sức khỏe + Cài đặt cá nhân (1 lần) mới được tạo lộ trình.
+  const readiness = roadmapReadiness(profileQuery.data, personalQuery.data);
+  const setupLoading = profileQuery.isPending || personalQuery.isPending;
+  // Mặc định khoá nút "+" khi đang tải và khi chưa hoàn thành hồ sơ; đủ hết mới mở.
+  const createDisabled = setupLoading || !readiness.ready;
   const openWizard = () => {
+    if (!setupLoading && !readiness.ready) {
+      notify.warning('Hoàn thành hồ sơ trước', `Còn thiếu: ${readiness.missing.map((item) => item.label).join(', ')}.`);
+      return;
+    }
     const blocked = pendingRequestBlock(doctorRequestsQuery.data);
     if (blocked) { notify.warning(blocked.title, blocked.description); return; }
     setWizardSession((current) => current + 1);
@@ -419,13 +446,16 @@ export default function RoadmapPage() {
   <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
     <View style={{ flex: 1 }}><Text style={{ color: palette.text, fontSize: 20, fontWeight: '800' }}>Lộ trình của bạn</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 4 }}>Theo dõi và quản lý các kế hoạch sức khỏe cá nhân.</Text></View>
     <Pressable
+      testID="create-roadmap"
       onPress={openWizard}
+      disabled={createDisabled}
       accessibilityRole="button"
       accessibilityLabel="Tạo lộ trình mới"
+      accessibilityState={{ disabled: createDisabled }}
       hitSlop={8}
-      style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: palette.primary }}
+      style={{ width: 56, height: 56, flexShrink: 0, borderRadius: 28, alignItems: 'center', justifyContent: 'center', backgroundColor: createDisabled ? palette.border : palette.primary }}
     >
-      <Ionicons name="add" size={30} color={palette.textInverse} />
+      <Ionicons name="add" size={30} color={createDisabled ? palette.textMuted : palette.textInverse} />
     </Pressable>
   </View>
 </Card>
@@ -449,14 +479,17 @@ export default function RoadmapPage() {
       }}
       goal={goal}
       knownRequestIds={(doctorRequestsQuery.data ?? []).map((request) => request.id)}
-      initialDiseaseCodes={(profileQuery.data?.diseaseCodes ?? '').split(',').map((item) => item.split(':')[0]).filter(Boolean)}
+      initialDiseaseCodes={profileDiseaseCodes(profileQuery.data?.diseaseCodes)}
     />
+    {!setupLoading && !readiness.ready ? <RoadmapSetupCard items={readiness.items} /> : null}
     {/* Luôn hiện trạng thái yêu cầu bác sĩ, kể cả khi người dùng chưa có lộ trình đang hoạt động. */}
     <DoctorRequestStatusCard
       requests={doctorRequestsQuery.data}
       replying={replyMutation.isPending}
       onReply={(id, message) => replyMutation.mutateAsync({ id, message })}
       onOpenApproved={setApprovedRequestId}
+      onRetryRevision={(id) => retryRevisionMutation.mutate(id)}
+      retryingRevision={retryRevisionMutation.isPending}
     />
     {profileError ? <ErrorState message={profileError} onRetry={() => void profileQuery.refetch()} /> : null}
     {false && historyQuery.data?.length === 0 && !activeQuery.data ? <Card><Text style={{ color: palette.text, fontWeight: '700' }}>Chưa có lịch sử lộ trình</Text><Text style={{ color: palette.textMuted, fontSize: 12, lineHeight: 18, marginTop: 5 }}>Các phiên bản đã xác nhận sẽ được lưu tại đây.</Text></Card> : null}

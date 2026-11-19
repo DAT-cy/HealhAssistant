@@ -171,4 +171,20 @@ class DiseaseRiskAssessmentServiceTest {
         verify(requests).saveAndFlush(argThat(r -> "REFERRED".equals(r.getStatus()) && r.getCompletedAt() != null && r.getAssignedDoctorId() == null));
         assertThat(DiseaseRiskAssessmentService.OPEN_STATUSES).doesNotContain("REFERRED");
     }
+
+    @Test
+    void revisionAlreadyHandledIsNotReusedForNextRoadmap() {
+        var disease = new health_assistant.module.doctor.entity.Disease();
+        disease.setCode("HTN"); disease.setSeverity("HIGH"); disease.setDoctorRequired(true);
+        when(diseases.findByCodeAndActiveTrue("HTN")).thenReturn(Optional.of(disease));
+        var assessment = service.assess(List.of("HTN"));
+        var revision = new DoctorReviewRequest(); revision.setId(11L); revision.setStatus("REVISION_REQUESTED");
+        when(requests.findFirstByUserIdAndDiseaseCodesAndStatusOrderByCreatedAtDesc(7L, "HTN", "REVISION_REQUESTED")).thenReturn(Optional.of(revision));
+
+        // #11 chưa có bản điều chỉnh → vẫn dùng nhận xét để AI sửa
+        assertThat(service.findLatestRevision(7L, assessment)).contains(revision);
+        // #12 đã là bản điều chỉnh của #11 → lần tạo sau không gắn vào #11 nữa
+        when(requests.existsByPreviousRequestId(11L)).thenReturn(true);
+        assertThat(service.findLatestRevision(7L, assessment)).isEmpty();
+    }
 }

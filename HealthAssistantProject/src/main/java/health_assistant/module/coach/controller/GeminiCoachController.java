@@ -40,6 +40,8 @@ public class GeminiCoachController {
     private final RoadmapScheduleValidator scheduleValidator;
     private final DiseaseRiskAssessmentService riskAssessmentService;
     private final DoctorReviewRepository doctorReviewRepository;
+    private final health_assistant.module.coach.service.DoctorRevisionService doctorRevisionService;
+    private final health_assistant.module.personalassistant.repository.PersonalAssistantProfileRepository personalProfileRepository;
 
     @PostMapping("/roadmap")
     public ResponseEntity<DefaultRes<GeminiRoadmapResponse>> roadmap(@Valid @RequestBody GeminiRoadmapRequest request) {
@@ -51,7 +53,10 @@ public class GeminiCoachController {
         scheduleValidator.validate(request.schedule(), request.weeks(), true);
         Long userId = SecurityUtils.getCurrentUserId();
         var profile = profileRepository.findByUserId(userId).orElse(null);
-        if (profile != null && !profile.isConsent()) throw new IllegalArgumentException("Cần đồng ý sử dụng dữ liệu hồ sơ trước.");
+        // Bắt buộc hoàn thành Hồ sơ sức khoẻ và Cài đặt cá nhân trước khi tạo lộ trình (thiết lập 1 lần).
+        if (profile == null) throw new IllegalArgumentException("Hãy hoàn thành Hồ sơ sức khỏe trước khi tạo lộ trình.");
+        if (personalProfileRepository.findByUserId(userId).isEmpty()) throw new IllegalArgumentException("Hãy hoàn thành Cài đặt cá nhân trước khi tạo lộ trình.");
+        if (!profile.isConsent()) throw new IllegalArgumentException("Cần đồng ý sử dụng dữ liệu hồ sơ trước.");
         if (profile != null && (profile.getHeightCm() == null || profile.getWeightKg() == null))
             throw new IllegalArgumentException("Hãy nhập chiều cao và cân nặng trước khi xem phác thảo.");
         String goal = profile == null ? request.goal() : profile.getGoal();
@@ -163,6 +168,13 @@ public class GeminiCoachController {
         return ok(roadmapPreviewService.create(userId, profileVersion, roadmapPreviewService.readOptions(approved.getAiPlanJson()),
                 roadmapPreviewService.readScheduleJson(approved.getScheduleJson()), approved.getId(),
                 "Bác sĩ đã duyệt phương án. Hãy chọn một phương án để kích hoạt."));
+    }
+
+    /** Người dùng thử lại khi AI chưa tính lại được phương án sau "Yêu cầu sửa" của bác sĩ. */
+    @PostMapping("/roadmap/revisions/{requestId}/retry")
+    public ResponseEntity<DefaultRes<Boolean>> retryRevision(@PathVariable Long requestId) {
+        doctorRevisionService.retry(SecurityUtils.getCurrentUserId(), requestId);
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.UPDATED, true));
     }
 
     @PostMapping("/roadmap/activate")
