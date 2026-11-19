@@ -15,7 +15,7 @@ import { notify } from '@/utils/notify';
 import { profileService } from '@/api/services/profile.service';
 import { ApiError } from '@/api/client';
 import type { Disease } from '@/api/services/doctor.service';
-import { needsConsent, activityPresets, activityTypes, periods, doctorRoutingNotice, previewOutcome, scheduleError, timeMinutes, variants, weekdays, weeklyMinutes } from './roadmapWizard.utils';
+import { DISPLAY_STEPS, datesToSchedule, dayOfWeekOf, displayStep, goalLabel, upcomingDates, needsConsent, activityPresets, activityTypes, periods, doctorRoutingNotice, previewOutcome, scheduleError, timeMinutes, variants, weekdays, weeklyMinutes } from './roadmapWizard.utils';
 
 type Step = 1 | 2 | 3 | 4 | 5 | 6;
 interface Props { visible: boolean; onClose: () => void; onCompleted: () => void; goal: string; initialDiseaseCodes?: string[]; /** Id các yêu cầu bác sĩ người dùng đã có, để nhận ra khi backend dùng lại yêu cầu cũ. */ knownRequestIds?: number[] }
@@ -27,8 +27,10 @@ export default function RoadmapWizardModal({ visible, onClose, onCompleted, goal
   const [title, setTitle] = useState('');
   const [diseaseCodes, setDiseaseCodes] = useState<string[]>([]);
   const [weeks, setWeeks] = useState(1);
-  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [weekdaysSelected, setWeekdaysSelected] = useState<number[]>([]);
+  // Bước 2 chọn nhiều ngày tập → suy ra các thứ tập trong tuần và ngày bắt đầu (bỏ bước chọn thứ riêng).
+  const [selectedDates, setSelectedDates] = useState<string[]>([]);
+  const { startDate: firstDate, weekdaysSelected } = useMemo(() => datesToSchedule(selectedDates), [selectedDates]);
+  const startDate = firstDate ?? upcomingDates(1)[0];
   const [weeklySlots, setWeeklySlots] = useState<RoadmapSlotRequest[]>([]);
   const [dayTab, setDayTab] = useState(1);
   const [scheduleValidation, setScheduleValidation] = useState('');
@@ -39,7 +41,7 @@ export default function RoadmapWizardModal({ visible, onClose, onCompleted, goal
   const animatedStyle = useAnimatedStyle(() => ({ transform: [{ translateX: slide.value }] }));
 
   const reset = () => {
-    setStep(1); setTitle(''); setDiseaseCodes(initialDiseaseCodes); setWeeks(1); setStartDate(new Date().toISOString().slice(0, 10)); setWeekdaysSelected([]); setWeeklySlots([]); setDayTab(1);
+    setStep(1); setTitle(''); setDiseaseCodes(initialDiseaseCodes); setWeeks(1); setSelectedDates([]); setWeeklySlots([]); setDayTab(1);
     setScheduleValidation(''); setSelected(null); setPage(0);
   };
   // Reset the draft after the modal is dismissed so reopening always starts clean.
@@ -57,7 +59,7 @@ export default function RoadmapWizardModal({ visible, onClose, onCompleted, goal
   const slotsForDay = useMemo(() => weeklySlots.filter((slot) => slot.dayOfWeek === dayTab), [weeklySlots, dayTab]);
   const diseaseQuery = useQuery({ queryKey: ['health', 'diseases'], queryFn: () => diseaseService.list(), enabled: visible });
   const selectedPlan = selected === null ? null : roadmap.options[selected];
-  const valid = step === 1 ? Boolean(title.trim()) : step === 2 ? weeks > 0 : step === 3 ? weekdaysSelected.length > 0 : step === 4 ? weekdaysSelected.every((day) => weeklySlots.some((slot) => slot.dayOfWeek === day)) && !scheduleError(weeklySlots) : true;
+  const valid = step === 1 ? Boolean(title.trim()) : step === 2 ? weeks > 0 && selectedDates.length > 0 : step === 3 ? weekdaysSelected.length > 0 : step === 4 ? weekdaysSelected.every((day) => weeklySlots.some((slot) => slot.dayOfWeek === day)) && !scheduleError(weeklySlots) : true;
   const haptic = () => { void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {}); };
   const go = (next: Step) => { haptic(); setDirection(next > step ? 1 : -1); setStep(next); };
 
@@ -66,20 +68,26 @@ export default function RoadmapWizardModal({ visible, onClose, onCompleted, goal
       Alert.alert('Bỏ lộ trình đang tạo?', 'Các thông tin bạn đã nhập sẽ bị xóa.', [{ text: 'Tiếp tục tạo', style: 'cancel' }, { text: 'Bỏ lộ trình', style: 'destructive', onPress: () => { reset(); onClose(); } }]);
     } else { reset(); onClose(); }
   };
-  const toggleDay = (day: number) => {
+  const toggleDate = (date: string) => {
     haptic();
-    if (weekdaysSelected.includes(day) && weeklySlots.some((slot) => slot.dayOfWeek === day)) {
-      Alert.alert('Xóa lịch của ngày này?', 'Các khung giờ đã nhập cho ngày này sẽ bị xóa.', [
-        { text: 'Giữ lại', style: 'cancel' },
-        { text: 'Xóa ngày', style: 'destructive', onPress: () => {
-          setWeekdaysSelected((current) => current.filter((item) => item !== day));
-          setWeeklySlots((current) => current.filter((slot) => slot.dayOfWeek !== day));
-          if (dayTab === day) setDayTab(weekdaysSelected.find((item) => item !== day) ?? 1);
-        } },
-      ]);
+    const day = dayOfWeekOf(date);
+    const removeDate = () => {
+      setSelectedDates((current) => current.filter((item) => item !== date));
+      setWeeklySlots((current) => current.filter((slot) => slot.dayOfWeek !== day));
+      if (dayTab === day) setDayTab(weekdaysSelected.find((item) => item !== day) ?? 1);
+    };
+    if (selectedDates.includes(date)) {
+      if (weeklySlots.some((slot) => slot.dayOfWeek === day)) {
+        Alert.alert('Xóa lịch của ngày này?', 'Các khung giờ đã nhập cho ngày này sẽ bị xóa.', [
+          { text: 'Giữ lại', style: 'cancel' },
+          { text: 'Xóa ngày', style: 'destructive', onPress: removeDate },
+        ]);
+        return;
+      }
+      removeDate();
       return;
     }
-    setWeekdaysSelected((current) => current.includes(day) ? current.filter((item) => item !== day) : [...current, day].sort((a, b) => a - b));
+    setSelectedDates((current) => [...current, date].sort());
     setDayTab(day);
   };
   const addSlot = (dayOfWeek: number, period: SessionPeriod) => {
@@ -138,7 +146,7 @@ export default function RoadmapWizardModal({ visible, onClose, onCompleted, goal
 
   const stepText: Record<Step, { title: string; detail: string }> = {
     1: { title: 'Lộ trình này tên là gì?', detail: 'Đặt tên để bạn dễ theo dõi mục tiêu.' },
-    2: { title: 'Bạn muốn theo trong bao lâu?', detail: `Mục tiêu: ${goal || 'cải thiện sức khỏe'}` },
+    2: { title: 'Bạn muốn theo trong bao lâu?', detail: `Mục tiêu: ${goalLabel(goal)}` },
     3: { title: 'Bạn tập vào những ngày nào?', detail: 'Chọn một hoặc nhiều ngày trong tuần.' },
     4: { title: 'Tập lúc nào trong ngày?', detail: 'Tạo ít nhất một khung giờ cho mỗi ngày đã chọn.' },
     5: { title: 'Kiểm tra lại nhé', detail: 'Mọi thông tin sẽ được gửi để tạo phương án phù hợp.' },
@@ -148,31 +156,29 @@ export default function RoadmapWizardModal({ visible, onClose, onCompleted, goal
   return <Modal visible animationType="slide" presentationStyle="fullScreen" onRequestClose={requestClose}>
     <KeyboardAvoidingView style={styles.container} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={[styles.topBar, { paddingTop: insets.top + 8 }]}>
-        <Pressable onPress={() => step > 1 ? go((step - 1) as Step) : requestClose()} accessibilityRole="button" accessibilityLabel={step > 1 ? 'Quay lại' : 'Đóng'} style={styles.navButton}><Ionicons name={step > 1 ? 'chevron-back' : 'close'} size={24} color={palette.text} /></Pressable>
+        <Pressable onPress={() => step > 1 ? go((step === 4 ? 2 : step - 1) as Step) : requestClose()} accessibilityRole="button" accessibilityLabel={step > 1 ? 'Quay lại' : 'Đóng'} style={styles.navButton}><Ionicons name={step > 1 ? 'chevron-back' : 'close'} size={24} color={palette.text} /></Pressable>
         <ProgressBar step={step} />
         <View style={styles.navButton} />
       </View>
-      <View style={styles.contentHeader}><Text style={styles.stepCount}>{step < 6 ? `BƯỚC ${step} / 5` : roadmap.status === 'error' ? 'CHƯA HOÀN TẤT' : 'BƯỚC CUỐI'}</Text><Text style={styles.heading}>{stepText[step].title}</Text><Text style={styles.subheading}>{stepText[step].detail}</Text></View>
+      <View style={styles.contentHeader}><Text style={styles.stepCount}>{step < 6 ? `BƯỚC ${displayStep(step)} / ${DISPLAY_STEPS}` : roadmap.status === 'error' ? 'CHƯA HOÀN TẤT' : 'BƯỚC CUỐI'}</Text><Text style={styles.heading}>{stepText[step].title}</Text><Text style={styles.subheading}>{stepText[step].detail}</Text></View>
       <Animated.View style={[styles.animatedContent, animatedStyle]}>
         {step === 1 ? <TitleStep title={title} setTitle={setTitle} diseaseCodes={diseaseCodes} setDiseaseCodes={setDiseaseCodes} diseases={diseaseQuery.data ?? []} onNext={() => { if (title.trim()) go(2); }} /> : null}
-        {step === 2 ? <DurationStep weeks={weeks} setWeeks={setWeeks} startDate={startDate} setStartDate={setStartDate} /> : null}
-        {step === 3 ? <DaysStep selected={weekdaysSelected} onToggle={toggleDay} startDate={startDate} /> : null}
+        {step === 2 ? <DurationStep weeks={weeks} setWeeks={setWeeks} selectedDates={selectedDates} onToggleDate={toggleDate} /> : null}
         {step === 4 ? <ScheduleStep selectedDays={weekdaysSelected} activeDay={dayTab} setActiveDay={setDayTab} slots={weeklySlots} slotsForDay={slotsForDay} addSlot={addSlot} updateSlot={updateSlot} removeSlot={removeSlot} copyDayToAll={copyDayToAll} error={scheduleValidation} startDate={startDate} onNext={() => { const error = scheduleError(weeklySlots); setScheduleValidation(error); if (!error) go(5); }} /> : null}
         {step === 5 ? <ReviewStep title={title} weeks={weeks} slots={weeklySlots} onEdit={(target) => go(target)} onGenerate={() => void generate()} /> : null}
         {step === 6 ? <PreviewStep roadmap={roadmap} selected={selected} setSelected={setSelected} weeks={weeks} slots={weeklySlots} page={page} setPage={setPage} onRetry={() => void generate()} onConsent={() => void giveConsent()} consenting={consenting} onActivate={activate} onClose={finish} onBack={() => go(5)} /> : null}
       </Animated.View>
-      {step < 5 ? <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}><Text style={styles.hint}>{step === 4 ? 'Bạn có thể dùng cùng lịch cho các ngày đã chọn.' : 'Bạn có thể chỉnh lại ở bước trước.'}</Text><NextFab disabled={!valid} onPress={() => { if (step === 1) go(2); else if (step === 2) go(3); else if (step === 3) go(4); else if (step === 4) { const error = scheduleError(weeklySlots); setScheduleValidation(error); if (!error) go(5); } }} /></View> : null}
+      {step < 5 ? <View style={[styles.bottomBar, { paddingBottom: insets.bottom + 10 }]}><Text style={styles.hint}>{step === 4 ? 'Bạn có thể dùng cùng lịch cho các ngày đã chọn.' : 'Bạn có thể chỉnh lại ở bước trước.'}</Text><NextFab disabled={!valid} onPress={() => { if (step === 1) go(2); else if (step === 2) go(4); else if (step === 3) go(4); else if (step === 4) { const error = scheduleError(weeklySlots); setScheduleValidation(error); if (!error) go(5); } }} /></View> : null}
     </KeyboardAvoidingView>
   </Modal>;
 }
 
-function ProgressBar({ step }: { step: Step }) { return <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 5, now: Math.min(step, 5) }} style={styles.progressTrack}><View style={[styles.progressValue, { width: `${Math.min(step, 5) * 20}%` }]} /></View>; }
+function ProgressBar({ step }: { step: Step }) { const now = Math.min(displayStep(step), DISPLAY_STEPS); return <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: DISPLAY_STEPS, now }} style={styles.progressTrack}><View style={[styles.progressValue, { width: `${(now / DISPLAY_STEPS) * 100}%` }]} /></View>; }
 function NextFab({ disabled, onPress }: { disabled: boolean; onPress: () => void }) { return <Pressable disabled={disabled} onPress={onPress} accessibilityRole="button" accessibilityLabel="Tiếp tục" style={[styles.nextFab, disabled && styles.nextFabDisabled]}><Ionicons name="arrow-forward" size={24} color={disabled ? palette.textMuted : palette.textInverse} /></Pressable>; }
 function diseaseDisplay(code: string, diseases: Disease[]) { return code.toUpperCase().startsWith('CUSTOM:') ? `${code.slice(7)} (tự khai)` : diseases.find((item) => item.code === code)?.name ?? code; }
 function TitleStep({ title, setTitle, diseaseCodes, diseases, onNext }: { title: string; setTitle: (value: string) => void; diseaseCodes: string[]; setDiseaseCodes?: (value: string[]) => void; diseases: Disease[]; onNext: () => void }) { const suggestions = ['Giảm 5kg trong 3 tháng', 'Tăng cơ toàn thân', 'Chạy được 5km', 'Giãn cơ mỗi ngày']; return <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={styles.stepBody}><TextInput value={title} onChangeText={setTitle} autoFocus maxLength={60} returnKeyType="next" onSubmitEditing={onNext} placeholder="Ví dụ: Giảm 5kg trong 3 tháng" placeholderTextColor={palette.textMuted} style={styles.titleInput} /><View style={styles.counterRow}><Text style={styles.inputHint}>Tên lộ trình</Text><Text style={styles.counter}>{title.length}/60</Text></View><View style={styles.chips}>{suggestions.map((item) => <Pressable key={item} onPress={() => setTitle(item)} style={styles.chip}><Text style={styles.chipText}>{item}</Text></Pressable>)}</View><View style={styles.profileNote}><Ionicons name="document-text-outline" size={18} color={palette.primary} /><View style={{ flex: 1 }}><Text style={styles.profileNoteTitle}>Bệnh lý lấy từ hồ sơ sức khỏe</Text><Text style={styles.diseaseHint}>{diseaseCodes.length ? diseaseCodes.map((code) => diseaseDisplay(code, diseases)).join(', ') : 'Không có bệnh lý cần lưu ý.'} Muốn thay đổi, hãy cập nhật ở Hồ sơ sức khỏe.</Text></View></View></ScrollView>; }
-function DurationStep({ weeks, setWeeks, startDate, setStartDate }: { weeks: number; setWeeks: (value: number) => void; startDate: string; setStartDate: (value: string) => void }) { const options = [{ value: 1, title: 'Kế hoạch tập trung cho tuần này' }]; const dates = Array.from({ length: 7 }, (_, index) => { const date = new Date(); date.setDate(date.getDate() + index); return date.toISOString().slice(0, 10); }); return <ScrollView contentContainerStyle={styles.stepBody}>{options.map((item) => <OptionCard key={item.value} selected={weeks === item.value} onPress={() => { setWeeks(item.value); hapticLocal(); }} title="1 tuần" detail={item.title} />)}<Text style={styles.diseasePrompt}>Bắt đầu từ ngày nào?</Text><View style={styles.dayGrid}>{dates.map((date) => <Pressable key={date} onPress={() => setStartDate(date)} style={[styles.dayChip, startDate === date && styles.dayChipSelected]}><Text style={[styles.dayChipName, startDate === date && styles.selectedText]}>{new Date(`${date}T00:00:00`).toLocaleDateString('vi-VN', { weekday: 'short', day: 'numeric', month: 'numeric' })}</Text>{startDate === date ? <Ionicons name="checkmark-circle" size={18} color={palette.textInverse} /> : null}</Pressable>)}</View></ScrollView>; }
+function DurationStep({ weeks, setWeeks, selectedDates, onToggleDate }: { weeks: number; setWeeks: (value: number) => void; selectedDates: string[]; onToggleDate: (date: string) => void }) { const options = [{ value: 1, title: 'Kế hoạch tập trung cho tuần này' }]; const dates = upcomingDates(7); return <ScrollView contentContainerStyle={styles.stepBody}>{options.map((item) => <OptionCard key={item.value} selected={weeks === item.value} onPress={() => { setWeeks(item.value); hapticLocal(); }} title="1 tuần" detail={item.title} />)}<Text style={styles.diseasePrompt}>Bạn tập vào những ngày nào?</Text><View style={styles.dayGrid}>{dates.map((date) => { const checked = selectedDates.includes(date); return <Pressable key={date} testID={`date-${date}`} onPress={() => onToggleDate(date)} accessibilityRole="checkbox" accessibilityState={{ checked }} style={[styles.dayChip, checked && styles.dayChipSelected]}><Text style={[styles.dayChipName, checked && styles.selectedText]}>{weekdays[dayOfWeekOf(date) - 1]}</Text>{checked ? <Ionicons name="checkmark-circle" size={18} color={palette.textInverse} /> : null}</Pressable>; })}</View></ScrollView>; }
 function orderedWeekdays(startDate: string) { const start = new Date(`${startDate}T00:00:00`).getDay(); const mondayIndex = start === 0 ? 6 : start - 1; return Array.from({ length: 7 }, (_, offset) => { const index = (mondayIndex + offset) % 7; return { day: index + 1, label: weekdays[index] }; }); }
-function DaysStep({ selected, onToggle, startDate }: { selected: number[]; onToggle: (day: number) => void; startDate: string }) { return <ScrollView contentContainerStyle={styles.stepBody}><View style={styles.dayGrid}>{orderedWeekdays(startDate).map(({ day, label }) => <Pressable key={day} onPress={() => onToggle(day)} accessibilityRole="checkbox" accessibilityState={{ checked: selected.includes(day) }} style={[styles.dayChip, selected.includes(day) && styles.dayChipSelected]}><Text style={[styles.dayChipName, selected.includes(day) && styles.selectedText]}>{label}</Text>{selected.includes(day) ? <Ionicons name="checkmark-circle" size={18} color={palette.textInverse} /> : null}</Pressable>)}</View></ScrollView>; }
 function ScheduleStep({ selectedDays, activeDay, setActiveDay, slots, slotsForDay, addSlot, updateSlot, removeSlot, copyDayToAll, error, startDate, onNext }: { selectedDays: number[]; activeDay: number; setActiveDay: (day: number) => void; slots: RoadmapSlotRequest[]; slotsForDay: RoadmapSlotRequest[]; addSlot: (day: number, period: SessionPeriod) => void; updateSlot: (index: number, changes: Partial<RoadmapSlotRequest>) => void; removeSlot: (index: number) => void; copyDayToAll: () => void; error: string; startDate: string; onNext: () => void }) { const labels = orderedWeekdays(startDate); return <ScrollView contentContainerStyle={styles.stepBody}><ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabs}>{selectedDays.map((day) => <Pressable key={day} onPress={() => setActiveDay(day)} style={[styles.dayTab, activeDay === day && styles.dayTabSelected]}><Text style={[styles.dayTabText, activeDay === day && styles.selectedText]}>{labels.find((item) => item.day === day)?.label}</Text>{slots.some((slot) => slot.dayOfWeek === day) ? <Ionicons name="checkmark" size={13} color={activeDay === day ? palette.textInverse : palette.primary} /> : null}</Pressable>)}</ScrollView><View style={styles.scheduleSummary}><Text style={styles.summaryStrong}>{weeklyMinutes(slots)} phút/tuần</Text><Text style={styles.summaryMuted}>{slots.length} khung đã tạo</Text></View>{periods.map((period) => <PeriodEditor key={period.key} period={period} day={activeDay} slots={slots} addSlot={addSlot} updateSlot={updateSlot} removeSlot={removeSlot} />)}{error ? <Text style={styles.error}>{error}</Text> : null}<Pressable onPress={copyDayToAll} accessibilityRole="button" style={styles.copyButton}><Ionicons name="copy-outline" size={17} color={palette.primary} /><Text style={styles.copyText}>Dùng lịch này cho tất cả ngày đã chọn</Text></Pressable></ScrollView>; }
 function PeriodEditor({ period, day, slots, addSlot, updateSlot, removeSlot }: { period: { key: SessionPeriod; label: string; icon: 'sunny-outline' | 'partly-sunny-outline' | 'moon-outline' }; day: number; slots: RoadmapSlotRequest[]; addSlot: (day: number, period: SessionPeriod) => void; updateSlot: (index: number, changes: Partial<RoadmapSlotRequest>) => void; removeSlot: (index: number) => void }) { const entries = slots.map((slot, index) => ({ slot, index })).filter(({ slot }) => slot.dayOfWeek === day && slot.sessionPeriod === period.key); return <View style={styles.periodBlock}><View style={styles.periodHeader}><View style={styles.row}><Ionicons name={period.icon} size={17} color={palette.primary} /><Text style={styles.periodTitle}>{period.label}</Text></View><Pressable onPress={() => addSlot(day, period.key)} disabled={entries.length >= 4} style={styles.addSlot}><Text style={styles.addSlotText}>+ Thêm khung</Text></Pressable></View>{entries.map(({ slot, index }) => <View key={`${period.key}-${index}`} style={styles.slotCard}><View style={styles.timeRow}><TextInput value={slot.startTime} onChangeText={(value) => updateSlot(index, { startTime: value })} maxLength={5} keyboardType="numbers-and-punctuation" style={styles.timeInput} /><Text style={styles.toText}>-</Text><TextInput value={slot.endTime} onChangeText={(value) => updateSlot(index, { endTime: value })} maxLength={5} keyboardType="numbers-and-punctuation" style={styles.timeInput} /><Pressable onPress={() => removeSlot(index)} accessibilityRole="button" accessibilityLabel="Xóa khung giờ" style={styles.removeSlot}><Ionicons name="trash-outline" size={17} color={palette.danger} /></Pressable></View><View style={styles.activityList}>{activityTypes.map((activity) => <Pressable key={activity.key} onPress={() => updateSlot(index, { activityType: activity.key as PlannedActivityType })} accessibilityRole="radio" accessibilityState={{ selected: slot.activityType === activity.key }} style={[styles.activityChip, slot.activityType === activity.key && styles.activityChipSelected]}><Text style={[styles.activityText, slot.activityType === activity.key && styles.selectedPrimary]}>{activity.label}</Text></Pressable>)}</View><Text style={styles.activityHint}>Chọn nội dung buổi tập</Text><View style={styles.activityPresets}>{activityPresets.map((preset) => <Pressable key={preset} onPress={() => updateSlot(index, { activity: preset })} accessibilityRole="button" style={[styles.activityPreset, slot.activity === preset && styles.activityPresetSelected]}><Text style={[styles.activityPresetText, slot.activity === preset && styles.selectedPrimary]}>{preset}</Text></Pressable>)}</View><TextInput value={slot.activity} onChangeText={(value) => updateSlot(index, { activity: value })} placeholder="Hoặc nhập nội dung khác" placeholderTextColor={palette.textMuted} style={styles.activityInput} /><Text style={styles.durationText}>{Math.max(0, (timeMinutes(slot.endTime) ?? 0) - (timeMinutes(slot.startTime) ?? 0))} phút</Text></View>)}</View>; }
 function ReviewStep({ title, weeks, slots, onEdit, onGenerate }: { title: string; weeks: number; slots: RoadmapSlotRequest[]; onEdit: (step: Step) => void; onGenerate: () => void }) { return <ScrollView contentContainerStyle={styles.stepBody}><View style={styles.reviewHero}><Ionicons name="checkmark-done-circle-outline" size={32} color={palette.primary} /><Text style={styles.reviewName}>{title}</Text><Text style={styles.summaryMuted}>{weeks} tuần · {slots.length} khung/tuần · {weeklyMinutes(slots)} phút/tuần</Text></View>{weekdays.map((day, index) => { const daySlots = slots.filter((slot) => slot.dayOfWeek === index + 1); return <View key={day} style={styles.reviewRow}><View style={styles.reviewRowText}><Text style={styles.reviewDay}>{day}</Text><Text style={styles.summaryMuted}>{daySlots.length ? daySlots.map((slot) => `${slot.startTime}-${slot.endTime}`).join(' · ') : 'Ngày nghỉ'}</Text></View></View>; })}<Pressable onPress={() => onEdit(4)} style={styles.editButton}><Ionicons name="create-outline" size={16} color={palette.primary} /><Text style={styles.copyText}>Sửa lịch</Text></Pressable><AppButton label="Tạo 3 phương án AI" onPress={onGenerate} /></ScrollView>; }

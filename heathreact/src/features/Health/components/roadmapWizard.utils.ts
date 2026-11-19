@@ -84,3 +84,34 @@ export function doctorRoutingNotice(reviewRequestId: number | null | undefined, 
 export function needsConsent(message: string | null | undefined) {
   return !!message && message.toLowerCase().includes('đồng ý sử dụng dữ liệu');
 }
+
+/** Ngày "YYYY-MM-DD" → thứ theo quy ước lịch tập (1 = Thứ 2 … 7 = Chủ nhật). */
+export function dayOfWeekOf(date: string) {
+  const day = new Date(`${date}T00:00:00`).getDay();
+  return day === 0 ? 7 : day;
+}
+
+/** Các ngày đã chọn ở bước 2 → các thứ tập trong tuần (không trùng, tăng dần) + ngày bắt đầu (ngày sớm nhất). */
+export function datesToSchedule(dates: string[]) {
+  const sorted = [...dates].sort();
+  return { startDate: sorted[0] ?? null, weekdaysSelected: [...new Set(sorted.map(dayOfWeekOf))].sort((a, b) => a - b) };
+}
+
+/** N ngày tới tính từ hôm nay theo giờ máy (YYYY-MM-DD), không lệch ngày quanh nửa đêm như toISOString. */
+export function upcomingDates(count = 7, from = new Date()) {
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(from.getFullYear(), from.getMonth(), from.getDate() + index);
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+  });
+}
+
+/** Bước hiển thị: bỏ bước 3 cũ (chọn thứ) nên bước nội bộ 4, 5 hiện là 3, 4 trên tổng 4. */
+export function displayStep(step: number) {
+  return step <= 2 ? step : step - 1;
+}
+export const DISPLAY_STEPS = 4;
+
+/** Hồ sơ lưu mục tiêu mặc định "HEALTH_RECORD" khi chưa chọn → hiển thị câu dễ hiểu. */
+export function goalLabel(goal: string | null | undefined) {
+  return !goal || !goal.trim() || goal.trim().toUpperCase() === 'HEALTH_RECORD' ? 'cải thiện sức khỏe' : goal.trim();
+}

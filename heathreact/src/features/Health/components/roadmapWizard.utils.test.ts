@@ -64,3 +64,31 @@ describe('needsConsent', () => {
     expect(needsConsent(null)).toBe(false);
   });
 });
+
+import { datesToSchedule, dayOfWeekOf, displayStep, goalLabel, upcomingDates, DISPLAY_STEPS } from './roadmapWizard.utils';
+
+describe('bước 2 chọn nhiều ngày (bỏ bước chọn thứ)', () => {
+  it('ngày → thứ (Thứ 2 = 1 … Chủ nhật = 7)', () => {
+    expect(dayOfWeekOf('2026-11-23')).toBe(1);
+    expect(dayOfWeekOf('2026-11-22')).toBe(7);
+  });
+
+  it('nhiều ngày → các thứ tập + ngày bắt đầu là ngày sớm nhất', () => {
+    expect(datesToSchedule(['2026-11-25', '2026-11-20', '2026-11-22'])).toEqual({ startDate: '2026-11-20', weekdaysSelected: [3, 5, 7] });
+    expect(datesToSchedule([])).toEqual({ startDate: null, weekdaysSelected: [] });
+  });
+
+  it('7 ngày tới tính theo giờ máy', () => {
+    expect(upcomingDates(3, new Date(2026, 10, 30, 23, 30))).toEqual(['2026-11-30', '2026-12-01', '2026-12-02']);
+  });
+
+  it('đánh số bước hiển thị 1/4 → 4/4 (bước nội bộ 3 đã bỏ)', () => {
+    expect([1, 2, 4, 5].map(displayStep)).toEqual([1, 2, 3, 4]);
+    expect(DISPLAY_STEPS).toBe(4);
+  });
+
+  it('không hiện mã HEALTH_RECORD', () => {
+    expect(goalLabel('HEALTH_RECORD')).toBe('cải thiện sức khỏe');
+    expect(goalLabel('Giảm cân')).toBe('Giảm cân');
+  });
+});

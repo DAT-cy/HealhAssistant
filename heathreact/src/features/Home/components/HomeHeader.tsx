@@ -1,8 +1,10 @@
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   ActivityIndicator,
+  Animated,
+  Easing,
   Modal,
   Platform,
   StyleSheet,
@@ -15,7 +17,8 @@ import { Pressable } from '@/components/ui/Pressable';
 import { fitnessTheme } from './HomeTypes';
 import { navigationService } from '@/routes';
 import Avatar, { type ProfileGender } from '@/components/ui/Avatar';
-import { profileService } from '@/api/services/profile.service';
+import { profileService, type ProfileResponse } from '@/api/services/profile.service';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 interface Props {
   username: string;
@@ -31,7 +34,7 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [pressedItem, setPressedItem] = useState<string | null>(null);
-  useQuery({ queryKey: ['profile', 'medical-record'], queryFn: profileService.getMine, enabled: showDropdown });
+  const profileQuery = useQuery({ queryKey: ['profile', 'medical-record'], queryFn: profileService.getMine, enabled: showDropdown });
 
   const pressHandlers = (key: string) => ({
     onPressIn: () => setPressedItem(key),
@@ -145,50 +148,18 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
       {/* ============================================================ */}
       {/* DROPDOWN MENU MODAL TỪ AVATAR (XỔ XUỐNG KHI BẤM AVATAR)      */}
       {/* ============================================================ */}
-      <Modal
+      <AccountSheet
         visible={showDropdown}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowDropdown(false)}
+        username={username}
+        avatarUrl={avatarUrl}
+        gender={gender}
+        profile={profileQuery.data}
+        onClose={() => setShowDropdown(false)}
         onDismiss={handleDropdownDismiss}
-      >
-<Pressable
-  style={styles.modalBackdrop}
-  onPress={() => setShowDropdown(false)}
->
-  <Pressable style={[styles.dropdownCard, { top: topInset + 60 }]} onPress={(event) => event.stopPropagation()}>
-    {/* Header thông tin người dùng */}
-    <View style={styles.dropdownUserRow}>
-      <Avatar gender={gender} imageUrl={avatarUrl} size={44} />
-      <View style={styles.dropdownUserMeta}>
-        <Text style={styles.dropdownUserName} numberOfLines={1}>
-          {username}
-        </Text>
-        <Text style={styles.dropdownUserCaption}>Tài khoản Health Assistant</Text>
-      </View>
-    </View>
-
-    <View style={styles.profileSummary}><Text style={styles.profileSummaryTitle}>Thông tin tài khoản</Text></View>
-
-    <View style={styles.dropdownDivider} />
-    <Pressable onPress={openHealthRecord} style={styles.profileAction} accessibilityRole="button"><Ionicons name="medical-outline" size={16} color={fitnessTheme.primary} /><Text style={styles.profileActionText}>Mở hồ sơ sức khỏe</Text><Ionicons name="chevron-forward" size={15} color={fitnessTheme.primary} /></Pressable>
-    <Pressable onPress={openPersonalSettings} style={styles.profileAction} accessibilityRole="button"><Ionicons name="options-outline" size={16} color={fitnessTheme.primary} /><Text style={styles.profileActionText}>Cài đặt cá nhân</Text><Ionicons name="chevron-forward" size={15} color={fitnessTheme.primary} /></Pressable>
-
-    <View style={styles.dropdownDivider} />
-
-    {/* Logout button */}
-    <Pressable
-      onPress={handleLogoutConfirm}
-      {...pressHandlers('logout')}
-      style={[styles.dropdownLogoutBtn, pressedItem === 'logout' && styles.dropdownLogoutBtnPressed]}
-      accessibilityRole="button"
-    >
-      <Ionicons name="log-out-outline" size={18} color={fitnessTheme.danger} />
-      <Text style={styles.dropdownLogoutText}>Đăng xuất tài khoản</Text>
-    </Pressable>
-  </Pressable>
-</Pressable>
-      </Modal>
+        onOpenHealthRecord={openHealthRecord}
+        onOpenPersonalSettings={openPersonalSettings}
+        onLogout={handleLogoutConfirm}
+      />
 
       {/* ============================================================ */}
       {/* NOTIFICATION TIPS MODAL                                      */}
@@ -308,7 +279,102 @@ export default function HomeHeader({ username, avatarUrl, gender, onLogout, topI
   );
 }
 
+/** Menu tài khoản dạng bottom sheet (kiểu app điện thoại): trượt lên từ dưới, chạm nền tối để đóng. */
+function AccountSheet({ visible, username, avatarUrl, gender, profile, onClose, onDismiss, onOpenHealthRecord, onOpenPersonalSettings, onLogout }: {
+  visible: boolean; username: string; avatarUrl: string | null; gender: ProfileGender | null; profile?: ProfileResponse;
+  onClose: () => void; onDismiss: () => void; onOpenHealthRecord: () => void; onOpenPersonalSettings: () => void; onLogout: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  const [translateY] = useState(() => new Animated.Value(400));
+  useEffect(() => {
+    if (!visible) return;
+    translateY.setValue(400);
+    Animated.timing(translateY, { toValue: 0, duration: 260, easing: Easing.out(Easing.cubic), useNativeDriver: true }).start();
+  }, [visible, translateY]);
+
+  const stats = [
+    profile?.heightCm ? `${profile.heightCm} cm` : null,
+    profile?.weightKg ? `${profile.weightKg} kg` : null,
+    profile?.age ? `${profile.age} tuổi` : null,
+  ].filter(Boolean) as string[];
+
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose} onDismiss={onDismiss}>
+      <View style={styles.sheetRoot}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityRole="button" accessibilityLabel="Đóng menu tài khoản" />
+        <Animated.View style={[styles.sheet, { paddingBottom: insets.bottom + 16, transform: [{ translateY }] }]}>
+          <View style={styles.sheetHandle} />
+
+          <View style={styles.sheetProfile}>
+            <Avatar gender={gender} imageUrl={avatarUrl} size={64} />
+            <Text style={styles.sheetName} numberOfLines={1}>{username}</Text>
+            <View style={styles.sheetRoleChip}><Ionicons name="shield-checkmark" size={12} color={fitnessTheme.primary} /><Text style={styles.sheetRoleText}>Tài khoản Health Assistant</Text></View>
+            {stats.length ? (
+              <View style={styles.sheetStats}>
+                {stats.map((item, index) => (
+                  <React.Fragment key={item}>
+                    {index ? <View style={styles.sheetStatDot} /> : null}
+                    <Text style={styles.sheetStatText}>{item}</Text>
+                  </React.Fragment>
+                ))}
+              </View>
+            ) : null}
+          </View>
+
+          <Text style={styles.sheetSectionLabel}>TÀI KHOẢN</Text>
+          <View style={styles.sheetGroup}>
+            <SheetRow icon="medkit" tint="#16A34A" title="Hồ sơ sức khỏe" subtitle="Chỉ số cơ thể, bệnh lý, dị ứng" onPress={onOpenHealthRecord} />
+            <View style={styles.sheetSeparator} />
+            <SheetRow icon="options" tint={fitnessTheme.primary} title="Cài đặt cá nhân" subtitle="Mục tiêu, thời gian rảnh, thói quen" onPress={onOpenPersonalSettings} />
+          </View>
+
+          <View style={[styles.sheetGroup, { marginTop: 14 }]}>
+            <Pressable onPress={onLogout} style={({ pressed }) => [styles.sheetLogout, pressed && styles.sheetRowPressed]} accessibilityRole="button" accessibilityLabel="Đăng xuất tài khoản">
+              <Ionicons name="log-out-outline" size={20} color={fitnessTheme.danger} />
+              <Text style={styles.sheetLogoutText}>Đăng xuất</Text>
+            </Pressable>
+          </View>
+        </Animated.View>
+      </View>
+    </Modal>
+  );
+}
+
+function SheetRow({ icon, tint, title, subtitle, onPress }: { icon: keyof typeof Ionicons.glyphMap; tint: string; title: string; subtitle: string; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} style={({ pressed }) => [styles.sheetRow, pressed && styles.sheetRowPressed]} accessibilityRole="button" accessibilityLabel={title}>
+      <View style={[styles.sheetRowIcon, { backgroundColor: tint }]}><Ionicons name={icon} size={18} color="#FFFFFF" /></View>
+      <View style={{ flex: 1 }}>
+        <Text style={styles.sheetRowTitle}>{title}</Text>
+        <Text style={styles.sheetRowSubtitle}>{subtitle}</Text>
+      </View>
+      <Ionicons name="chevron-forward" size={18} color="#C0C6D4" />
+    </Pressable>
+  );
+}
+
 const styles = StyleSheet.create({
+  /* Bottom sheet tài khoản */
+  sheetRoot: { flex: 1, justifyContent: 'flex-end', backgroundColor: 'rgba(15, 23, 42, 0.45)' },
+  sheet: { paddingHorizontal: 18, paddingTop: 10, borderTopLeftRadius: 28, borderTopRightRadius: 28, backgroundColor: '#F4F5FA', shadowColor: '#000', shadowOffset: { width: 0, height: -6 }, shadowOpacity: 0.12, shadowRadius: 18, elevation: 16 },
+  sheetHandle: { alignSelf: 'center', width: 40, height: 5, borderRadius: 3, backgroundColor: '#CBD2DD', marginBottom: 14 },
+  sheetProfile: { alignItems: 'center', gap: 6, paddingBottom: 18 },
+  sheetName: { marginTop: 4, color: '#0F172A', fontSize: 20, fontWeight: '800', maxWidth: '90%' },
+  sheetRoleChip: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: '#EFEEFF' },
+  sheetRoleText: { color: fitnessTheme.primary, fontSize: 12, fontWeight: '700' },
+  sheetStats: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
+  sheetStatText: { color: '#475569', fontSize: 13, fontWeight: '600' },
+  sheetStatDot: { width: 4, height: 4, borderRadius: 2, backgroundColor: '#CBD2DD' },
+  sheetSectionLabel: { marginLeft: 6, marginBottom: 6, color: '#8A93A6', fontSize: 11, fontWeight: '700', letterSpacing: 0.6 },
+  sheetGroup: { overflow: 'hidden', borderRadius: 16, backgroundColor: '#FFFFFF' },
+  sheetRow: { minHeight: 64, flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14 },
+  sheetRowPressed: { backgroundColor: '#F1F3F8' },
+  sheetRowIcon: { width: 34, height: 34, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  sheetRowTitle: { color: '#0F172A', fontSize: 15, fontWeight: '700' },
+  sheetRowSubtitle: { marginTop: 2, color: '#8A93A6', fontSize: 12 },
+  sheetSeparator: { height: StyleSheet.hairlineWidth, marginLeft: 60, backgroundColor: '#E2E6EE' },
+  sheetLogout: { minHeight: 54, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  sheetLogoutText: { color: fitnessTheme.danger, fontSize: 15, fontWeight: '700' },
   container: {
     marginBottom: 16,
   },
