@@ -4,7 +4,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { DoctorReviewRequest } from '@/api/services/doctor.service';
 import { Pressable } from '@/components/ui/Pressable';
 import { palette } from '@/theme/tokens';
-import { canDecide, canStart, doctorStatusLabel, REVIEW_ACTIONS, type ReviewAction } from '@/utils/doctorReview';
+import { canDecide, canStart, decisionLabel, doctorStatusLabel, prettyProfileText, priorityLabel, REVIEW_ACTIONS, stripWeekPrefix, viSeverityText, type ReviewAction } from '@/utils/doctorReview';
 
 interface Props {
   request: DoctorReviewRequest;
@@ -39,14 +39,14 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
 
       <View style={styles.headerRow}>
         <Text style={styles.title}>Yêu cầu #{request.id}</Text>
-        {request.previousRequestId ? <Text style={styles.muted}>Bản AI điều chỉnh theo nhận xét của yêu cầu #{request.previousRequestId}</Text> : null}
         <View style={styles.statusPill}><Text style={styles.statusText}>{doctorStatusLabel(request.status)}</Text></View>
       </View>
+      {request.previousRequestId ? <Text style={styles.muted}>Bản AI điều chỉnh theo nhận xét của yêu cầu #{request.previousRequestId}</Text> : null}
 
       <Section icon="person-outline" title="Người dùng">
         <Row label="Mã người dùng" value={`#${request.userId}`} />
         <Row label="Lộ trình" value={request.roadmapId ? `#${request.roadmapId}` : 'Chưa gắn lộ trình'} />
-        <Row label="Mức ưu tiên" value={request.priority} />
+        <Row label="Mức ưu tiên" value={priorityLabel(request.priority)} />
         <Row label="Tạo lúc" value={formatDate(request.createdAt)} />
       </Section>
 
@@ -58,20 +58,20 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
 
       <Section icon="alert-circle-outline" title="Lý do chuyển bác sĩ">
         <Text style={styles.body}>{request.reason || '—'}</Text>
-        <Text style={styles.muted}>Quyết định hệ thống: {request.decision} · Chính sách {request.policyVersion}</Text>
+        <Text style={styles.muted}>Quyết định hệ thống: {decisionLabel(request.decision)}</Text>
       </Section>
 
       {/* Yêu cầu cũ có riskSummary trùng reason: chỉ hiện khi có nội dung riêng. */}
       {riskSummary && riskSummary !== (request.reason || '').trim() ? (
         <Section icon="pulse-outline" title="Tóm tắt rủi ro">
-          <Text style={styles.body}>{riskSummary}</Text>
+          <Text style={styles.body}>{viSeverityText(riskSummary)}</Text>
         </Section>
       ) : null}
 
       <Section icon="document-text-outline" title="Nội dung lộ trình / hồ sơ gửi kèm">
         {fullText ? (
           <>
-            <Text style={styles.body} numberOfLines={showFull ? undefined : 12}>{fullText}</Text>
+            <Text style={styles.body} numberOfLines={showFull ? undefined : 12}>{prettyProfileText(fullText)}</Text>
             {longText ? (
               <Pressable onPress={() => setShowFull((value) => !value)} accessibilityRole="button">
                 <Text style={styles.link}>{showFull ? 'Thu gọn' : 'Xem toàn bộ'}</Text>
@@ -99,7 +99,7 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
           <View key={`${option.title}-${index}`} style={styles.option} testID={`ai-plan-${index}`}>
             <Text style={styles.optionTitle}>Phương án {index + 1}: {option.title}</Text>
             {option.overview ? <Text style={styles.body}>{option.overview}</Text> : null}
-            {(option.weeklyPlan ?? []).map((week, weekIndex) => <Text key={weekIndex} style={styles.muted}>Tuần {weekIndex + 1}: {week}</Text>)}
+            {(option.weeklyPlan ?? []).map((week, weekIndex) => <Text key={weekIndex} style={styles.muted}>Tuần {weekIndex + 1}: {stripWeekPrefix(week)}</Text>)}
             {option.safetyNotes?.length ? <Text style={styles.muted}>Lưu ý an toàn: {option.safetyNotes.join(' · ')}</Text> : null}
           </View>
         )) : <Text style={styles.muted}>Yêu cầu này chưa kèm phương án AI (tạo trước bản cập nhật). Duyệt xong, người dùng sẽ được AI lập phương án mới.</Text>}

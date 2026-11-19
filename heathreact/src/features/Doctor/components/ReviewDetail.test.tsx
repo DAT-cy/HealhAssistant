@@ -42,4 +42,16 @@ describe('ReviewDetail', () => {
     await renderDetail({ previousRequestId: 3 });
     expect(screen.getByText('Bản AI điều chỉnh theo nhận xét của yêu cầu #3')).toBeTruthy();
   });
+
+  it('hiển thị tiếng Việt, không lặp "Tuần 1: Tuần 1"', async () => {
+    await renderDetail({
+      priority: 'NORMAL', riskSummary: 'Tăng huyết áp (HTN) – mức HIGH, chuyên khoa Tim mạch', fullText: 'Tuổi: 25, chiều cao cm: 160.0, cân nặng kg: 65.0',
+      aiPlan: [{ title: 'A', overview: '', weeklyPlan: ['Tuần 1: Đi bộ nhẹ'], safetyNotes: [] }],
+    });
+    expect(screen.getByText('Bình thường')).toBeTruthy();
+    expect(screen.getByText('Quyết định hệ thống: Cần bác sĩ duyệt')).toBeTruthy();
+    expect(screen.getByText('Tăng huyết áp (HTN) – mức cao, chuyên khoa Tim mạch')).toBeTruthy();
+    expect(screen.getByText('Tuổi: 25, chiều cao: 160 cm, cân nặng: 65 kg')).toBeTruthy();
+    expect(screen.getByText('Tuần 1: Đi bộ nhẹ')).toBeTruthy();
+  });
 });

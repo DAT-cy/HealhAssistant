@@ -8,6 +8,7 @@ import AppModal from '@/components/ui/AppModal';
 import { Pressable } from '@/components/ui/Pressable';
 import { palette } from '@/theme/tokens';
 import { notify } from '@/utils/notify';
+import { stripWeekPrefix } from '@/utils/doctorReview';
 
 interface Props {
   requestId: number | null;
@@ -55,7 +56,7 @@ export default function ApprovedPlanModal({ requestId, onClose, onActivated }: P
               style={[styles.option, selected === index && styles.optionSelected]}>
               <Text style={styles.optionTitle}>Phương án {index + 1}: {option.title}</Text>
               <Text style={styles.body}>{option.overview}</Text>
-              {option.weeklyPlan.map((week, weekIndex) => <Text key={weekIndex} style={styles.muted}>Tuần {weekIndex + 1}: {week}</Text>)}
+              {option.weeklyPlan.map((week, weekIndex) => <Text key={weekIndex} style={styles.muted}>Tuần {weekIndex + 1}: {stripWeekPrefix(week)}</Text>)}
             </Pressable>
           ))}
         </ScrollView>

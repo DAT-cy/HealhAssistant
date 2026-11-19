@@ -97,3 +97,39 @@ export function revisionStalled(request: { status: string; completedAt: string |
   const finished = Date.parse(request.completedAt);
   return Number.isFinite(finished) && now - finished >= REVISION_STALE_MS;
 }
+
+/** Mức ưu tiên hiển thị tiếng Việt. */
+export function priorityLabel(priority: string | null | undefined) {
+  return priority === 'HIGH' ? 'Cao' : priority === 'NORMAL' ? 'Bình thường' : priority === 'LOW' ? 'Thấp' : priority || '—';
+}
+
+/** Quyết định định tuyến của hệ thống hiển thị tiếng Việt. */
+export function decisionLabel(decision: string | null | undefined) {
+  switch (decision) {
+    case 'DOCTOR_REVIEW_REQUIRED': return 'Cần bác sĩ duyệt';
+    case 'URGENT_MEDICAL_ATTENTION': return 'Cần đến cơ sở y tế';
+    case 'NEED_MORE_INFORMATION': return 'Cần thêm thông tin';
+    case 'AUTO_ROADMAP': return 'AI tự tạo lộ trình';
+    default: return decision || '—';
+  }
+}
+
+const SEVERITY_VI: Record<string, string> = { LOW: 'thấp', MODERATE: 'trung bình', HIGH: 'cao', CRITICAL: 'khẩn cấp' };
+/** "mức HIGH" → "mức cao" trong tóm tắt rủi ro do backend tạo. */
+export function viSeverityText(text: string) {
+  return text.replace(/mức (LOW|MODERATE|HIGH|CRITICAL)\b/g, (_, level: string) => `mức ${SEVERITY_VI[level]}`);
+}
+
+/** "chiều cao cm: 160.0, cân nặng kg: 65.0" → "chiều cao: 160 cm, cân nặng: 65 kg"; bỏ "trình độ vận động: UNSPECIFIED". */
+export function prettyProfileText(text: string) {
+  const num = (value: string) => String(Number(value));
+  return text
+    .replace(/chiều cao cm:\s*([\d.]+)/gi, (_, v: string) => `chiều cao: ${num(v)} cm`)
+    .replace(/cân nặng kg:\s*([\d.]+)/gi, (_, v: string) => `cân nặng: ${num(v)} kg`)
+    .replace(/,?\s*trình độ vận động:\s*UNSPECIFIED/gi, '');
+}
+
+/** AI hay tự ghi "Tuần 1: …" trong nội dung → bỏ để không hiện "Tuần 1: Tuần 1: …". */
+export function stripWeekPrefix(text: string) {
+  return text.replace(/^\s*Tuần\s*\d+\s*[:.\-–]\s*/i, '');
+}

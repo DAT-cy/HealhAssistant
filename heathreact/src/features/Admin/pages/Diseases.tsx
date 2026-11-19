@@ -2,7 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import React, { useMemo, useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, RefreshControl, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaProvider, SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ApiError } from '@/api/client';
 import { adminDiseaseService, type DiseaseCreateInput } from '@/api/services/admin.service';
 import type { Disease, RiskSeverity } from '@/api/services/doctor.service';
@@ -240,7 +240,10 @@ function Tag({ text, color }: { text: string; color: string }) {
 function DiseaseFormModal({ visible, existing, onClose, onCreated }: { visible: boolean; existing: Disease[]; onClose: () => void; onCreated: (disease: Disease) => void }) {
   return (
     <AppModal visible={visible} animationType="slide" onRequestClose={onClose}>
-      {visible ? <DiseaseForm existing={existing} onClose={onClose} onCreated={onCreated} /> : null}
+      {/* Modal là cửa sổ native riêng: cần SafeAreaProvider để tránh header (nút X) nằm dưới thanh trạng thái. */}
+      <SafeAreaProvider>
+        {visible ? <DiseaseForm existing={existing} onClose={onClose} onCreated={onCreated} /> : null}
+      </SafeAreaProvider>
     </AppModal>
   );
 }
@@ -274,7 +277,7 @@ function DiseaseForm({ existing, onClose, onCreated }: { existing: Disease[]; on
     <SafeAreaView style={styles.modalScreen}>
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={{ flex: 1 }}>
         <View style={styles.modalHeader}>
-          <Pressable onPress={onClose} style={styles.iconButton} accessibilityLabel="Đóng"><Ionicons name="close" size={22} color={palette.text} /></Pressable>
+          <Pressable onPress={onClose} hitSlop={10} style={styles.iconButton} accessibilityRole="button" accessibilityLabel="Đóng"><Ionicons name="close" size={22} color={palette.text} /></Pressable>
           <Text style={styles.modalTitle}>Thêm bệnh</Text>
           <View style={styles.iconButton} />
         </View>
