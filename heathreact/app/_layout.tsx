@@ -7,6 +7,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Toaster } from 'sonner-native';
 import { useUserStore } from '@/stores/user';
+import { clearCacheOnSessionChange } from '@/utils/sessionCache';
 
 // Keep the file-based root route as the only app entry point. The root route
 // then decides between auth and the protected area after token restoration.
@@ -20,6 +21,9 @@ export default function RootLayout() {
     },
   }));
   const init = useUserStore((state) => state.init);
+
+  // Đổi tài khoản → xoá dữ liệu tạm của tài khoản trước.
+  React.useEffect(() => clearCacheOnSessionChange(queryClient), [queryClient]);
 
   React.useEffect(() => {
     void init();
