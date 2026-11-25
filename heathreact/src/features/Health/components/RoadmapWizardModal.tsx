@@ -5,6 +5,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useQuery } from '@tanstack/react-query';
+import RoadmapReferences from '@/components/common/RoadmapReferences';
 import { Pressable } from '@/components/ui/Pressable';
 import AppButton from '@/components/ui/AppButton';
 import { palette, radius, spacing } from '@/theme/tokens';
@@ -208,6 +209,7 @@ function PreviewStep({ roadmap, selected, setSelected, weeks, slots, page, setPa
         <View style={styles.previewSection}><Text style={styles.previewLabel}>Tổng quan</Text><Text style={styles.previewOverview}>{plan.overview}</Text></View>
         <View style={styles.previewSection}><Text style={styles.previewLabel}>Mục tiêu từng tuần</Text>{plan.weeklyPlan.map((week, weekIndex) => <View key={weekIndex} style={styles.weekRow}><Text style={styles.weekBadge}>{weekIndex + 1}</Text><Text style={styles.weekPlan}>{week}</Text></View>)}</View>
         <View style={styles.safetyBox}><Text style={styles.previewLabel}>Lưu ý an toàn</Text>{plan.safetyNotes.map((note, noteIndex) => <Text key={noteIndex} style={styles.safety}>• {note}</Text>)}</View>
+        <RoadmapReferences references={plan.references} />
         <Pressable onPress={() => setSelected(index)} accessibilityRole="radio" accessibilityState={{ selected: selected === index }} style={[styles.selectPlan, selected === index && styles.selectPlanSelected]}><Text style={[styles.selectPlanText, selected === index && styles.selectedText]}>{selected === index ? 'Đã chọn phương án này' : 'Chọn phương án này'}</Text></Pressable>
       </ScrollView>)}
     </ScrollView>

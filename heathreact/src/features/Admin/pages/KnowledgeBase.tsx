@@ -29,6 +29,7 @@ import {
   type KnowledgeCategory,
   type KnowledgeDocument,
 } from '@/api/services/knowledge-admin.service';
+import { adminDiseaseService } from '@/api/services/admin.service';
 
 const PRIMARY = palette.primary;
 const EMPTY_CATEGORIES: KnowledgeCategory[] = [];
@@ -86,6 +87,14 @@ export default function KnowledgeBasePage() {
     queryFn: () => knowledgeAdminService.list(status, query),
     enabled: role === 'ROLE_ADMIN',
   });
+  const { data: diseaseData } = useQuery({
+    queryKey: ['admin', 'diseases', 'for-knowledge'],
+    queryFn: adminDiseaseService.list,
+    enabled: role === 'ROLE_ADMIN',
+  });
+  const diseases = (diseaseData ?? []).filter((disease) => disease.active);
+  const [diseaseCode, setDiseaseCode] = useState('');
+  const [linking, setLinking] = useState(false);
   const categories = categoryData ?? EMPTY_CATEGORIES;
   const documents = documentData ?? [];
   const queryError = categoryError ?? statsError ?? documentError;
@@ -157,9 +166,10 @@ export default function KnowledgeBasePage() {
     }
     setBusy(true);
     try {
-      await knowledgeAdminService.upload({ file, ...form, title: form.title.trim(), categoryCode: activeCategoryCode });
+      await knowledgeAdminService.upload({ file, ...form, title: form.title.trim(), categoryCode: activeCategoryCode, diseaseCode });
       setUploadOpen(false);
       setFile(null);
+      setDiseaseCode('');
       setRightsConfirmed(false);
       reset(emptyForm);
       await load();
@@ -171,6 +181,20 @@ export default function KnowledgeBasePage() {
   };
 
   const uploadDocument = handleSubmit(submitUpload);
+
+  const linkDisease = async (code: string | null) => {
+    if (!selected || linking) return;
+    setLinking(true);
+    try {
+      const updated = await knowledgeAdminService.assignDisease(selected.id, code);
+      setSelected(updated);
+      await refetchDocuments();
+    } catch (e) {
+      Alert.alert('Không gắn được bệnh lý', e instanceof Error ? e.message : 'Thử lại sau.');
+    } finally {
+      setLinking(false);
+    }
+  };
 
   const importWhoGuideline = async () => {
     setBusy(true);
@@ -319,6 +343,12 @@ export default function KnowledgeBasePage() {
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipList}>
               {categories.map((category) => <FilterChip key={category.code} label={category.name} active={activeCategoryCode === category.code} onPress={() => setCategoryCode(category.code)} />)}
             </ScrollView>
+            <Text style={styles.fieldLabel}>Bệnh lý áp dụng</Text>
+            <Text style={styles.fileMeta}>AI sẽ dùng tài liệu này khi tạo lộ trình cho người dùng có bệnh đã chọn.</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipList}>
+              <FilterChip label="Tài liệu chung" active={!diseaseCode} onPress={() => setDiseaseCode('')} />
+              {diseases.map((disease) => <FilterChip key={disease.code} label={disease.name} active={diseaseCode === disease.code} onPress={() => setDiseaseCode(disease.code)} />)}
+            </ScrollView>
             <Text style={styles.fieldLabel}>Loại tài liệu</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipList}>
               {TYPES.map((type) => <FilterChip key={type.value} label={type.label} active={documentType === type.value} onPress={() => setValue('documentType', type.value as UploadForm['documentType'], { shouldDirty: true })} />)}
@@ -362,6 +392,12 @@ export default function KnowledgeBasePage() {
               <View style={styles.detailFacts}>
                 <Fact label="Danh mục" value={selected.categoryName} /><Fact label="Loại" value={typeLabel(selected.documentType)} /><Fact label="Đoạn trích" value={`${selected.chunkCount}`} /><Fact label="MIME phát hiện" value={selected.detectedMime} />
               </View>
+              <Fact label="Bệnh lý áp dụng" value={selected.diseaseName || 'Tài liệu chung'} />
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipList}>
+                <FilterChip label="Tài liệu chung" active={!selected.diseaseCode} onPress={() => void linkDisease(null)} />
+                {diseases.map((disease) => <FilterChip key={disease.code} label={disease.name} active={selected.diseaseCode === disease.code} onPress={() => void linkDisease(disease.code)} />)}
+              </ScrollView>
+              {linking ? <ActivityIndicator color={PRIMARY} /> : null}
               {selected.description ? <Text style={styles.detailDescription}>{selected.description}</Text> : null}
               {selected.sourceOrganization ? <Fact label="Nguồn" value={selected.sourceOrganization} /> : null}
               {selected.sourceUrl ? <Fact label="URL / DOI" value={selected.sourceUrl} /> : null}
@@ -399,7 +435,7 @@ function DocumentRow({ item, onPress, onArchive }: { item: KnowledgeDocument; on
     <View style={styles.documentIcon}><Ionicons name="document-text-outline" size={20} color="#0F766E" /></View>
     <View style={styles.documentInfo}>
       <Text style={styles.documentTitle} numberOfLines={2}>{item.title}</Text>
-      <Text style={styles.documentMeta} numberOfLines={1}>{item.categoryName} · {item.originalFilename}</Text>
+      <Text style={styles.documentMeta} numberOfLines={1}>{item.diseaseName ? `${item.diseaseName} · ` : ''}{item.categoryName} · {item.originalFilename}</Text>
       <View style={styles.documentBottom}><StatusBadge status={item.status} /><Text style={styles.documentMeta}>{item.chunkCount} đoạn · {formatBytes(item.fileSizeBytes)}</Text></View>
     </View>
     <Pressable onPress={(event) => { event.stopPropagation(); onArchive(); }} hitSlop={10} style={styles.rowAction} accessibilityLabel="Lưu trữ tài liệu">

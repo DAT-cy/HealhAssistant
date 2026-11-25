@@ -1,6 +1,7 @@
 import { Platform } from 'react-native';
 import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
+import { appendFile } from '@/utils/formFile';
 
 export interface PersonalAssistantProfile {
   id: number | null; fitnessGoal: string | null; currentCondition: string | null; fitnessLevel: string | null;
@@ -30,7 +31,7 @@ export const personalAssistantService = {
     if (Platform.OS === 'web') {
       const blob = file.file ?? await (await fetch(file.uri)).blob();
       form.append('file', blob, file.name);
-    } else form.append('file', { uri: file.uri, name: file.name, type: file.mimeType || 'application/pdf' } as unknown as Blob);
+    } else await appendFile(form, 'file', { uri: file.uri, name: file.name, type: file.mimeType || 'application/pdf' });
     form.append('title', title); form.append('description', description);
     return apiClient.request<PersonalDocument>(`${path}/documents/pdf`, { method: 'POST', body: form, timeoutMs: 120000 });
   },

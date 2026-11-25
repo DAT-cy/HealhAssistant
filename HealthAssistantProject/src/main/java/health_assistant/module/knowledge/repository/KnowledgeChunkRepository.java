@@ -21,5 +21,8 @@ public interface KnowledgeChunkRepository extends JpaRepository<KnowledgeChunk, 
     @Query("select c from KnowledgeChunk c join fetch c.document d where d.status = 'APPROVED' and d.deletedAt is null")
     List<KnowledgeChunk> findAllApprovedWithDocument();
 
+    @Query("select c from KnowledgeChunk c join fetch c.document d where d.status = 'APPROVED' and d.deletedAt is null and d.diseaseCode in :codes order by d.id, c.chunkIndex")
+    List<KnowledgeChunk> findApprovedByDiseaseCodes(@org.springframework.data.repository.query.Param("codes") java.util.Collection<String> codes);
+
     void deleteAllByDocumentId(Long documentId);
 }

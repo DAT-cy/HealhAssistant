@@ -1,6 +1,7 @@
 import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
 import { Platform } from 'react-native';
+import { appendFile } from '@/utils/formFile';
 
 export interface ExerciseGuide {
   id: number;
@@ -53,7 +54,7 @@ export const gymWorkoutService = {
       const file = asset.file ?? await (await fetch(asset.uri)).blob();
       form.append('file', file, asset.fileName ?? 'pose.jpg');
     } else {
-      form.append('file', { uri: asset.uri, name: asset.fileName ?? 'pose.jpg', type: asset.mimeType ?? 'image/jpeg' } as unknown as Blob);
+      await appendFile(form, 'file', { uri: asset.uri, name: asset.fileName ?? 'pose.jpg', type: asset.mimeType ?? 'image/jpeg' });
     }
     form.append('cameraFacing', facing);
     return apiClient.request<GymPoseFeedback>(`${apiVersion}/workout/gym/sessions/${sessionId}/analyze-photo`, { method: 'POST', body: form, ai: true, timeoutMs: 120000 });

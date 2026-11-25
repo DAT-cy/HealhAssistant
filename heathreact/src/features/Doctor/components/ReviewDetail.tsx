@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import React, { useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import type { DoctorReviewRequest } from '@/api/services/doctor.service';
+import RoadmapReferences from '@/components/common/RoadmapReferences';
 import { Pressable } from '@/components/ui/Pressable';
 import { palette } from '@/theme/tokens';
 import { canDecide, canStart, decisionLabel, doctorStatusLabel, prettyProfileText, priorityLabel, REVIEW_ACTIONS, stripWeekPrefix, viSeverityText, type ReviewAction } from '@/utils/doctorReview';
@@ -101,6 +102,7 @@ export default function ReviewDetail({ request, starting, onBack, onStart, onDec
             {option.overview ? <Text style={styles.body}>{option.overview}</Text> : null}
             {(option.weeklyPlan ?? []).map((week, weekIndex) => <Text key={weekIndex} style={styles.muted}>Tuần {weekIndex + 1}: {stripWeekPrefix(week)}</Text>)}
             {option.safetyNotes?.length ? <Text style={styles.muted}>Lưu ý an toàn: {option.safetyNotes.join(' · ')}</Text> : null}
+            <RoadmapReferences references={option.references} />
           </View>
         )) : <Text style={styles.muted}>Yêu cầu này chưa kèm phương án AI (tạo trước bản cập nhật). Duyệt xong, người dùng sẽ được AI lập phương án mới.</Text>}
       </Section>

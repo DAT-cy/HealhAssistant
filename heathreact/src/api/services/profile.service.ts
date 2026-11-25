@@ -2,6 +2,7 @@ import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
 import type { ImagePickerAsset } from 'expo-image-picker';
 import type { ProfileGender } from '@/components/ui/Avatar';
+import { appendFile } from '@/utils/formFile';
 
 export interface ProfileRequest {
   goal?: string;
@@ -51,11 +52,7 @@ export const profileService = {
   save: (body: ProfileRequest) => apiClient.request<ProfileResponse>(`${apiVersion}/profiles`, { method: 'POST', body: JSON.stringify(body) }),
   uploadAvatar: async (asset: ImagePickerAsset) => {
     const form = new FormData();
-    form.append('file', {
-      uri: asset.uri,
-      name: asset.fileName ?? 'avatar.jpg',
-      type: asset.mimeType ?? 'image/jpeg',
-    } as unknown as Blob);
+    await appendFile(form, 'file', { uri: asset.uri, name: asset.fileName ?? 'avatar.jpg', type: asset.mimeType ?? 'image/jpeg', file: asset.file });
     return apiClient.request<ProfileResponse>(`${apiVersion}/profiles/me/avatar`, { method: 'POST', body: form });
   },
 };

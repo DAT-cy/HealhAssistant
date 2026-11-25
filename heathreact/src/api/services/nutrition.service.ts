@@ -2,6 +2,7 @@ import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
 import { Platform } from 'react-native';
 import type { ImagePickerAsset } from 'expo-image-picker';
+import { appendFile } from '@/utils/formFile';
 
 export type MealType = 'BREAKFAST' | 'LUNCH' | 'DINNER';
 export interface MealAnalysisResult {
@@ -82,7 +83,7 @@ export const nutritionService = {
       const image = asset.file ?? await (await fetch(asset.uri)).blob();
       form.append('file', image, asset.fileName ?? 'meal.jpg');
     } else {
-      form.append('file', { uri: asset.uri, name: asset.fileName ?? 'meal.jpg', type: asset.mimeType ?? 'image/jpeg' } as unknown as Blob);
+      await appendFile(form, 'file', { uri: asset.uri, name: asset.fileName ?? 'meal.jpg', type: asset.mimeType ?? 'image/jpeg' });
     }
     Object.entries(input).forEach(([key, value]) => { if (value !== undefined) form.append(key, String(value)); });
     return apiClient.request<MealAnalysisLog>(`${apiVersion}/nutrition/meals/analyze`, { method: 'POST', body: form, ai: true, timeoutMs: 120000 });

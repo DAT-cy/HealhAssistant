@@ -34,6 +34,10 @@ public class KnowledgeDocument {
     @Column(nullable = false, length = 255)
     private String title;
 
+    /** Mã bệnh trong danh mục (doctor_diseases.code) mà tài liệu này hướng dẫn; null = tài liệu chung. */
+    @Column(name = "disease_code", length = 40)
+    private String diseaseCode;
+
     @Column(length = 2000)
     private String description;
 
