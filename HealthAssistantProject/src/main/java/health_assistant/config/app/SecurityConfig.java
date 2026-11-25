@@ -65,6 +65,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/v1/admin/diseases/**").hasRole(Role.ROLE_ADMIN.getName())
                         .requestMatchers("/api/v1/doctor/**").hasRole(Role.ROLE_DOCTOR.getName())
                         .requestMatchers("/api/v1/admin/**").denyAll()
+                        // Xem trước nguồn tham khảo của lộ trình: người dùng, bác sĩ và admin đều cần.
+                        .requestMatchers("/api/v1/knowledge/**").hasAnyRole(Role.ROLE_USER.getName(), Role.ROLE_DOCTOR.getName(), Role.ROLE_ADMIN.getName())
                         .requestMatchers("/api/v1/**").hasRole(Role.ROLE_USER.getName())
                         .anyRequest().authenticated()
                 )

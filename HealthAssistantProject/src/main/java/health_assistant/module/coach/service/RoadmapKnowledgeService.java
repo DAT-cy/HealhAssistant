@@ -70,7 +70,7 @@ public class RoadmapKnowledgeService {
             if (guidance.isBlank()) continue;
             append(context, "[Danh mục bệnh – " + disease.getName() + "] " + clip(guidance, MAX_CHUNK_CHARS));
             references.add(new RoadmapReference(RoadmapReference.DISEASE_CATALOG, "Hướng dẫn bệnh lý: " + disease.getName(),
-                    "Danh mục bệnh lý nội bộ", httpUrl(disease.getReferenceSource())));
+                    "Danh mục bệnh lý nội bộ", httpUrl(disease.getReferenceSource()), null, disease.getCode()));
         }
 
         // 2) Tài liệu đã duyệt được gắn với đúng bệnh của người dùng.
@@ -109,7 +109,7 @@ public class RoadmapKnowledgeService {
 
     private static RoadmapReference internal(KnowledgeDocument document) {
         return new RoadmapReference(RoadmapReference.INTERNAL_DOCUMENT, document.getTitle(),
-                document.getSourceOrganization(), httpUrl(document.getSourceUrl()));
+                document.getSourceOrganization(), httpUrl(document.getSourceUrl()), document.getId(), null);
     }
 
     private static List<RoadmapReference> dedupe(List<RoadmapReference> references) {
