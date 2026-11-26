@@ -63,5 +63,9 @@ public class AdminExerciseController {
         e.setSets(r.sets()); e.setReps(r.reps()); e.setRestSeconds(r.restSeconds());
         e.setCommonMistakes(r.commonMistakes()); e.setContraindications(r.contraindications());
         if (r.active() != null) e.setActive(r.active());
+        if (r.contraindicatedDiseaseCodes() != null) {
+            List<String> codes = ExerciseCatalogResponse.splitCodes(r.contraindicatedDiseaseCodes().toUpperCase(Locale.ROOT));
+            e.setContraindicatedDiseaseCodes(codes.isEmpty() ? null : String.join(",", codes));
+        }
     }
 }

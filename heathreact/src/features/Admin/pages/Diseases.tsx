@@ -109,6 +109,7 @@ export default function AdminDiseasesPage() {
         <NavItem label="Tổng quan" icon="grid-outline" onPress={() => navigationService.navigate('AdminDashboard')} />
         <NavItem label="Bệnh lý" icon="medkit" active />
         <NavItem label="Kho tri thức" icon="library-outline" onPress={() => navigationService.navigate('AdminKnowledge')} />
+        <NavItem label="Bài tập" icon="barbell-outline" onPress={() => navigationService.navigate('AdminExercises')} />
       </View>
 
       <ScrollView

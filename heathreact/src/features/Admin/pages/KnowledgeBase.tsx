@@ -30,6 +30,7 @@ import {
   type KnowledgeDocument,
 } from '@/api/services/knowledge-admin.service';
 import { adminDiseaseService } from '@/api/services/admin.service';
+import { doctorService } from '@/api/services/doctor.service';
 
 const PRIMARY = palette.primary;
 const EMPTY_CATEGORIES: KnowledgeCategory[] = [];
@@ -66,15 +67,18 @@ export default function KnowledgeBasePage() {
   const role = useUserStore((state) => state.role);
   const username = useUserStore((state) => state.username);
   const logout = useUserStore((state) => state.logout);
+  const isAdmin = role === 'ROLE_ADMIN';
+  const isDoctor = role === 'ROLE_DOCTOR';
+  const allowed = isAdmin || isDoctor;
   const { data: categoryData, error: categoryError, refetch: refetchCategories } = useQuery({
     queryKey: ['admin', 'knowledge', 'categories'],
     queryFn: knowledgeAdminService.categories,
-    enabled: role === 'ROLE_ADMIN',
+    enabled: allowed,
   });
   const { data: stats, error: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['admin', 'knowledge', 'stats'],
     queryFn: knowledgeAdminService.stats,
-    enabled: role === 'ROLE_ADMIN',
+    enabled: allowed,
   });
   const [selected, setSelected] = useState<KnowledgeDocument | null>(null);
   const [audit, setAudit] = useState<KnowledgeAudit[]>([]);
@@ -85,12 +89,12 @@ export default function KnowledgeBasePage() {
   const { data: documentData, error: documentError, isLoading: documentsLoading, refetch: refetchDocuments } = useQuery({
     queryKey: ['admin', 'knowledge', 'documents', status, query],
     queryFn: () => knowledgeAdminService.list(status, query),
-    enabled: role === 'ROLE_ADMIN',
+    enabled: allowed,
   });
   const { data: diseaseData } = useQuery({
-    queryKey: ['admin', 'diseases', 'for-knowledge'],
-    queryFn: adminDiseaseService.list,
-    enabled: role === 'ROLE_ADMIN',
+    queryKey: ['knowledge', 'disease-options', role],
+    queryFn: async () => (isAdmin ? adminDiseaseService.list() : doctorService.diseases()),
+    enabled: allowed,
   });
   const diseases = (diseaseData ?? []).filter((disease) => disease.active);
   const [diseaseCode, setDiseaseCode] = useState('');
@@ -113,11 +117,11 @@ export default function KnowledgeBasePage() {
   const focusedOnce = useRef(false);
 
   const load = useCallback(async () => {
-    if (role !== 'ROLE_ADMIN') return;
+    if (!allowed) return;
     setRefreshing(true);
     await Promise.all([refetchCategories(), refetchStats(), refetchDocuments()]);
     setRefreshing(false);
-  }, [role, refetchCategories, refetchStats, refetchDocuments]);
+  }, [allowed, refetchCategories, refetchStats, refetchDocuments]);
 
   useFocusEffect(useCallback(() => {
     if (focusedOnce.current) void load();
@@ -242,10 +246,10 @@ export default function KnowledgeBasePage() {
     ],
   );
 
-  if (role !== 'ROLE_ADMIN') {
+  if (!allowed) {
     return <SafeAreaView style={styles.screen}><View style={styles.denied}>
       <Ionicons name="lock-closed-outline" size={30} color="#64748B" />
-      <Text style={styles.title}>Chỉ dành cho quản trị viên</Text>
+      <Text style={styles.title}>Chỉ dành cho quản trị viên và bác sĩ</Text>
       <Pressable onPress={() => navigationService.goBack()}><Text style={styles.link}>Quay lại</Text></Pressable>
     </View></SafeAreaView>;
   }
@@ -257,7 +261,7 @@ export default function KnowledgeBasePage() {
         <View style={styles.adminBrandIcon}><Ionicons name="library" size={20} color={PRIMARY} /></View>
         <View style={styles.adminHeaderCopy}>
           <Text style={styles.adminBrand}>HEALTH ASSISTANT</Text>
-          <Text style={styles.adminIdentity} numberOfLines={1}>Quản trị viên · {username || 'admin'}</Text>
+          <Text style={styles.adminIdentity} numberOfLines={1}>{isDoctor ? 'Bác sĩ' : 'Quản trị viên'} · {username || (isDoctor ? 'doctor' : 'admin')}</Text>
         </View>
         <Pressable onPress={() => void logout()} style={styles.logoutButton} accessibilityRole="button" accessibilityLabel="Đăng xuất">
           <Ionicons name="log-out-outline" size={20} color="#475569" />
@@ -271,11 +275,11 @@ export default function KnowledgeBasePage() {
       >
         <View style={styles.pageHeading}>
           <View style={styles.headingCopy}>
-            <Text style={styles.eyebrow}>KHU VỰC QUẢN TRỊ</Text>
+            <Text style={styles.eyebrow}>{isDoctor ? 'KHU VỰC BÁC SĨ' : 'KHU VỰC QUẢN TRỊ'}</Text>
             <Text style={styles.title}>Dữ liệu kiến thức</Text>
             <Text style={styles.subtitle}>Quản lý tài liệu nhập, nguồn và kiểm duyệt</Text>
           </View>
-          <Pressable onPress={() => navigationService.navigate('AdminDashboard')} style={styles.secondaryHeaderButton} accessibilityRole="button" accessibilityLabel="Mở tổng quan quản trị">
+          <Pressable onPress={() => navigationService.navigate(isDoctor ? 'DoctorDashboard' : 'AdminDashboard')} style={styles.secondaryHeaderButton} accessibilityRole="button" accessibilityLabel="Mở trang tổng quan">
             <Ionicons name="grid-outline" size={17} color={PRIMARY} />
           </Pressable>
           <Pressable onPress={() => void importWhoGuideline()} disabled={busy} style={[styles.whoButton, busy && styles.disabled]} accessibilityRole="button" accessibilityLabel="Nhập hướng dẫn hoạt động thể chất WHO">
@@ -315,14 +319,18 @@ export default function KnowledgeBasePage() {
           <Ionicons name="documents-outline" size={28} color="#94A3B8" />
           <Text style={styles.emptyTitle}>Chưa có tài liệu phù hợp</Text>
           <Text style={styles.emptyText}>Nhập PDF, DOCX, TXT, Markdown, CSV hoặc XLSX để bắt đầu.</Text>
-        </View> : documents.map((document) => <DocumentRow key={document.id} item={document} onPress={() => void openDetails(document)} onArchive={() => archive(document)} />)}
+        </View> : documents.map((document) => <DocumentRow key={document.id} item={document} onPress={() => void openDetails(document)} onArchive={isAdmin ? () => archive(document) : undefined} />)}
       </ScrollView>
 
       <View style={[styles.adminFooter, { paddingBottom: Math.max(insets.bottom, 8) }]}>
         <View style={styles.footerActiveIcon}><Ionicons name="library" size={19} color={PRIMARY} /></View>
         <Text style={styles.footerActiveText}>Kho tri thức</Text>
+        <Pressable onPress={() => navigationService.navigate(isDoctor ? 'DoctorExercises' : 'AdminExercises')} style={styles.footerLink} accessibilityRole="button" accessibilityLabel="Mở thư viện bài tập">
+          <Ionicons name="barbell-outline" size={17} color="#475569" />
+          <Text style={styles.footerLinkText}>Bài tập</Text>
+        </Pressable>
         <View style={styles.footerDivider} />
-        <Text style={styles.footerRole}>ADMIN</Text>
+        <Text style={styles.footerRole}>{isDoctor ? 'BÁC SĨ' : 'ADMIN'}</Text>
       </View>
 
       <AppModal visible={uploadOpen} animationType="slide" onRequestClose={() => setUploadOpen(false)}>
@@ -415,7 +423,7 @@ export default function KnowledgeBasePage() {
                   <Pressable disabled={busy} onPress={() => void review('APPROVE')} style={styles.approveButton}><Ionicons name="checkmark-circle-outline" size={18} color="#FFFFFF" /><Text style={styles.primaryButtonText}>Duyệt nội dung</Text></Pressable>
                 </View>
               </>}
-              <Pressable onPress={() => archive(selected)} style={styles.archiveButton}><Ionicons name="archive-outline" size={17} color="#475569" /><Text style={styles.archiveText}>Lưu trữ tài liệu</Text></Pressable>
+              {isAdmin ? <Pressable onPress={() => archive(selected)} style={styles.archiveButton}><Ionicons name="archive-outline" size={17} color="#475569" /><Text style={styles.archiveText}>Lưu trữ tài liệu</Text></Pressable> : null}
             </ScrollView>}
           </>}
         </SafeAreaView>
@@ -430,7 +438,7 @@ function Stat({ label, value, color }: { label: string; value: number; color: st
 function FilterChip({ label, active, onPress }: { label: string; active: boolean; onPress: () => void }) {
   return <Pressable onPress={onPress} style={[styles.filterChip, active && styles.filterChipActive]}><Text style={[styles.filterText, active && styles.filterTextActive]}>{label}</Text></Pressable>;
 }
-function DocumentRow({ item, onPress, onArchive }: { item: KnowledgeDocument; onPress: () => void; onArchive: () => void }) {
+function DocumentRow({ item, onPress, onArchive }: { item: KnowledgeDocument; onPress: () => void; onArchive?: () => void }) {
   return <Pressable onPress={onPress} style={({ pressed }) => [styles.documentRow, pressed && styles.pressed]}>
     <View style={styles.documentIcon}><Ionicons name="document-text-outline" size={20} color="#0F766E" /></View>
     <View style={styles.documentInfo}>
@@ -438,9 +446,9 @@ function DocumentRow({ item, onPress, onArchive }: { item: KnowledgeDocument; on
       <Text style={styles.documentMeta} numberOfLines={1}>{item.diseaseName ? `${item.diseaseName} · ` : ''}{item.categoryName} · {item.originalFilename}</Text>
       <View style={styles.documentBottom}><StatusBadge status={item.status} /><Text style={styles.documentMeta}>{item.chunkCount} đoạn · {formatBytes(item.fileSizeBytes)}</Text></View>
     </View>
-    <Pressable onPress={(event) => { event.stopPropagation(); onArchive(); }} hitSlop={10} style={styles.rowAction} accessibilityLabel="Lưu trữ tài liệu">
+    {onArchive ? <Pressable onPress={(event) => { event.stopPropagation(); onArchive(); }} hitSlop={10} style={styles.rowAction} accessibilityLabel="Lưu trữ tài liệu">
       <Ionicons name="ellipsis-vertical" size={18} color="#64748B" />
-    </Pressable>
+    </Pressable> : null}
   </Pressable>;
 }
 function StatusBadge({ status }: { status: string }) {
@@ -475,6 +483,8 @@ const styles = StyleSheet.create({
   footerActiveIcon: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   footerActiveText: { color: PRIMARY, fontSize: 12, fontWeight: '700' },
   footerDivider: { flex: 1 },
+  footerLink: { flexDirection: 'row', alignItems: 'center', gap: 5, marginLeft: 14, paddingVertical: 6, paddingHorizontal: 10, borderRadius: 8, backgroundColor: '#F1F5F9' },
+  footerLinkText: { color: '#475569', fontSize: 12, fontWeight: '700' },
   footerRole: { color: '#64748B', fontSize: 10, fontWeight: '800' },
   pageHeading: { minHeight: 76, marginTop: 16, marginBottom: 4, flexDirection: 'row', alignItems: 'center', gap: 10 },
   headingCopy: { flex: 1 },

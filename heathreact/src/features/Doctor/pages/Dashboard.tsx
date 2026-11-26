@@ -5,6 +5,7 @@ import { ActivityIndicator, RefreshControl, ScrollView, StyleSheet, Text, TextIn
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { doctorService, type Disease, type DoctorDashboard as DoctorDashboardData, type DoctorReviewRequest } from '@/api/services/doctor.service';
 import { Pressable } from '@/components/ui/Pressable';
+import { navigationService } from '@/routes';
 import { useUserStore } from '@/stores/user';
 import { palette } from '@/theme/tokens';
 import { canDecide, doctorStatusLabel, SEVERITY_COLORS, SEVERITY_LABELS, type ReviewAction } from '@/utils/doctorReview';
@@ -92,6 +93,8 @@ export default function DoctorDashboard() {
             <Text style={[styles.presenceText, online && { color: palette.success }]}>{online ? 'Đang trực' : 'Ngoại tuyến'}</Text>
           </View>
         </View>
+        <Pressable onPress={() => navigationService.navigate('DoctorKnowledge')} style={styles.logout} accessibilityRole="button" accessibilityLabel="Kho tri thức" testID="doctor-open-knowledge"><Ionicons name="library-outline" size={20} color={palette.primary} /></Pressable>
+        <Pressable onPress={() => navigationService.navigate('DoctorExercises')} style={styles.logout} accessibilityRole="button" accessibilityLabel="Thư viện bài tập" testID="doctor-open-exercises"><Ionicons name="barbell-outline" size={20} color={palette.primary} /></Pressable>
         <Pressable onPress={() => void logout()} style={styles.logout} accessibilityLabel="Đăng xuất"><Ionicons name="log-out-outline" size={20} color={palette.textMuted} /></Pressable>
       </View>
       <View style={styles.tabsWrap}>

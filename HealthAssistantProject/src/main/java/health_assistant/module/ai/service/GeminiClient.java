@@ -53,7 +53,7 @@ public class GeminiClient {
          * Lộ trình: bình thường 2–10s, nhưng proxy thỉnh thoảng treo không trả gì.
          * Chờ tối đa 35s/lần, thử lại 2 lần (tối đa ~105s, dưới mức chờ 150s của app).
          */
-        public static final Options ROADMAP = new Options(8192, java.time.Duration.ofSeconds(35), 2); // 8192: tránh JSON bị cắt giữa chừng
+        public static final Options ROADMAP = new Options(8192, java.time.Duration.ofSeconds(60), 1); // 8192: tránh JSON bị cắt giữa chừng
     }
 
     public String generateJson(String prompt, JsonNode schema) {
