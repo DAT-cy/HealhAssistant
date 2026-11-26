@@ -35,10 +35,11 @@ export default function GymCoachModal({ visible, roadmapId, slot, onClose, onSav
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
 
-  const exerciseQuery = useQuery({ queryKey: ['gym', 'exercises'], queryFn: gymWorkoutService.exercises, enabled: visible });
+  const exerciseQuery = useQuery({ queryKey: ['gym', 'exercise-options'], queryFn: gymWorkoutService.exerciseOptions, enabled: visible });
   const premiumQuery = useQuery({ queryKey: ['feature-access', 'AI_GYM_CAMERA'], queryFn: gymWorkoutService.premiumAccess, enabled: visible });
   const historyQuery = useQuery({ queryKey: ['gym', 'history', slot?.id], queryFn: () => gymWorkoutService.history(slot!.id), enabled: visible && Boolean(slot?.id) });
-  const exercises = (exerciseQuery.data ?? []) as ExerciseGuide[];
+  const exercises: ExerciseGuide[] = exerciseQuery.data?.exercises ?? [];
+  const hiddenExercises = exerciseQuery.data?.hidden ?? [];
   const premium = premiumQuery.data?.enabled === true;
   const selectedExercise = exercises.find((exercise) => exercise.code === selectedCode) ?? null;
 
@@ -119,12 +120,22 @@ export default function GymCoachModal({ visible, roadmapId, slot, onClose, onSav
         <Text style={{ color: palette.text, fontSize: 13, fontWeight: '800', marginTop: 18 }}>Bài tập trong buổi</Text>
         {exerciseQuery.isPending ? <ActivityIndicator color={palette.primary} style={{ marginTop: 18 }} /> : null}
         {exerciseQuery.isError ? <Text style={{ color: palette.warning, marginTop: 10 }}>Không tải được danh sách bài tập.</Text> : null}
+        {hiddenExercises.length ? <View testID="gym-hidden-notice" style={{ flexDirection: 'row', gap: 8, padding: 10, marginTop: 8, borderRadius: 8, backgroundColor: palette.warningSoft }}>
+          <Ionicons name="shield-checkmark-outline" size={16} color={palette.warning} />
+          <Text style={{ flex: 1, color: palette.text, fontSize: 11, lineHeight: 16 }}>
+            Đã ẩn {hiddenExercises.length} bài không phù hợp với {[...new Set(hiddenExercises.flatMap((item) => item.diseases))].join(', ')}: {hiddenExercises.map((item) => item.name).join(', ')}.
+          </Text>
+        </View> : null}
         {exercises.map((exercise) => <Pressable key={exercise.code} onPress={() => setSelectedCode(exercise.code)} accessibilityRole="radio" accessibilityState={{ selected: selectedCode === exercise.code }} style={{ padding: 12, marginTop: 8, borderRadius: 8, borderWidth: 1, borderColor: selectedCode === exercise.code ? palette.primary : palette.border, backgroundColor: selectedCode === exercise.code ? palette.primarySoft : palette.surface }}>
           <Text style={{ color: palette.text, fontWeight: '800', fontSize: 12 }}>{exercise.name}</Text>
           <Text style={{ color: palette.textMuted, fontSize: 10, marginTop: 3 }}>{exercise.muscleGroup} · {exercise.difficulty}{exercise.equipment ? ` · ${exercise.equipment}` : ''}</Text>
         </Pressable>)}
         {selectedExercise ? <View style={{ padding: 12, marginTop: 11, borderRadius: 8, backgroundColor: palette.surfaceRaised }}>
+          {selectedExercise.sets || selectedExercise.reps || selectedExercise.restSeconds != null ? <Text style={{ color: palette.primary, fontWeight: '800', fontSize: 11, marginBottom: 7 }}>
+            {[selectedExercise.sets ? `${selectedExercise.sets} hiệp` : '', selectedExercise.reps ? `${selectedExercise.reps} lần` : '', selectedExercise.restSeconds != null ? `nghỉ ${selectedExercise.restSeconds}s` : ''].filter(Boolean).join(' · ')}
+          </Text> : null}
           <Text style={{ color: palette.text, fontWeight: '800', fontSize: 11 }}>Cách thực hiện</Text><Text style={{ color: palette.textMuted, fontSize: 11, lineHeight: 18, marginTop: 5 }}>{selectedExercise.instructions}</Text>
+          {selectedExercise.commonMistakes ? <Text style={{ color: palette.textMuted, fontSize: 10, lineHeight: 16, marginTop: 7 }}>Lỗi thường gặp: {selectedExercise.commonMistakes}</Text> : null}
           {selectedExercise.safetyNotes ? <Text style={{ color: palette.warning, fontSize: 10, lineHeight: 16, marginTop: 7 }}>An toàn: {selectedExercise.safetyNotes}</Text> : null}
         </View> : null}
         <View style={{ marginTop: 14 }}><AppButton label="Bắt đầu buổi tập" onPress={() => void beginWorkout()} disabled={!selectedExercise || busy} loading={busy} /></View>

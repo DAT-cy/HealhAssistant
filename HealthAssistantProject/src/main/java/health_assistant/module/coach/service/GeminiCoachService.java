@@ -10,7 +10,9 @@ import health_assistant.module.ai.service.GeminiClient;
 import health_assistant.module.ai.service.GeminiException;
 import health_assistant.module.coach.dto.GeminiRoadmapRequest;
 import health_assistant.module.coach.dto.GeminiRoadmapResponse;
-import lombok.RequiredArgsConstructor;
+import health_assistant.module.coach.dto.RoadmapReference;
+import health_assistant.module.coach.service.RoadmapKnowledgeService.RoadmapKnowledge;
+import org.springframework.beans.factory.annotation.Autowired;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -18,13 +20,35 @@ import java.util.List;
 import java.util.ArrayList;
 
 @Service
-@RequiredArgsConstructor
 @Slf4j
 public class GeminiCoachService {
     public static final String PROMPT_VERSION = "ROADMAP_V3";
     public static final String SCHEMA_VERSION = "ROADMAP_SCHEMA_V1";
     private final GeminiClient geminiClient;
     private final ObjectMapper objectMapper;
+    private final RoadmapKnowledgeService knowledgeService;
+
+    /** Chỉ giữ link ngoài thuộc các tổ chức y tế/thể thao uy tín để tránh AI bịa nguồn. */
+    static final List<String> TRUSTED_DOMAINS = List.of(
+            "who.int", "cdc.gov", "nih.gov", "medlineplus.gov", "nhs.uk", "moh.gov.vn", "kcb.vn", "vncdc.gov.vn",
+            "heart.org", "diabetes.org", "acsm.org", "mayoclinic.org", "clevelandclinic.org", "health.harvard.edu",
+            "escardio.org", "arthritis.org", "lung.org", "nice.org.uk", "health.gov", "hhs.gov");
+
+    @Autowired
+    public GeminiCoachService(GeminiClient geminiClient, ObjectMapper objectMapper, RoadmapKnowledgeService knowledgeService) {
+        this.geminiClient = geminiClient;
+        this.objectMapper = objectMapper;
+        this.knowledgeService = knowledgeService;
+    }
+
+    /** Dùng trong test: không có kho tri thức. */
+    public GeminiCoachService(GeminiClient geminiClient, ObjectMapper objectMapper) {
+        this(geminiClient, objectMapper, null);
+    }
+
+    private RoadmapKnowledge knowledgeFor(GeminiRoadmapRequest request) {
+        return knowledgeService == null ? RoadmapKnowledge.EMPTY : knowledgeService.build(request.diseaseCodes(), request.goal());
+    }
 
     /** Ba hướng phương án; AI gọi song song để không quá thời gian chờ. */
     public static final List<String> OPTION_FOCUSES = List.of(
@@ -33,11 +57,12 @@ public class GeminiCoachService {
             "Ưu tiên sức mạnh toàn thân ở mức phù hợp người mới. ");
 
     public List<GeminiRoadmapResponse> planOptions(GeminiRoadmapRequest request) {
+        RoadmapKnowledge knowledge = knowledgeFor(request); // lấy 1 lần, dùng chung cho cả 3 phương án
         try (var executor = java.util.concurrent.Executors.newVirtualThreadPerTaskExecutor()) {
             var futures = OPTION_FOCUSES.stream()
                     .map(focus -> java.util.concurrent.CompletableFuture.supplyAsync(() -> plan(new GeminiRoadmapRequest(
                             focus + request.goal(), request.weeks(), request.postureSummary(), request.restrictions(),
-                            request.schedule(), request.diseaseCodes())), executor))
+                            request.schedule(), request.diseaseCodes()), knowledge), executor))
                     .toList();
             return futures.stream().map(future -> {
                 try { return future.join(); }
@@ -54,20 +79,27 @@ public class GeminiCoachService {
      * Thử lại thêm 1 lần trước khi báo lỗi để không làm hỏng cả lượt tạo 3 phương án.
      */
     public GeminiRoadmapResponse plan(GeminiRoadmapRequest request) {
+        return plan(request, knowledgeFor(request));
+    }
+
+    GeminiRoadmapResponse plan(GeminiRoadmapRequest request, RoadmapKnowledge knowledge) {
         try {
-            return planOnce(request);
+            return planOnce(request, knowledge);
         } catch (GeminiException exception) {
             if (exception.getKind() != GeminiException.Kind.INVALID_RESPONSE) throw exception;
             log.warn("Gemini roadmap trả dữ liệu lỗi – thử lại 1 lần");
-            return planOnce(request);
+            return planOnce(request, knowledge);
         }
     }
 
-    private GeminiRoadmapResponse planOnce(GeminiRoadmapRequest request) {
+    private GeminiRoadmapResponse planOnce(GeminiRoadmapRequest request, RoadmapKnowledge knowledge) {
         try {
-            String prompt = prompt(request);
+            String prompt = prompt(request, knowledge);
             JsonNode output = objectMapper.readTree(geminiClient.generateJson(prompt, responseSchema(), GeminiClient.Options.ROADMAP));
-            return validate(output, request.weeks());
+            GeminiRoadmapResponse plan = validate(output, request.weeks());
+            List<RoadmapReference> references = new ArrayList<>(knowledge.references());
+            references.addAll(externalReferences(output));
+            return plan.withReferences(references);
         } catch (GeminiException exception) {
             throw exception;
         } catch (JsonProcessingException | IllegalArgumentException exception) {
@@ -122,7 +154,41 @@ public class GeminiCoachService {
         return notes.size() > 8 ? List.copyOf(notes.subList(0, 8)) : List.copyOf(notes);
     }
 
-    private String prompt(GeminiRoadmapRequest request) {
+    /** Nguồn ngoài AI dẫn: chỉ giữ link https của tổ chức uy tín, tối đa 3. */
+    static List<RoadmapReference> externalReferences(JsonNode output) {
+        JsonNode items = output == null ? null : output.path("references");
+        if (items == null || !items.isArray()) return List.of();
+        List<RoadmapReference> result = new ArrayList<>();
+        for (JsonNode item : items) {
+            String title = item.path("title").asText("").trim();
+            String url = item.path("url").asText("").trim();
+            if (title.isBlank() || title.length() > 200 || !isTrustedUrl(url)) continue;
+            String organization = item.path("organization").asText("").trim();
+            result.add(new RoadmapReference(RoadmapReference.EXTERNAL, title,
+                    organization.isBlank() || organization.length() > 120 ? null : organization, url));
+            if (result.size() == 3) break;
+        }
+        return result;
+    }
+
+    static boolean isTrustedUrl(String url) {
+        if (url == null || url.length() > 500) return false;
+        try {
+            java.net.URI uri = java.net.URI.create(url);
+            if (!"https".equalsIgnoreCase(uri.getScheme()) || uri.getHost() == null) return false;
+            String host = uri.getHost().toLowerCase(java.util.Locale.ROOT);
+            return TRUSTED_DOMAINS.stream().anyMatch(domain -> host.equals(domain) || host.endsWith("." + domain));
+        } catch (IllegalArgumentException exception) {
+            return false;
+        }
+    }
+
+    private String prompt(GeminiRoadmapRequest request, RoadmapKnowledge knowledge) {
+        String knowledgeBlock = knowledge.hasInternal()
+                ? "Tài liệu nội bộ đã được Admin/Bác sĩ duyệt (ƯU TIÊN dùng, không mâu thuẫn với các tài liệu này):\n<<<\n"
+                        + AiPromptSanitizer.sanitize(knowledge.context(), RoadmapKnowledgeService.MAX_PROMPT_CHARS) + "\n>>>\n"
+                        + "Chỉ khi tài liệu nội bộ không đủ, mới bổ sung theo hướng dẫn công khai của tổ chức y tế uy tín."
+                : "Kho tài liệu nội bộ chưa có tài liệu phù hợp: dùng hướng dẫn công khai của tổ chức y tế uy tín (WHO, CDC, NIH, Bộ Y tế...).";
         String schedule = request.schedule() == null || request.schedule().isEmpty()
                 ? "Không có khung giờ cố định được cung cấp."
                 : request.schedule().stream()
@@ -143,6 +209,8 @@ public class GeminiCoachService {
                 Lịch duy nhất được phép dùng: %s.
                 Không tự thêm ngày, buổi hoặc giờ tập. Chỉ xây nội dung và cường độ cho các khung giờ đã liệt kê; ngày không có khung là ngày nghỉ/phục hồi.
                 Chỉ đề xuất bài tập phổ thông, nghỉ phục hồi và lưu ý dừng khi đau/khó chịu.
+                %s
+                references: tối đa 3 nguồn công khai uy tín bạn dựa vào (title, organization, url https thật của trang hướng dẫn). Không bịa URL; nếu không chắc URL thì bỏ trống mảng references. Không liệt kê tài liệu nội bộ vào references.
                 Prompt version: %s.
                 """.formatted(request.weeks(),
                 AiPromptSanitizer.sanitize(request.goal(), 120),
@@ -150,6 +218,7 @@ public class GeminiCoachService {
                 AiPromptSanitizer.sanitize(request.restrictions(), 500),
                 AiPromptSanitizer.sanitize(request.diseaseCodes() == null ? "Không có" : String.join(", ", request.diseaseCodes()), 2000),
                 AiPromptSanitizer.sanitize(schedule, 14000),
+                knowledgeBlock,
                 PROMPT_VERSION);
     }
 
@@ -161,10 +230,17 @@ public class GeminiCoachService {
         properties.putObject("overview").put("type", "STRING");
         properties.putObject("weeklyPlan").put("type", "ARRAY").putObject("items").put("type", "STRING");
         properties.putObject("safetyNotes").put("type", "ARRAY").putObject("items").put("type", "STRING");
+        ObjectNode reference = properties.putObject("references").put("type", "ARRAY").putObject("items");
+        reference.put("type", "OBJECT");
+        ObjectNode referenceProps = reference.putObject("properties");
+        referenceProps.putObject("title").put("type", "STRING");
+        referenceProps.putObject("organization").put("type", "STRING");
+        referenceProps.putObject("url").put("type", "STRING");
+        reference.putArray("required").add("title").add("url");
         ArrayNode required = schema.putArray("required");
         required.add("title").add("overview").add("weeklyPlan").add("safetyNotes");
         ArrayNode ordering = schema.putArray("propertyOrdering");
-        ordering.add("title").add("overview").add("weeklyPlan").add("safetyNotes");
+        ordering.add("title").add("overview").add("weeklyPlan").add("safetyNotes").add("references");
         return schema;
     }
 

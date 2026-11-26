@@ -47,7 +47,7 @@ public class MealAnalysisService {
     public MealAnalysisResponse analyze(MultipartFile image, MealContext context) {
         byte[] bytes = validateImage(image);
         requireAi();
-        List<KnowledgeChunk> retrieved = retrieveKnowledge(context.knowledgeQuery());
+        List<KnowledgeChunk> retrieved = retrieveKnowledge(context.knowledgeQuery(), context.diseaseCodesOrEmpty());
         List<MealKnowledgeSource> availableSources = knowledgeSources(retrieved);
         try {
             JsonNode result = objectMapper.readTree(geminiClient.generateJson(
@@ -84,7 +84,7 @@ public class MealAnalysisService {
 
     public MealRecommendationResponse recommend(MealContext context) {
         requireAi();
-        List<KnowledgeChunk> retrieved = retrieveKnowledge(context.knowledgeQuery());
+        List<KnowledgeChunk> retrieved = retrieveKnowledge(context.knowledgeQuery(), context.diseaseCodesOrEmpty());
         List<MealKnowledgeSource> availableSources = knowledgeSources(retrieved);
         try {
             JsonNode result = objectMapper.readTree(geminiClient.generateJson(
@@ -136,12 +136,17 @@ public class MealAnalysisService {
         }
     }
 
-    private List<KnowledgeChunk> retrieveKnowledge(String query) {
+    /** Tài liệu dinh dưỡng gắn đúng bệnh của người dùng được cộng điểm lớn để luôn được ưu tiên. */
+    static final long DISEASE_MATCH_BONUS = 20;
+
+    private List<KnowledgeChunk> retrieveKnowledge(String query, List<String> diseaseCodes) {
         Set<String> terms = WORDS.matcher(query.toLowerCase(Locale.ROOT)).results().map(match -> match.group())
                 .filter(term -> !STOP_WORDS.contains(term)).collect(java.util.stream.Collectors.toCollection(HashSet::new));
-        if (terms.isEmpty()) return List.of();
+        Set<String> diseases = new HashSet<>(diseaseCodes);
+        if (terms.isEmpty() && diseases.isEmpty()) return List.of();
         return chunkRepository.findApprovedNutritionChunks(PageRequest.of(0, 200)).stream()
-                .map(chunk -> new ScoredChunk(chunk, score(chunk, terms)))
+                .map(chunk -> new ScoredChunk(chunk, score(chunk, terms)
+                        + (chunk.getDocument().getDiseaseCode() != null && diseases.contains(chunk.getDocument().getDiseaseCode()) ? DISEASE_MATCH_BONUS : 0)))
                 .filter(item -> item.score() > 0)
                 .sorted(Comparator.comparingLong(ScoredChunk::score).reversed())
                 .limit(5).map(ScoredChunk::chunk).toList();
@@ -271,6 +276,7 @@ public class MealAnalysisService {
                 Fitness goal: %s
                 Activity level: %s
                 User-reported limitations: %s
+                Medical conditions from the health record (respect their dietary restrictions; flag conflicting foods in concerns): %s
                 Today's scheduled activities: %s
                 Retrieved Knowledge Base evidence:
                 %s
@@ -278,7 +284,8 @@ public class MealAnalysisService {
                 AiPromptSanitizer.sanitize(context.plannedMeal(), 240), AiPromptSanitizer.sanitize(context.dishName(), 180),
                 AiPromptSanitizer.sanitize(context.portionNotes(), 500), AiPromptSanitizer.sanitize(context.ingredients(), 500),
                 AiPromptSanitizer.sanitize(context.goal(), 120), AiPromptSanitizer.sanitize(context.activityLevel(), 80),
-                AiPromptSanitizer.sanitize(context.limitations(), 500), AiPromptSanitizer.sanitize(String.join("; ", context.scheduledActivities()), 1200),
+                AiPromptSanitizer.sanitize(context.limitations(), 500), medicalConditions(context),
+                AiPromptSanitizer.sanitize(String.join("; ", context.scheduledActivities()), 1200),
                 knowledgeText(retrieved));
     }
 
@@ -293,6 +300,7 @@ public class MealAnalysisService {
                 Fitness goal: %s
                 Activity level: %s
                 User-reported limitations: %s
+                Medical conditions from the health record (respect their dietary restrictions; list foods to avoid in limitFoods): %s
                 Weekly focus: %s
                 Today's scheduled activities: %s
                 Retrieved Knowledge Base evidence:
@@ -300,8 +308,13 @@ public class MealAnalysisService {
                 If no cited Knowledge Base passage supports a numeric target, set nutritionTargetAvailable=false and nutritionTarget to an empty string.
                 """.formatted(context.mealDate(), AiPromptSanitizer.sanitize(context.mealType(), 20),
                 AiPromptSanitizer.sanitize(context.goal(), 120), AiPromptSanitizer.sanitize(context.activityLevel(), 80),
-                AiPromptSanitizer.sanitize(context.limitations(), 500), AiPromptSanitizer.sanitize(context.weeklyFocus(), 500),
+                AiPromptSanitizer.sanitize(context.limitations(), 500), medicalConditions(context), AiPromptSanitizer.sanitize(context.weeklyFocus(), 500),
                 AiPromptSanitizer.sanitize(String.join("; ", context.scheduledActivities()), 1200), knowledgeText(retrieved));
+    }
+
+    private static String medicalConditions(MealContext context) {
+        String text = context.diseaseNames();
+        return text == null || text.isBlank() ? "none recorded" : AiPromptSanitizer.sanitize(text, 900);
     }
 
     private String knowledgeText(List<KnowledgeChunk> retrieved) {
@@ -383,11 +396,21 @@ public class MealAnalysisService {
     public record MealContext(String mealType, java.time.LocalDate mealDate, String plannedMeal,
                               String dishName, String portionNotes, String ingredients,
                               String goal, String activityLevel, String limitations,
-                              String weeklyFocus, List<String> scheduledActivities) {
+                              String weeklyFocus, List<String> scheduledActivities,
+                              List<String> diseaseCodes, String diseaseNames) {
+        /** Giữ tương thích code cũ: không có thông tin bệnh lý. */
+        public MealContext(String mealType, java.time.LocalDate mealDate, String plannedMeal,
+                           String dishName, String portionNotes, String ingredients,
+                           String goal, String activityLevel, String limitations,
+                           String weeklyFocus, List<String> scheduledActivities) {
+            this(mealType, mealDate, plannedMeal, dishName, portionNotes, ingredients, goal, activityLevel, limitations,
+                    weeklyFocus, scheduledActivities, List.of(), "");
+        }
         public String knowledgeQuery() {
             return String.join(" ", List.of(orEmpty(mealType), orEmpty(plannedMeal), orEmpty(dishName),
-                    orEmpty(ingredients), orEmpty(goal), orEmpty(weeklyFocus)));
+                    orEmpty(ingredients), orEmpty(goal), orEmpty(weeklyFocus), orEmpty(diseaseNames)));
         }
+        public List<String> diseaseCodesOrEmpty() { return diseaseCodes == null ? List.of() : diseaseCodes; }
         private static String orEmpty(String value) { return value == null ? "" : value; }
     }
 }

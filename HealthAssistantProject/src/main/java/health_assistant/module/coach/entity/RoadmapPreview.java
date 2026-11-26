@@ -30,7 +30,7 @@ public class RoadmapPreview {
     private String optionsJson;
 
     @Lob
-    @Column(name = "schedule_json")
+    @Column(name = "schedule_json", columnDefinition = "LONGTEXT")
     private String scheduleJson;
 
     @Column(name = "expires_at", nullable = false)

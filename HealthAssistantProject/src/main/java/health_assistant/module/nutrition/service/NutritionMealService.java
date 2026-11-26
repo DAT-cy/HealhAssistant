@@ -45,6 +45,13 @@ public class NutritionMealService {
     private final RoadmapPlanSlotRepository slotRepository;
     private final CloudinaryUploadService cloudinaryUploadService;
     private final ObjectMapper objectMapper;
+    /** Tuỳ chọn (setter) để không phá các test dựng service bằng constructor cũ. */
+    private health_assistant.module.doctor.repository.DiseaseRepository diseaseRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setDiseaseRepository(health_assistant.module.doctor.repository.DiseaseRepository diseaseRepository) {
+        this.diseaseRepository = diseaseRepository;
+    }
 
     public MealAnalysisLogResponse analyze(Long userId, MultipartFile image, MealAnalysisRequest request) {
         validateRequest(request);
@@ -166,9 +173,22 @@ public class NutritionMealService {
         String limitations = profile == null ? "" : String.join("; ",
                 profile.getRestrictions() == null ? "" : profile.getRestrictions(),
                 profile.getPainAreas() == null ? "" : profile.getPainAreas());
+        List<String> diseaseCodes = List.copyOf(health_assistant.module.workout.service.ExerciseSafety
+                .diseaseCodes(profile == null ? null : profile.getDiseaseCodes()));
         return new MealAnalysisService.MealContext(mealType, date, plannedMeal, dishName, portionNotes, ingredients,
                 profile == null ? "" : profile.getGoal(), profile == null ? "" : profile.getActivityLevel(),
-                limitations, planning.weeklyFocus(), planning.scheduledActivities());
+                limitations, planning.weeklyFocus(), planning.scheduledActivities(), diseaseCodes, diseaseSummary(diseaseCodes));
+    }
+
+    /** "Tăng huyết áp (lưu ý: ...); Thoái hoá khớp gối" – tên bệnh + chỉ dẫn đặc biệt trong danh mục. */
+    private String diseaseSummary(List<String> codes) {
+        if (codes.isEmpty()) return "";
+        if (diseaseRepository == null) return String.join("; ", codes);
+        return codes.stream().map(code -> diseaseRepository.findByCodeAndActiveTrue(code).map(disease -> {
+            String note = disease.getSpecialInstructions() == null || disease.getSpecialInstructions().isBlank()
+                    ? "" : " (lưu ý: " + disease.getSpecialInstructions().trim() + ")";
+            return disease.getName() + note;
+        }).orElse(code)).reduce((a, b) -> a + "; " + b).orElse("");
     }
 
     private List<String> readJsonList(String json) {

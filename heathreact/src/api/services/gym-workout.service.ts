@@ -1,6 +1,7 @@
 import { apiClient } from '../client';
 import { apiVersion } from '@/config/api.config';
 import { Platform } from 'react-native';
+import { appendFile } from '@/utils/formFile';
 
 export interface ExerciseGuide {
   id: number;
@@ -11,6 +12,16 @@ export interface ExerciseGuide {
   equipment: string | null;
   instructions: string;
   safetyNotes: string | null;
+  sets?: number | null;
+  reps?: string | null;
+  restSeconds?: number | null;
+  commonMistakes?: string | null;
+}
+/** Bài tập phù hợp bệnh lý + bài bị ẩn vì chống chỉ định (backend: GymExerciseOptions). */
+export interface GymExerciseOptions {
+  exercises: ExerciseGuide[];
+  hidden: { code: string; name: string; diseases: string[] }[];
+  userDiseases: string[];
 }
 export interface GymWorkoutSession {
   id: number;
@@ -44,6 +55,7 @@ export interface CameraPhotoAsset { uri: string; mimeType?: string | null; fileN
 
 export const gymWorkoutService = {
   exercises: () => apiClient.request<ExerciseGuide[]>(`${apiVersion}/workout/gym/exercises`),
+  exerciseOptions: () => apiClient.request<GymExerciseOptions>(`${apiVersion}/workout/gym/exercises/options`),
   premiumAccess: () => apiClient.request<FeatureAccess>(`${apiVersion}/features/access?featureCode=AI_GYM_CAMERA`),
   start: (roadmapId: number, planSlotId: number, exerciseCode: string) =>
     apiClient.request<GymWorkoutSession>(`${apiVersion}/workout/gym/sessions`, { method: 'POST', body: JSON.stringify({ roadmapId, planSlotId, exerciseCode }) }),
@@ -53,7 +65,7 @@ export const gymWorkoutService = {
       const file = asset.file ?? await (await fetch(asset.uri)).blob();
       form.append('file', file, asset.fileName ?? 'pose.jpg');
     } else {
-      form.append('file', { uri: asset.uri, name: asset.fileName ?? 'pose.jpg', type: asset.mimeType ?? 'image/jpeg' } as unknown as Blob);
+      await appendFile(form, 'file', { uri: asset.uri, name: asset.fileName ?? 'pose.jpg', type: asset.mimeType ?? 'image/jpeg' });
     }
     form.append('cameraFacing', facing);
     return apiClient.request<GymPoseFeedback>(`${apiVersion}/workout/gym/sessions/${sessionId}/analyze-photo`, { method: 'POST', body: form, ai: true, timeoutMs: 120000 });

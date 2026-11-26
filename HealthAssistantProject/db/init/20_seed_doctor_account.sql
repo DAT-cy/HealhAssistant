@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 USE health_assistant;
 
 ALTER TABLE tbl_users MODIFY COLUMN role VARCHAR(20) NOT NULL;

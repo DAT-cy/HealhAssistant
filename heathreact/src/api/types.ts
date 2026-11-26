@@ -22,7 +22,11 @@ export interface PostureAssessmentResponse {
 }
 export type WorkoutPhase = 'UP' | 'DOWN' | 'TRANSITION' | 'UNAVAILABLE';
 export interface WorkoutFeedback { exercise: string; repetitionCount: number; phase: WorkoutPhase; jointAngle: number; corrections: string[]; confident: boolean }
-export interface GeminiRoadmapResponse { title: string; overview: string; weeklyPlan: string[]; safetyNotes: string[]; source: string }
+/** Nguồn tham khảo của phương án lộ trình (backend: RoadmapReference). */
+export interface RoadmapReference { kind: 'INTERNAL_DOCUMENT' | 'DISEASE_CATALOG' | 'EXTERNAL'; title: string; organization?: string | null; url?: string | null; documentId?: number | null; diseaseCode?: string | null }
+/** Nội dung xem trước của một nguồn tham khảo nội bộ. */
+export interface KnowledgeReferencePreview { kind: string; title: string; organization: string | null; url: string | null; description: string | null; content: string; truncated: boolean }
+export interface GeminiRoadmapResponse { title: string; overview: string; weeklyPlan: string[]; safetyNotes: string[]; source: string; references?: RoadmapReference[] | null }
 
 // 6 bước nghiệp vụ bắt buộc của sản phẩm.
 export type OnboardingFlags = 'profileComplete' | 'hasPostureReport' | 'hasRoadmap' | 'hasTodayPlan';

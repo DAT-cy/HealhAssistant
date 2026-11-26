@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { ApiError } from '@/api/client';
 import { coachService } from '@/api/services/coach.service';
+import RoadmapReferences from '@/components/common/RoadmapReferences';
 import AppModal from '@/components/ui/AppModal';
 import { Pressable } from '@/components/ui/Pressable';
 import { palette } from '@/theme/tokens';
@@ -57,6 +58,7 @@ export default function ApprovedPlanModal({ requestId, onClose, onActivated }: P
               <Text style={styles.optionTitle}>Phương án {index + 1}: {option.title}</Text>
               <Text style={styles.body}>{option.overview}</Text>
               {option.weeklyPlan.map((week, weekIndex) => <Text key={weekIndex} style={styles.muted}>Tuần {weekIndex + 1}: {stripWeekPrefix(week)}</Text>)}
+              <RoadmapReferences references={option.references} compact />
             </Pressable>
           ))}
         </ScrollView>

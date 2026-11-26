@@ -15,4 +15,5 @@ public record ExerciseCatalogRequest(@NotBlank @Size(max = 80) String code,
                                      @Min(0) @Max(600) Integer restSeconds,
                                      @Size(max = 5000) String commonMistakes,
                                      @Size(max = 5000) String contraindications,
-                                     Boolean active) {}
+                                     Boolean active,
+                                     @Size(max = 1000) String contraindicatedDiseaseCodes) {}

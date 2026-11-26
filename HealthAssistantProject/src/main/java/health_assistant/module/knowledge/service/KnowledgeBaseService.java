@@ -12,6 +12,8 @@ import health_assistant.module.knowledge.repository.KnowledgeAuditLogRepository;
 import health_assistant.module.knowledge.repository.KnowledgeCategoryRepository;
 import health_assistant.module.knowledge.repository.KnowledgeChunkRepository;
 import health_assistant.module.knowledge.repository.KnowledgeDocumentRepository;
+import health_assistant.module.doctor.entity.Disease;
+import health_assistant.module.doctor.repository.DiseaseRepository;
 import health_assistant.utils.SecurityUtils;
 import jakarta.annotation.PostConstruct;
 import jakarta.persistence.EntityNotFoundException;
@@ -59,6 +61,7 @@ public class KnowledgeBaseService {
     private final KnowledgeDocumentRepository documentRepository;
     private final KnowledgeChunkRepository chunkRepository;
     private final KnowledgeAuditLogRepository auditRepository;
+    private final DiseaseRepository diseaseRepository;
     private final Tika tika = new Tika();
 
     @Value("${spring.knowledge-base.storage-dir:./data/knowledge-base}")
@@ -125,6 +128,14 @@ public class KnowledgeBaseService {
     public KnowledgeDocumentResponse upload(MultipartFile file, String title, String categoryCode,
                                             String description, String documentType, String sourceOrganization,
                                             String sourceUrl, String licenseName, boolean rightsConfirmed) {
+        return upload(file, title, categoryCode, description, documentType, sourceOrganization, sourceUrl, licenseName, rightsConfirmed, null);
+    }
+
+    @Transactional
+    public KnowledgeDocumentResponse upload(MultipartFile file, String title, String categoryCode,
+                                            String description, String documentType, String sourceOrganization,
+                                            String sourceUrl, String licenseName, boolean rightsConfirmed, String diseaseCode) {
+        String disease = resolveDiseaseCode(diseaseCode);
         validateUpload(file, title, categoryCode, documentType);
         validateMetadata(description, sourceOrganization, sourceUrl, licenseName);
         if (!rightsConfirmed) throw new IllegalArgumentException("Hãy xác nhận bạn có quyền sử dụng tài liệu này.");
@@ -140,7 +151,7 @@ public class KnowledgeBaseService {
 
         String filename = safeFilename(file.getOriginalFilename());
         return saveDocument(bytes, filename, title, category, description, documentType, sourceOrganization,
-                sourceUrl, licenseName, rightsConfirmed);
+                sourceUrl, licenseName, rightsConfirmed, disease);
     }
 
     @Transactional
@@ -154,7 +165,7 @@ public class KnowledgeBaseService {
                     category,
                     "Khuyến nghị WHO về tần suất, cường độ, thời lượng vận động và hành vi ít vận động; áp dụng theo nhóm tuổi và một số nhóm dân số.",
                     "GUIDELINE", "World Health Organization", "https://www.who.int/publications/i/item/9789240015128",
-                    "CC BY-NC-SA 3.0 IGO", true);
+                    "CC BY-NC-SA 3.0 IGO", true, null);
         } catch (IOException exception) {
             throw new IllegalStateException("Không đọc được tài liệu WHO được đóng gói cùng backend.");
         }
@@ -163,11 +174,16 @@ public class KnowledgeBaseService {
     private KnowledgeDocumentResponse saveDocument(byte[] bytes, String filename, String title,
                                                     KnowledgeCategory category, String description,
                                                     String documentType, String sourceOrganization,
-                                                    String sourceUrl, String licenseName, boolean rightsConfirmed) {
+                                                    String sourceUrl, String licenseName, boolean rightsConfirmed,
+                                                    String diseaseCode) {
         String extension = extension(filename);
         String checksum = sha256(bytes);
         var existing = documentRepository.findByFileSha256AndDeletedAtIsNull(checksum);
-        if (existing.isPresent()) return toResponse(existing.get(), true);
+        if (existing.isPresent()) {
+            KnowledgeDocument found = existing.get();
+            if (diseaseCode != null && found.getDiseaseCode() == null) { found.setDiseaseCode(diseaseCode); found.setUpdatedAt(LocalDateTime.now()); }
+            return toResponse(found, true);
+        }
         String detectedMime = tika.detect(bytes, filename);
         if ("application/x-empty".equals(detectedMime) || "application/octet-stream".equals(detectedMime)) {
             throw new IllegalArgumentException("Không nhận dạng được nội dung tệp.");
@@ -203,6 +219,7 @@ public class KnowledgeBaseService {
             document.setTitle(title.trim());
             document.setDescription(blankToNull(description));
             document.setCategory(category);
+            document.setDiseaseCode(diseaseCode);
             document.setDocumentType(documentType.trim().toUpperCase(Locale.ROOT));
             document.setSourceOrganization(blankToNull(sourceOrganization));
             document.setSourceUrl(blankToNull(sourceUrl));
@@ -252,6 +269,25 @@ public class KnowledgeBaseService {
         document.setUpdatedAt(LocalDateTime.now());
         audit(document, "APPROVE".equals(normalized) ? "APPROVED" : "REJECTED", blankToNull(note));
         return toResponse(document, true);
+    }
+
+    /** Gắn (hoặc bỏ gắn khi diseaseCode rỗng) tài liệu với một bệnh trong danh mục. */
+    @Transactional
+    public KnowledgeDocumentResponse assignDisease(Long id, String diseaseCode) {
+        KnowledgeDocument document = findDocument(id);
+        String disease = resolveDiseaseCode(diseaseCode);
+        document.setDiseaseCode(disease);
+        document.setUpdatedAt(LocalDateTime.now());
+        audit(document, "DISEASE_LINKED", disease == null ? "Bỏ gắn bệnh lý." : "Gắn với bệnh " + disease + ".");
+        return toResponse(document, true);
+    }
+
+    private String resolveDiseaseCode(String diseaseCode) {
+        if (diseaseCode == null || diseaseCode.isBlank()) return null;
+        return diseaseRepository.findByCodeAndActiveTrue(diseaseCode.trim())
+                .or(() -> diseaseRepository.findByCodeAndActiveTrue(diseaseCode.trim().toUpperCase(Locale.ROOT)))
+                .map(Disease::getCode)
+                .orElseThrow(() -> new IllegalArgumentException("Bệnh lý không có trong danh mục."));
     }
 
     @Transactional
@@ -315,7 +351,13 @@ public class KnowledgeBaseService {
                 document.getStatus(), document.getOriginalFilename(), document.getDetectedMime(), document.getFileSizeBytes(),
                 document.getFileSha256(), document.getChunkCount(), document.getExtractionWarning(),
                 includeText ? document.getExtractedText() : null, document.getCreatedBy(), document.getReviewedBy(),
-                document.getReviewNote(), document.getCreatedAt(), document.getUpdatedAt(), document.getReviewedAt());
+                document.getReviewNote(), document.getCreatedAt(), document.getUpdatedAt(), document.getReviewedAt(),
+                document.getDiseaseCode(), diseaseName(document.getDiseaseCode()));
+    }
+
+    private String diseaseName(String code) {
+        if (code == null) return null;
+        return diseaseRepository.findByCodeAndActiveTrue(code).map(Disease::getName).orElse(code);
     }
 
     private void audit(KnowledgeDocument document, String action, String details) {

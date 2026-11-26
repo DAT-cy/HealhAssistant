@@ -54,10 +54,42 @@ public class GymWorkoutService {
     private final FeatureAccessService featureAccess;
     private final GeminiClient gemini;
     private final ObjectMapper mapper;
+    /** Tuỳ chọn (setter) để không phá các test dựng service bằng constructor cũ. */
+    private health_assistant.module.doctor.repository.DiseaseRepository diseaseRepository;
+
+    @org.springframework.beans.factory.annotation.Autowired(required = false)
+    public void setDiseaseRepository(health_assistant.module.doctor.repository.DiseaseRepository diseaseRepository) {
+        this.diseaseRepository = diseaseRepository;
+    }
 
     @Transactional(readOnly = true)
     public List<ExerciseCatalogResponse> exercises() {
         return exerciseRepository.findAllByActiveTrueOrderByNameAsc().stream().map(this::toExerciseResponse).toList();
+    }
+
+    /** Bài tập cho người dùng: bỏ bài chống chỉ định với bệnh trong hồ sơ sức khoẻ. */
+    @Transactional(readOnly = true)
+    public health_assistant.module.workout.dto.GymExerciseOptions exerciseOptions(Long userId) {
+        Set<String> diseases = userDiseaseCodes(userId);
+        List<ExerciseCatalogResponse> allowed = new java.util.ArrayList<>();
+        List<health_assistant.module.workout.dto.GymExerciseOptions.HiddenExercise> hidden = new java.util.ArrayList<>();
+        for (ExerciseCatalog exercise : exerciseRepository.findAllByActiveTrueOrderByNameAsc()) {
+            List<String> blocked = ExerciseSafety.blockedBy(exercise, diseases);
+            if (blocked.isEmpty()) allowed.add(toExerciseResponse(exercise));
+            else hidden.add(new health_assistant.module.workout.dto.GymExerciseOptions.HiddenExercise(
+                    exercise.getCode(), exercise.getName(), diseaseNames(blocked)));
+        }
+        return new health_assistant.module.workout.dto.GymExerciseOptions(allowed, hidden, diseaseNames(List.copyOf(diseases)));
+    }
+
+    private Set<String> userDiseaseCodes(Long userId) {
+        return ExerciseSafety.diseaseCodes(profileRepository.findByUserId(userId).map(UserProfile::getDiseaseCodes).orElse(null));
+    }
+
+    private List<String> diseaseNames(List<String> codes) {
+        if (diseaseRepository == null) return codes;
+        return codes.stream().map(code -> diseaseRepository.findByCodeAndActiveTrue(code)
+                .map(health_assistant.module.doctor.entity.Disease::getName).orElse(code)).toList();
     }
 
     @Transactional
@@ -69,6 +101,9 @@ public class GymWorkoutService {
         if (!ALLOWED_SLOT_TYPES.contains(slot.getActivityType())) throw new IllegalArgumentException("Khung giờ này không phải hoạt động gym được hỗ trợ.");
         ExerciseCatalog exercise = exerciseRepository.findByCodeAndActiveTrue(exerciseCode)
                 .orElseThrow(() -> new EntityNotFoundException("Không tìm thấy bài tập đang hoạt động."));
+        List<String> blocked = ExerciseSafety.blockedBy(exercise, userDiseaseCodes(userId));
+        if (!blocked.isEmpty()) throw new IllegalArgumentException("Bài tập \"" + exercise.getName()
+                + "\" không phù hợp với bệnh lý của bạn (" + String.join(", ", diseaseNames(blocked)) + "). Hãy chọn bài khác.");
         WorkoutSession active = sessionRepository.findFirstByPlanSlotIdAndStatusInOrderByStartedAtDesc(slotId, List.of("IN_PROGRESS"))
                 .orElse(null);
         if (active != null) return toResponse(active);

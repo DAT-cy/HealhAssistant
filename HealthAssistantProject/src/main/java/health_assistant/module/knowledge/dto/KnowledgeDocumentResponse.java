@@ -26,5 +26,7 @@ public record KnowledgeDocumentResponse(
         String reviewNote,
         LocalDateTime createdAt,
         LocalDateTime updatedAt,
-        LocalDateTime reviewedAt
+        LocalDateTime reviewedAt,
+        String diseaseCode,
+        String diseaseName
 ) {}

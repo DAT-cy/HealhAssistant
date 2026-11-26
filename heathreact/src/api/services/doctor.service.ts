@@ -8,7 +8,7 @@ export interface DoctorReviewRequest { id: number; userId: number; roadmapId: nu
   /** Quyết định gần nhất của bác sĩ. */ doctorNote?: string | null; lastAction?: string | null; decidedAt?: string | null;
   /** 3 phương án AI đề xuất gửi kèm để bác sĩ duyệt. */ aiPlan?: AiPlanOption[] | null;
   userReply?: string | null; previousRequestId?: number | null; appliedAt?: string | null }
-export interface AiPlanOption { title: string; overview: string; weeklyPlan: string[]; safetyNotes: string[] }
+export interface AiPlanOption { title: string; overview: string; weeklyPlan: string[]; safetyNotes: string[]; references?: import('@/api/types').RoadmapReference[] | null }
 const path = `${apiVersion}/doctor`;
 export const doctorService = {
   dashboard: () => apiClient.request<DoctorDashboard>(`${path}/dashboard`),

@@ -48,7 +48,7 @@ public class User extends BaseEntity implements UserDetails {
     private int authVersion;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20, columnDefinition = "VARCHAR(20)")
     private Role role;
 
     @Override

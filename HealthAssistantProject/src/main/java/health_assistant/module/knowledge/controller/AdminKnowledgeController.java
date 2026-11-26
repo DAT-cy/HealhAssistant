@@ -65,9 +65,10 @@ public class AdminKnowledgeController {
             @RequestParam(required = false) String sourceOrganization,
             @RequestParam(required = false) String sourceUrl,
             @RequestParam(required = false) String licenseName,
-            @RequestParam(defaultValue = "false") boolean rightsConfirmed) {
+            @RequestParam(defaultValue = "false") boolean rightsConfirmed,
+            @RequestParam(required = false) String diseaseCode) {
         KnowledgeDocumentResponse document = knowledgeBaseService.upload(file, title, categoryCode, description,
-                documentType, sourceOrganization, sourceUrl, licenseName, rightsConfirmed);
+                documentType, sourceOrganization, sourceUrl, licenseName, rightsConfirmed, diseaseCode);
         return ResponseEntity.status(StatusCode.CREATED)
                 .body(DefaultRes.res(StatusCode.CREATED, ResponseMessage.CREATED, document));
     }
@@ -106,6 +107,15 @@ public class AdminKnowledgeController {
             @RequestParam(required = false) String note) {
         return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.UPDATED,
                 knowledgeBaseService.review(id, action, note)));
+    }
+
+    /** Gắn tài liệu với bệnh lý (để AI dùng đúng tài liệu khi tạo lộ trình). diseaseCode rỗng = bỏ gắn. */
+    @PostMapping("/{id}/disease")
+    public ResponseEntity<DefaultRes<KnowledgeDocumentResponse>> assignDisease(
+            @PathVariable Long id,
+            @RequestParam(required = false) String diseaseCode) {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.UPDATED,
+                knowledgeBaseService.assignDisease(id, diseaseCode)));
     }
 
     @DeleteMapping("/{id}")

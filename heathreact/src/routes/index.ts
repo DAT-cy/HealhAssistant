@@ -22,7 +22,10 @@ export type AppRoute =
   | 'AdminDashboard'
   | 'AdminDesignSystem'
   | 'AdminDiseases'
-  | 'DoctorDashboard';
+  | 'AdminExercises'
+  | 'DoctorDashboard'
+  | 'DoctorKnowledge'
+  | 'DoctorExercises';
 
 const routePaths: Record<AppRoute, Href> = {
   Index: '/',
@@ -46,7 +49,10 @@ const routePaths: Record<AppRoute, Href> = {
   AdminDashboard: '/admin',
   AdminDesignSystem: '/admin/design-system',
   AdminDiseases: '/admin/diseases',
+  AdminExercises: '/admin/exercises',
   DoctorDashboard: '/doctor',
+  DoctorKnowledge: '/doctor/knowledge',
+  DoctorExercises: '/doctor/exercises',
 };
 
 function navigate(name: AppRoute) {

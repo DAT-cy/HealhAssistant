@@ -54,6 +54,10 @@ public class ExerciseCatalog {
     @Column(name = "contraindications", columnDefinition = "TEXT")
     private String contraindications;
 
+    /** Mã bệnh (doctor_diseases.code, cách nhau bởi dấu phẩy) mà người bệnh KHÔNG được tập bài này. */
+    @Column(name = "contraindicated_disease_codes", length = 1000)
+    private String contraindicatedDiseaseCodes;
+
     @Column(name = "is_active", nullable = false)
     private boolean active = true;
 }

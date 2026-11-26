@@ -107,4 +107,31 @@ class GeminiCoachServiceTest {
     private void verifyNoInteractionsAfterConfigurationCheck() {
         verify(client, never()).generateJson(anyString(), any(), any(GeminiClient.Options.class));
     }
+
+    @Test
+    void keepsOnlyTrustedExternalReferences() {
+        when(client.generateJson(anyString(), any(), any(GeminiClient.Options.class))).thenReturn("""
+                {"title":"Lộ trình","overview":"Mô tả.","weeklyPlan":["Tuần 1"],"safetyNotes":["Dừng nếu đau."],
+                 "references":[
+                   {"title":"WHO physical activity","organization":"WHO","url":"https://www.who.int/news-room/fact-sheets/detail/physical-activity"},
+                   {"title":"Blog lạ","url":"https://random-blog.example.com/bai-viet"},
+                   {"title":"Không https","url":"http://www.cdc.gov/physicalactivity"}
+                 ]}
+                """);
+
+        GeminiRoadmapResponse response = service.plan(new GeminiRoadmapRequest("Tập nhẹ", 1, null, null));
+
+        assertThat(response.references()).hasSize(1);
+        assertThat(response.references().get(0).kind()).isEqualTo("EXTERNAL");
+        assertThat(response.references().get(0).url()).startsWith("https://www.who.int/");
+    }
+
+    @Test
+    void trustedUrlCheckRejectsLookalikeDomains() {
+        assertThat(GeminiCoachService.isTrustedUrl("https://cdc.gov/x")).isTrue();
+        assertThat(GeminiCoachService.isTrustedUrl("https://www.nhs.uk/conditions/")).isTrue();
+        assertThat(GeminiCoachService.isTrustedUrl("https://fakewho.int/x")).isFalse();
+        assertThat(GeminiCoachService.isTrustedUrl("https://who.int.evil.com/x")).isFalse();
+        assertThat(GeminiCoachService.isTrustedUrl("not a url")).isFalse();
+    }
 }

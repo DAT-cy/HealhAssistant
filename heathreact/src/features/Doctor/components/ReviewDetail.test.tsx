@@ -16,13 +16,15 @@ describe('ReviewDetail', () => {
   it('hiện 3 phương án AI để bác sĩ duyệt', async () => {
     await renderDetail({
       aiPlan: [
-        { title: 'Đi bộ nhẹ', overview: 'Tăng sức bền', weeklyPlan: ['Đi bộ 15 phút'], safetyNotes: ['Dừng khi chóng mặt'] },
+        { title: 'Đi bộ nhẹ', overview: 'Tăng sức bền', weeklyPlan: ['Đi bộ 15 phút'], safetyNotes: ['Dừng khi chóng mặt'],
+          references: [{ kind: 'INTERNAL_DOCUMENT', title: 'Hướng dẫn vận động cho người tăng huyết áp', organization: 'Bộ Y tế', url: null }] },
         { title: 'Giãn cơ', overview: '', weeklyPlan: [], safetyNotes: [] },
       ],
     });
     expect(screen.getByText('Phương án 1: Đi bộ nhẹ')).toBeTruthy();
     expect(screen.getByText('Tuần 1: Đi bộ 15 phút')).toBeTruthy();
     expect(screen.getByText('Lưu ý an toàn: Dừng khi chóng mặt')).toBeTruthy();
+    expect(screen.getByText('Hướng dẫn vận động cho người tăng huyết áp')).toBeTruthy();
     expect(screen.getByText('Phương án 2: Giãn cơ')).toBeTruthy();
   });
 
