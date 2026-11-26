@@ -59,6 +59,41 @@ class MealAnalysisServiceTest {
         assertThat(result.nutritionTarget()).isEmpty();
     }
 
+    @Test
+    void diseaseLinkedNutritionDocumentIsRetrievedAndConditionsReachPrompt() throws Exception {
+        var category = new health_assistant.module.knowledge.entity.KnowledgeCategory("NUTRITION", "Dinh dưỡng", 1);
+        var linked = new health_assistant.module.knowledge.entity.KnowledgeDocument();
+        linked.setTitle("Ăn nhạt cho người tăng huyết áp");
+        linked.setDiseaseCode("HYPERTENSION");
+        linked.setCategory(category);
+        var other = new health_assistant.module.knowledge.entity.KnowledgeDocument();
+        other.setTitle("Bữa sáng cân bằng");
+        other.setCategory(category);
+        var chunkLinked = new health_assistant.module.knowledge.entity.KnowledgeChunk();
+        chunkLinked.setDocument(linked);
+        chunkLinked.setContent("Giảm muối dưới 5 g mỗi ngày.");
+        var chunkOther = new health_assistant.module.knowledge.entity.KnowledgeChunk();
+        chunkOther.setDocument(other);
+        chunkOther.setContent("Bữa sáng nên có đạm và rau.");
+        when(gemini.isConfigured()).thenReturn(true);
+        when(chunks.findApprovedNutritionChunks(any(Pageable.class))).thenReturn(List.of(chunkOther, chunkLinked));
+        when(gemini.generateJson(anyString(), any())).thenReturn("""
+                {"suggestedMeal":"Cháo yến mạch, rau luộc.","nutritionTargetAvailable":false,"nutritionTarget":"",
+                 "prioritizeFoods":["Rau"],"limitFoods":["Dưa muối"],"reasons":["Ít muối."],"limitationNote":"",
+                 "knowledgeSources":["Ăn nhạt cho người tăng huyết áp"]}
+                """);
+
+        var context = new MealAnalysisService.MealContext("BREAKFAST", LocalDate.of(2026, 11, 26), "", "", "", "",
+                "", "", "", "", List.of(), List.of("HYPERTENSION"), "Tăng huyết áp (lưu ý: ăn nhạt)");
+        var result = service.recommend(context);
+
+        var prompt = org.mockito.ArgumentCaptor.forClass(String.class);
+        verify(gemini).generateJson(prompt.capture(), any());
+        assertThat(prompt.getValue()).contains("Ăn nhạt cho người tăng huyết áp").contains("Tăng huyết áp (lưu ý: ăn nhạt)");
+        assertThat(result.source()).isEqualTo("KNOWLEDGE_BASE");
+        assertThat(result.limitFoods()).contains("Dưa muối");
+    }
+
     private MockMultipartFile image() throws Exception {
         BufferedImage source = new BufferedImage(2, 2, BufferedImage.TYPE_INT_RGB);
         ByteArrayOutputStream bytes = new ByteArrayOutputStream();

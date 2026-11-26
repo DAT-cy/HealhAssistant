@@ -12,6 +12,16 @@ export interface ExerciseGuide {
   equipment: string | null;
   instructions: string;
   safetyNotes: string | null;
+  sets?: number | null;
+  reps?: string | null;
+  restSeconds?: number | null;
+  commonMistakes?: string | null;
+}
+/** Bài tập phù hợp bệnh lý + bài bị ẩn vì chống chỉ định (backend: GymExerciseOptions). */
+export interface GymExerciseOptions {
+  exercises: ExerciseGuide[];
+  hidden: { code: string; name: string; diseases: string[] }[];
+  userDiseases: string[];
 }
 export interface GymWorkoutSession {
   id: number;
@@ -45,6 +55,7 @@ export interface CameraPhotoAsset { uri: string; mimeType?: string | null; fileN
 
 export const gymWorkoutService = {
   exercises: () => apiClient.request<ExerciseGuide[]>(`${apiVersion}/workout/gym/exercises`),
+  exerciseOptions: () => apiClient.request<GymExerciseOptions>(`${apiVersion}/workout/gym/exercises/options`),
   premiumAccess: () => apiClient.request<FeatureAccess>(`${apiVersion}/features/access?featureCode=AI_GYM_CAMERA`),
   start: (roadmapId: number, planSlotId: number, exerciseCode: string) =>
     apiClient.request<GymWorkoutSession>(`${apiVersion}/workout/gym/sessions`, { method: 'POST', body: JSON.stringify({ roadmapId, planSlotId, exerciseCode }) }),

@@ -186,7 +186,7 @@ public class GeminiCoachService {
     private String prompt(GeminiRoadmapRequest request, RoadmapKnowledge knowledge) {
         String knowledgeBlock = knowledge.hasInternal()
                 ? "Tài liệu nội bộ đã được Admin/Bác sĩ duyệt (ƯU TIÊN dùng, không mâu thuẫn với các tài liệu này):\n<<<\n"
-                        + AiPromptSanitizer.sanitize(knowledge.context(), RoadmapKnowledgeService.MAX_CONTEXT_CHARS) + "\n>>>\n"
+                        + AiPromptSanitizer.sanitize(knowledge.context(), RoadmapKnowledgeService.MAX_PROMPT_CHARS) + "\n>>>\n"
                         + "Chỉ khi tài liệu nội bộ không đủ, mới bổ sung theo hướng dẫn công khai của tổ chức y tế uy tín."
                 : "Kho tài liệu nội bộ chưa có tài liệu phù hợp: dùng hướng dẫn công khai của tổ chức y tế uy tín (WHO, CDC, NIH, Bộ Y tế...).";
         String schedule = request.schedule() == null || request.schedule().isEmpty()

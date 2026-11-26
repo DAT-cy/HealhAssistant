@@ -7,6 +7,9 @@ import health_assistant.module.knowledge.entity.KnowledgeChunk;
 import health_assistant.module.knowledge.entity.KnowledgeDocument;
 import health_assistant.module.knowledge.repository.KnowledgeChunkRepository;
 import health_assistant.module.knowledge.service.KnowledgeRetriever;
+import health_assistant.module.workout.entity.ExerciseCatalog;
+import health_assistant.module.workout.repository.ExerciseCatalogRepository;
+import health_assistant.module.workout.service.ExerciseSafety;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -31,6 +34,8 @@ import java.util.Set;
 @Slf4j
 public class RoadmapKnowledgeService {
     static final int MAX_CONTEXT_CHARS = 4000;
+    /** Tài liệu (tối đa MAX_CONTEXT_CHARS) + phần thư viện bài tập. */
+    static final int MAX_PROMPT_CHARS = MAX_CONTEXT_CHARS + 1500;
     private static final int MAX_CHUNK_CHARS = 700;
     private static final int MAX_DOCUMENTS = 4;
     private static final int CHUNKS_PER_DOCUMENT = 2;
@@ -38,6 +43,8 @@ public class RoadmapKnowledgeService {
     private final DiseaseRepository diseaseRepository;
     private final KnowledgeChunkRepository chunkRepository;
     private final KnowledgeRetriever retriever;
+    private final ExerciseCatalogRepository exerciseRepository;
+    private static final int MAX_LIBRARY_EXERCISES = 15;
 
     public record RoadmapKnowledge(String context, List<RoadmapReference> references) {
         public static final RoadmapKnowledge EMPTY = new RoadmapKnowledge("", List.of());
@@ -103,8 +110,32 @@ public class RoadmapKnowledgeService {
             }
         }
 
-        String text = context.length() > MAX_CONTEXT_CHARS ? context.substring(0, MAX_CONTEXT_CHARS) : context.toString();
+        // 4) Thư viện bài tập nội bộ: bài phù hợp (ưu tiên dùng) và bài bị cấm theo bệnh.
+        String library = exerciseLibrary(diseaseCodes);
+        if (!library.isBlank()) context.append(context.isEmpty() ? "" : "\n").append(library);
+
+        String text = context.length() > MAX_PROMPT_CHARS ? context.substring(0, MAX_PROMPT_CHARS) : context.toString();
         return new RoadmapKnowledge(text, dedupe(references));
+    }
+
+    private String exerciseLibrary(List<String> diseaseCodes) {
+        Set<String> diseases = ExerciseSafety.diseaseCodes(String.join(",", diseaseCodes));
+        List<String> allowed = new ArrayList<>();
+        List<String> blocked = new ArrayList<>();
+        for (ExerciseCatalog exercise : exerciseRepository.findAllByActiveTrueOrderByNameAsc()) {
+            if (!ExerciseSafety.blockedBy(exercise, diseases).isEmpty()) { blocked.add(exercise.getName()); continue; }
+            if (allowed.size() >= MAX_LIBRARY_EXERCISES) continue;
+            String dose = exercise.getSets() == null ? "" : " " + exercise.getSets() + " hiệp"
+                    + (exercise.getReps() == null ? "" : " x " + exercise.getReps());
+            allowed.add(exercise.getName() + " (" + exercise.getMuscleGroup() + dose + ")");
+        }
+        if (allowed.isEmpty() && blocked.isEmpty()) return "";
+        StringBuilder text = new StringBuilder("[Thư viện bài tập nội bộ] Ưu tiên dùng các bài sau khi lên buổi tập: ")
+                .append(allowed.isEmpty() ? "(không có bài phù hợp)" : String.join("; ", allowed)).append('.');
+        if (!blocked.isEmpty()) text.append(" TUYỆT ĐỐI KHÔNG đưa vào lộ trình (chống chỉ định với bệnh của người dùng): ")
+                .append(String.join("; ", blocked)).append('.');
+        text.append(" Nếu cần bài ngoài thư viện, chỉ ghi tên bài và mức độ, không tự mô tả chi tiết tư thế.");
+        return text.toString();
     }
 
     private static RoadmapReference internal(KnowledgeDocument document) {

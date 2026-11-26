@@ -32,9 +32,18 @@ import java.util.List;
 public class GymWorkoutController {
     private final GymWorkoutService service;
 
+    /** Chỉ trả bài tập phù hợp với bệnh lý của người dùng. */
     @GetMapping("/exercises")
     public ResponseEntity<DefaultRes<List<ExerciseCatalogResponse>>> exercises() {
-        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_LIST, service.exercises()));
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_LIST,
+                service.exerciseOptions(SecurityUtils.getCurrentUserId()).exercises()));
+    }
+
+    /** Bài tập phù hợp + danh sách bài bị ẩn vì chống chỉ định (để app giải thích cho người dùng). */
+    @GetMapping("/exercises/options")
+    public ResponseEntity<DefaultRes<health_assistant.module.workout.dto.GymExerciseOptions>> exerciseOptions() {
+        return ResponseEntity.ok(DefaultRes.res(StatusCode.OK, ResponseMessage.GET_LIST,
+                service.exerciseOptions(SecurityUtils.getCurrentUserId())));
     }
 
     @PostMapping("/sessions")
