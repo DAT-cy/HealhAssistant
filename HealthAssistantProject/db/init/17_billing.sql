@@ -1,3 +1,4 @@
+SET NAMES utf8mb4;
 USE health_assistant;
 
 CREATE TABLE IF NOT EXISTS billing_plans (
